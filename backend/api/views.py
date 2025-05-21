@@ -1,7 +1,10 @@
+from django.shortcuts import render
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from .models import Account, Transaction
-from .serializers import AccountSerializer, TransactionSerializer
+from .models import Account, Transaction, Category
+from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer
+
+# Create your views here.
 
 class AccountViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -21,4 +24,14 @@ class TransactionViewSet(viewsets.ModelViewSet):
         return Transaction.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user) 
+        serializer.save(user=self.request.user)
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CategorySerializer
+
+    def get_queryset(self):
+        return Category.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
