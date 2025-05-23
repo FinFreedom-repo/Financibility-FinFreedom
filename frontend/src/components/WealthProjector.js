@@ -1,4 +1,28 @@
 import React, { useState } from 'react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 function WealthProjector() {
   const [formData, setFormData] = useState({
@@ -9,7 +33,9 @@ function WealthProjector() {
     assetInterest: '10.5',
     inflation: '2.5',
     taxRate: '25',
-    annualContributions: '1000'
+    annualContributions: '1000',
+    checkingInterest: '4',
+    maxAge: '100'
   });
 
   const [showChart, setShowChart] = useState(false);
@@ -54,6 +80,186 @@ function WealthProjector() {
     }
   };
 
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const getChartData = () => {
+    if (!projectionData) return null;
+
+    const ages = projectionData.projections.map(p => p.age);
+    const wealth = projectionData.projections.map(p => p.wealth);
+    const debt = projectionData.projections.map(p => p.debt);
+    const adjustedNetWorth = projectionData.projections.map(p => p.adjusted_net_worth);
+    const checkingWealth = projectionData.projections.map(p => p.checking_wealth);
+    const adjustedCheckingWealth = projectionData.projections.map(p => p.adjusted_checking_wealth);
+
+    return {
+      labels: ages,
+      datasets: [
+        {
+          label: 'Total Wealth',
+          data: wealth,
+          borderColor: '#1a237e',
+          backgroundColor: 'rgba(26, 35, 126, 0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#1a237e',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2
+        },
+        {
+          label: 'Checking Account',
+          data: checkingWealth,
+          borderColor: '#2196f3',
+          backgroundColor: 'rgba(33, 150, 243, 0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#2196f3',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2
+        },
+        {
+          label: 'Checking Account (Infl. Adj.)',
+          data: adjustedCheckingWealth,
+          borderColor: '#00bcd4',
+          backgroundColor: 'rgba(0, 188, 212, 0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#00bcd4',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2
+        },
+        {
+          label: 'Net Worth (Infl. Adj.)',
+          data: adjustedNetWorth,
+          borderColor: '#ff9800',
+          backgroundColor: 'rgba(255, 152, 0, 0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#ff9800',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2
+        },
+        {
+          label: 'Debt',
+          data: debt,
+          borderColor: '#f44336',
+          backgroundColor: 'rgba(244, 67, 54, 0.1)',
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#f44336',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2
+        }
+      ]
+    };
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index',
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          color: '#1a237e',
+          font: {
+            size: 14,
+            weight: 'bold'
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(26, 35, 126, 0.9)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        padding: 12,
+        callbacks: {
+          title: function(context) {
+            return `Age: ${context[0].label}`;
+          },
+          label: function(context) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += formatCurrency(context.parsed.y);
+            }
+            return label;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)',
+        },
+        ticks: {
+          color: '#666',
+          font: {
+            size: 12
+          }
+        },
+        title: {
+          display: true,
+          text: 'Age',
+          color: '#666',
+          font: {
+            size: 14,
+            weight: 'bold'
+          }
+        },
+        min: parseInt(formData.age),
+        max: parseInt(formData.maxAge)
+      },
+      y: {
+        grid: {
+          color: 'rgba(0, 0, 0, 0.1)',
+        },
+        ticks: {
+          color: '#666',
+          font: {
+            size: 12
+          },
+          callback: function(value) {
+            return formatCurrency(value);
+          }
+        },
+        title: {
+          display: true,
+          text: 'Amount ($)',
+          color: '#666',
+          font: {
+            size: 14,
+            weight: 'bold'
+          }
+        }
+      }
+    }
+  };
+
   return (
     <div className="wealth-projector">
       <div className="wealth-header">
@@ -72,6 +278,21 @@ function WealthProjector() {
                 value={formData.age}
                 onChange={handleChange}
                 placeholder="Enter your age"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="maxAge">Max Age</label>
+              <input
+                type="number"
+                id="maxAge"
+                name="maxAge"
+                value={formData.maxAge}
+                onChange={handleChange}
+                placeholder="Enter max age"
+                min={parseInt(formData.age) + 1}
+                max="120"
                 required
               />
             </div>
@@ -171,6 +392,20 @@ function WealthProjector() {
               />
             </div>
 
+            <div className="form-group">
+              <label htmlFor="checkingInterest">Checking Account Interest Rate (%)</label>
+              <input
+                type="number"
+                id="checkingInterest"
+                name="checkingInterest"
+                value={formData.checkingInterest}
+                onChange={handleChange}
+                placeholder="Enter interest rate"
+                step="0.01"
+                required
+              />
+            </div>
+
             <button 
               type="submit" 
               className="simulate-button"
@@ -187,9 +422,8 @@ function WealthProjector() {
               Calculating your wealth projection...
             </div>
           ) : showChart && projectionData ? (
-            <div className="chart-placeholder">
-              {/* We'll add the chart visualization here later */}
-              Projection data received: {JSON.stringify(projectionData)}
+            <div style={{ width: '100%', height: '100%', minHeight: '500px' }}>
+              <Line options={chartOptions} data={getChartData()} />
             </div>
           ) : (
             <div className="chart-placeholder">
