@@ -22,6 +22,9 @@
   padding: 1rem 2rem;
   color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .App-title {
@@ -171,7 +174,7 @@
 }
 
 .simulate-button {
-  background-color: #1a237e;
+  background-color: #8B0000;
   color: white;
   border: none;
   padding: 1rem 2rem;
@@ -186,7 +189,7 @@
 }
 
 .simulate-button:hover {
-  background-color: #000051;
+  background-color: #A52A2A;
   transform: translateY(-1px);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
@@ -215,4 +218,29 @@
 
 .App-menu-item a:hover {
   color: #000051;
+}
+
+.login-button {
+  background-color: #1a237e;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.login-button:hover {
+  background-color: #000051;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.login-button:active {
+  transform: translateY(0);
+  box-shadow: none;
 }

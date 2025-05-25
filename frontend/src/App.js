@@ -29,6 +29,7 @@ function App() {
       <div className="App">
         <header className="App-header">
           <h1 className="App-title">Financability</h1>
+          <button className="login-button">Login</button>
         </header>
         <div className="App-container">
           <Navigation />
