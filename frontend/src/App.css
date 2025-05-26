@@ -19,17 +19,18 @@
 
 .App-header {
   background-color: #282c34;
-  padding: 1rem 2rem;
+  padding: 0.75rem 2rem;
   color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  height: 60px;
 }
 
 .App-title {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   font-weight: 600;
 }
 
@@ -242,5 +243,37 @@
 
 .login-button:active {
   transform: translateY(0);
+  box-shadow: none;
+}
+
+.App-header .login-button {
+  background-color: transparent;
+  color: white;
+  border: 1px solid white;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  height: fit-content;
+  margin-left: 1rem;
+  min-width: 90px;
+  max-width: 90px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.App-header .login-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: none;
+  box-shadow: none;
+}
+
+.App-header .login-button:active {
+  transform: none;
   box-shadow: none;
 }

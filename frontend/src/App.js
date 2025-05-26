@@ -1,6 +1,8 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
+import { useState } from 'react';
 import './App.css';
 import WealthProjector from './components/WealthProjector';
+import Login from './components/Login';
 
 function Navigation() {
   const location = useLocation();
@@ -24,23 +26,49 @@ function Navigation() {
 }
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginError, setLoginError] = useState('');
+
+  const handleLogin = (credentials) => {
+    if (credentials.email === 'kevin' && credentials.password === 'kmac7272') {
+      setIsAuthenticated(true);
+      setLoginError('');
+    } else {
+      setLoginError('Invalid username or password');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setLoginError('');
+  };
+
   return (
     <Router>
       <div className="App">
-        <header className="App-header">
-          <h1 className="App-title">Financability</h1>
-          <button className="login-button">Login</button>
-        </header>
-        <div className="App-container">
-          <Navigation />
-          <main className="App-content">
-            <Routes>
-              <Route path="/wealth-projector" element={<WealthProjector />} />
-              <Route path="/expenses" element={<div>Expenses View Coming Soon</div>} />
-              <Route path="/" element={<WealthProjector />} />
-            </Routes>
-          </main>
-        </div>
+        {isAuthenticated ? (
+          <>
+            <header className="App-header">
+              <h1 className="App-title">Financability</h1>
+              <button className="login-button" onClick={handleLogout}>Logout</button>
+            </header>
+            <div className="App-container">
+              <Navigation />
+              <main className="App-content">
+                <Routes>
+                  <Route path="/wealth-projector" element={<WealthProjector />} />
+                  <Route path="/expenses" element={<div>Expenses View Coming Soon</div>} />
+                  <Route path="/" element={<Navigate to="/wealth-projector" replace />} />
+                </Routes>
+              </main>
+            </div>
+          </>
+        ) : (
+          <Routes>
+            <Route path="/" element={<Login onLogin={handleLogin} error={loginError} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        )}
       </div>
     </Router>
   );
