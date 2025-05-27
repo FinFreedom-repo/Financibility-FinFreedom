@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 import WealthProjector from './components/WealthProjector';
 import Login from './components/Login';
@@ -26,12 +26,17 @@ function Navigation() {
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    // Check localStorage on initial load
+    const savedAuth = localStorage.getItem('isAuthenticated');
+    return savedAuth === 'true';
+  });
   const [loginError, setLoginError] = useState('');
 
   const handleLogin = (credentials) => {
     if (credentials.email === 'kevin' && credentials.password === 'kmac7272') {
       setIsAuthenticated(true);
+      localStorage.setItem('isAuthenticated', 'true');
       setLoginError('');
     } else {
       setLoginError('Invalid username or password');
@@ -40,6 +45,7 @@ function App() {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    localStorage.removeItem('isAuthenticated');
     setLoginError('');
   };
 
