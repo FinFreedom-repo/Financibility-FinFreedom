@@ -1,8 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import axios from './utils/axios';
 import './App.css';
 import WealthProjector from './components/WealthProjector';
 import Login from './components/Login';
+import MonthlyBudget from './components/MonthlyBudget';
 
 function Navigation() {
   const location = useLocation();
@@ -10,6 +12,11 @@ function Navigation() {
   return (
     <nav className="App-sidebar">
       <ul className="App-menu">
+        <li 
+          className={`App-menu-item ${location.pathname === '/monthly-budget' ? 'active' : ''}`}
+        >
+          <Link to="/monthly-budget">Monthly Budget</Link>
+        </li>
         <li 
           className={`App-menu-item ${location.pathname === '/wealth-projector' ? 'active' : ''}`}
         >
@@ -29,23 +36,34 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     // Check localStorage on initial load
     const savedAuth = localStorage.getItem('isAuthenticated');
-    return savedAuth === 'true';
+    const token = localStorage.getItem('token');
+    return savedAuth === 'true' && !!token;
   });
   const [loginError, setLoginError] = useState('');
 
-  const handleLogin = (credentials) => {
-    if (credentials.email === 'kevin' && credentials.password === 'kmac7272') {
-      setIsAuthenticated(true);
-      localStorage.setItem('isAuthenticated', 'true');
-      setLoginError('');
-    } else {
+  const handleLogin = async (credentials) => {
+    try {
+      // For now, use hardcoded credentials
+      if (credentials.email === 'kevin' && credentials.password === 'kmac7272') {
+        // Simulate a successful login
+        const token = 'dummy-token-for-testing';
+        setIsAuthenticated(true);
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('token', token);
+        setLoginError('');
+      } else {
+        setLoginError('Invalid username or password');
+      }
+    } catch (error) {
       setLoginError('Invalid username or password');
+      console.error('Login error:', error);
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('token');
     setLoginError('');
   };
 
@@ -64,6 +82,7 @@ function App() {
                 <Routes>
                   <Route path="/wealth-projector" element={<WealthProjector />} />
                   <Route path="/expenses" element={<div>Expenses View Coming Soon</div>} />
+                  <Route path="/monthly-budget" element={<MonthlyBudget />} />
                   <Route path="/" element={<Navigate to="/wealth-projector" replace />} />
                 </Routes>
               </main>
