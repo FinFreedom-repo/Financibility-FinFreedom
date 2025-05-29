@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import axios from '../utils/axios';
+import { useAuth } from '../contexts/AuthContext';
 import '../styles/MonthlyBudget.css';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 function MonthlyBudget() {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     income: '',
     rent: '',
@@ -84,10 +86,21 @@ function MonthlyBudget() {
           type: item.type,
           name: item.name,
           amount: parseFloat(item.amount) || 0
-        }))
+        })),
+        user: user.id
       };
 
-      await axios.put('/api/budget', budgetData);
+      // First get the existing budget to get its ID
+      const response = await axios.get('/api/budget/');
+      const existingBudget = response.data[0]; // Get the first budget
+
+      if (existingBudget) {
+        // If budget exists, update it
+        await axios.put(`/api/budget/${existingBudget.id}/`, budgetData);
+      } else {
+        // If no budget exists, create a new one
+        await axios.post('/api/budget/', budgetData);
+      }
       setError(null);
     } catch (err) {
       setError('Failed to save budget data. Please try again later.');

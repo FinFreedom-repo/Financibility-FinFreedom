@@ -1,101 +1,56 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import axios from './utils/axios';
-import './App.css';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Navigation from './components/Navigation';
 import WealthProjector from './components/WealthProjector';
 import Login from './components/Login';
 import MonthlyBudget from './components/MonthlyBudget';
+import './App.css';
 
-function Navigation() {
-  const location = useLocation();
-  
+function AppContent() {
+  const { user, loading, logout } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <nav className="App-sidebar">
-      <ul className="App-menu">
-        <li 
-          className={`App-menu-item ${location.pathname === '/monthly-budget' ? 'active' : ''}`}
-        >
-          <Link to="/monthly-budget">Monthly Budget</Link>
-        </li>
-        <li 
-          className={`App-menu-item ${location.pathname === '/wealth-projector' ? 'active' : ''}`}
-        >
-          <Link to="/wealth-projector">Wealth Projector</Link>
-        </li>
-        <li 
-          className={`App-menu-item ${location.pathname === '/expenses' ? 'active' : ''}`}
-        >
-          <Link to="/expenses">Expenses</Link>
-        </li>
-      </ul>
-    </nav>
+    <div className="App">
+      {user ? (
+        <>
+          <header className="App-header">
+            <h1 className="App-title">Financability</h1>
+            <button className="login-button" onClick={logout}>Logout</button>
+          </header>
+          <div className="App-container">
+            <Navigation />
+            <main className="App-content">
+              <Routes>
+                <Route path="/wealth-projector" element={<WealthProjector />} />
+                <Route path="/expenses" element={<div>Expenses View Coming Soon</div>} />
+                <Route path="/monthly-budget" element={<MonthlyBudget />} />
+                <Route path="/" element={<Navigate to="/wealth-projector" replace />} />
+              </Routes>
+            </main>
+          </div>
+        </>
+      ) : (
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      )}
+    </div>
   );
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    // Check localStorage on initial load
-    const savedAuth = localStorage.getItem('isAuthenticated');
-    const token = localStorage.getItem('token');
-    return savedAuth === 'true' && !!token;
-  });
-  const [loginError, setLoginError] = useState('');
-
-  const handleLogin = async (credentials) => {
-    try {
-      // For now, use hardcoded credentials
-      if (credentials.email === 'kevin' && credentials.password === 'kmac7272') {
-        // Simulate a successful login
-        const token = 'dummy-token-for-testing';
-        setIsAuthenticated(true);
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('token', token);
-        setLoginError('');
-      } else {
-        setLoginError('Invalid username or password');
-      }
-    } catch (error) {
-      setLoginError('Invalid username or password');
-      console.error('Login error:', error);
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('token');
-    setLoginError('');
-  };
-
   return (
-    <Router>
-      <div className="App">
-        {isAuthenticated ? (
-          <>
-            <header className="App-header">
-              <h1 className="App-title">Financability</h1>
-              <button className="login-button" onClick={handleLogout}>Logout</button>
-            </header>
-            <div className="App-container">
-              <Navigation />
-              <main className="App-content">
-                <Routes>
-                  <Route path="/wealth-projector" element={<WealthProjector />} />
-                  <Route path="/expenses" element={<div>Expenses View Coming Soon</div>} />
-                  <Route path="/monthly-budget" element={<MonthlyBudget />} />
-                  <Route path="/" element={<Navigate to="/wealth-projector" replace />} />
-                </Routes>
-              </main>
-            </div>
-          </>
-        ) : (
-          <Routes>
-            <Route path="/" element={<Login onLogin={handleLogin} error={loginError} />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        )}
-      </div>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AuthProvider>
   );
 }
 
