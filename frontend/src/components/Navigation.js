@@ -13,14 +13,14 @@ function Navigation() {
           <Link to="/monthly-budget">Monthly Budget</Link>
         </li>
         <li 
+          className={`App-menu-item ${location.pathname === '/expense-analyzer' ? 'active' : ''}`}
+        >
+          <Link to="/expense-analyzer">Expense Analyzer</Link>
+        </li>
+        <li 
           className={`App-menu-item ${location.pathname === '/wealth-projector' ? 'active' : ''}`}
         >
           <Link to="/wealth-projector">Wealth Projector</Link>
-        </li>
-        <li 
-          className={`App-menu-item ${location.pathname === '/expenses' ? 'active' : ''}`}
-        >
-          <Link to="/expenses">Expenses</Link>
         </li>
       </ul>
     </nav>

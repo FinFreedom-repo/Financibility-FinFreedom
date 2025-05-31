@@ -5,6 +5,7 @@ import Navigation from './components/Navigation';
 import WealthProjector from './components/WealthProjector';
 import Login from './components/Login';
 import MonthlyBudget from './components/MonthlyBudget';
+import ExpenseAnalyzer from './components/ExpenseAnalyzer';
 import './App.css';
 
 function AppContent() {
@@ -27,8 +28,8 @@ function AppContent() {
             <main className="App-content">
               <Routes>
                 <Route path="/wealth-projector" element={<WealthProjector />} />
-                <Route path="/expenses" element={<div>Expenses View Coming Soon</div>} />
                 <Route path="/monthly-budget" element={<MonthlyBudget />} />
+                <Route path="/expense-analyzer" element={<ExpenseAnalyzer />} />
                 <Route path="/" element={<Navigate to="/wealth-projector" replace />} />
               </Routes>
             </main>

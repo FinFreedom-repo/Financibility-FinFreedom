@@ -10,7 +10,7 @@ router.register(r'accounts', AccountViewSet, basename='account')
 router.register(r'transactions', TransactionViewSet, basename='transaction')
 router.register(r'categories', CategoryViewSet, basename='category')
 print("Registering BudgetViewSet...")
-router.register(r'budget', BudgetViewSet, basename='budget')
+router.register(r'budgets', BudgetViewSet, basename='budget')
 print("Available actions for BudgetViewSet:", BudgetViewSet.get_extra_actions())
 
 urlpatterns = [

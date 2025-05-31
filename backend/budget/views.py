@@ -2,8 +2,13 @@ from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+import os
+from datetime import datetime
 from .models import Budget
 from .serializers import BudgetSerializer
+from rest_framework.decorators import action
 
 # Create your views here.
 
@@ -71,3 +76,24 @@ class BudgetViewSet(viewsets.ModelViewSet):
     def initial(self, request, *args, **kwargs):
         print("Initial request handling for method:", request.method)
         return super().initial(request, *args, **kwargs)
+
+    @action(detail=False, methods=['post'])
+    def upload_statement(self, request):
+        print("Upload statement called with files:", request.FILES)
+        print("Upload statement called with data:", request.data)
+        
+        if 'file' not in request.FILES:
+            print("No file in request.FILES")
+            return Response(
+                {'error': 'No file provided'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        file = request.FILES['file']
+        print("File received:", file.name, "Type:", file.content_type)
+
+        # Just confirm receipt of the file
+        return Response({
+            'message': 'Document received successfully',
+            'filename': file.name
+        }, status=status.HTTP_200_OK)
