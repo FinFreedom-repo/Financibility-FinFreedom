@@ -26,6 +26,7 @@ function MonthlyBudget() {
   const [incomeChartData, setIncomeChartData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
   useEffect(() => {
     loadBudgetData();
@@ -42,25 +43,44 @@ function MonthlyBudget() {
       console.log('Making API call to /api/budget/...');
       const response = await axios.get('/api/budget/');
       console.log('API Response:', response);
-      const budgetData = response.data;
-      console.log('Budget data received:', budgetData);
+      
+      // The backend already filters by user, so we should get an array with at most one budget
+      const budgetData = response.data[0]; // Get the first (and should be only) budget
+      
+      if (budgetData) {
+        console.log('Budget data received:', budgetData);
+        // Update form data
+        setFormData({
+          income: budgetData.income || '',
+          rent: budgetData.rent || '',
+          creditCardDebt: budgetData.credit_card_debt || '',
+          transportation: budgetData.transportation || '',
+          utilities: budgetData.utilities || '',
+          internet: budgetData.internet || '',
+          groceries: budgetData.groceries || '',
+          healthcare: budgetData.healthcare || '',
+          childcare: budgetData.childcare || ''
+        });
 
-      // Update form data
-      setFormData({
-        income: budgetData.income || '',
-        rent: budgetData.rent || '',
-        creditCardDebt: budgetData.credit_card_debt || '',
-        transportation: budgetData.transportation || '',
-        utilities: budgetData.utilities || '',
-        internet: budgetData.internet || '',
-        groceries: budgetData.groceries || '',
-        healthcare: budgetData.healthcare || '',
-        childcare: budgetData.childcare || ''
-      });
-
-      // Update additional items
-      setAdditionalItems(budgetData.additional_items || []);
-      setError(null);
+        // Update additional items
+        setAdditionalItems(budgetData.additional_items || []);
+        setError(null);
+      } else {
+        console.log('No budget found for user');
+        // Initialize with empty values if no budget exists
+        setFormData({
+          income: '',
+          rent: '',
+          creditCardDebt: '',
+          transportation: '',
+          utilities: '',
+          internet: '',
+          groceries: '',
+          healthcare: '',
+          childcare: ''
+        });
+        setAdditionalItems([]);
+      }
     } catch (err) {
       console.error('Detailed error:', err);
       console.error('Error response:', err.response);
@@ -102,6 +122,11 @@ function MonthlyBudget() {
         await axios.post('/api/budget/', budgetData);
       }
       setError(null);
+      setSuccessMessage('Budget saved successfully!');
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
     } catch (err) {
       setError('Failed to save budget data. Please try again later.');
       console.error('Error saving budget:', err);
@@ -185,17 +210,21 @@ function MonthlyBudget() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // Convert empty string to 0 for number inputs
+    const processedValue = value === '' ? '' : value;
     setFormData(prevState => ({
       ...prevState,
-      [name]: value
+      [name]: processedValue
     }));
   };
 
   const handleAdditionalItemChange = (index, field, value) => {
     const newItems = [...additionalItems];
+    // Convert empty string to 0 for amount field
+    const processedValue = field === 'amount' && value === '' ? '' : value;
     newItems[index] = {
       ...newItems[index],
-      [field]: value
+      [field]: processedValue
     };
     setAdditionalItems(newItems);
   };
@@ -282,7 +311,7 @@ function MonthlyBudget() {
       
       <div className="budget-container">
         <div className="budget-form-container">
-          <form className="budget-form">
+          <form className="budget-form" onSubmit={(e) => { e.preventDefault(); saveBudgetData(); }}>
             <div className="form-section">
               <h3>Income</h3>
               <div className="form-group">
@@ -294,7 +323,6 @@ function MonthlyBudget() {
                   value={formData.income}
                   onChange={handleChange}
                   placeholder="Enter your total monthly income"
-                  required
                 />
               </div>
               {additionalItems.filter(item => item.type === 'income').map((item, index) => (
@@ -346,7 +374,6 @@ function MonthlyBudget() {
                   value={formData.rent}
                   onChange={handleChange}
                   placeholder="Enter your monthly housing payment"
-                  required
                 />
               </div>
               <div className="form-group">
@@ -358,7 +385,6 @@ function MonthlyBudget() {
                   value={formData.creditCardDebt}
                   onChange={handleChange}
                   placeholder="Enter your monthly credit card interest payments"
-                  required
                 />
               </div>
               <div className="form-group">
@@ -370,7 +396,6 @@ function MonthlyBudget() {
                   value={formData.transportation}
                   onChange={handleChange}
                   placeholder="Include car payment, insurance, fuel, metro, etc."
-                  required
                 />
               </div>
               <div className="form-group">
@@ -382,7 +407,6 @@ function MonthlyBudget() {
                   value={formData.utilities}
                   onChange={handleChange}
                   placeholder="Include electricity, water, gas, etc."
-                  required
                 />
               </div>
               <div className="form-group">
@@ -394,7 +418,6 @@ function MonthlyBudget() {
                   value={formData.internet}
                   onChange={handleChange}
                   placeholder="Include all subscription services"
-                  required
                 />
               </div>
             </div>
@@ -410,7 +433,6 @@ function MonthlyBudget() {
                   value={formData.groceries}
                   onChange={handleChange}
                   placeholder="Include all food and household items"
-                  required
                 />
               </div>
               <div className="form-group">
@@ -422,7 +444,6 @@ function MonthlyBudget() {
                   value={formData.healthcare}
                   onChange={handleChange}
                   placeholder="Include insurance, medications, etc."
-                  required
                 />
               </div>
               <div className="form-group">
@@ -434,7 +455,6 @@ function MonthlyBudget() {
                   value={formData.childcare}
                   onChange={handleChange}
                   placeholder="Include daycare, after-school care, etc."
-                  required
                 />
               </div>
               {additionalItems.filter(item => item.type === 'expense').map((item, index) => (
@@ -475,13 +495,14 @@ function MonthlyBudget() {
               </button>
             </div>
             <button
-              type="button"
+              type="submit"
               className="save-button"
-              onClick={saveBudgetData}
               style={{ marginTop: '1.5rem', width: '100%' }}
             >
-              Save
+              Save Budget
             </button>
+            {error && <div className="error">{error}</div>}
+            {successMessage && <div className="success-message">{successMessage}</div>}
           </form>
         </div>
 
