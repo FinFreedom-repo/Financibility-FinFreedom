@@ -3,7 +3,7 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from .models import Account, Transaction, Category
 from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from .wealth_projection import calculate_wealth_projection
@@ -41,7 +41,14 @@ class CategoryViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def project_wealth(request):
+    print("Project wealth endpoint called")
+    print("Request headers:", request.headers)
+    print("Request user:", request.user)
+    print("Request auth:", request.auth)
+    print("Request data:", request.data)
+    
     try:
         # Validate required fields
         required_fields = [
@@ -51,15 +58,18 @@ def project_wealth(request):
         
         for field in required_fields:
             if field not in request.data:
+                print(f"Missing required field: {field}")
                 return Response(
                     {'error': f'Missing required field: {field}'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
         
         # Calculate projection
+        print("Calculating projection with data:", request.data)
         projections = calculate_wealth_projection(request.data)
+        print("Projection calculated successfully")
         
-        return Response({
+        response_data = {
             'projections': projections,
             'summary': {
                 'starting_age': int(request.data['age']),
@@ -71,9 +81,12 @@ def project_wealth(request):
                 'final_net_worth': projections[-1]['net_worth'],
                 'final_adjusted_net_worth': projections[-1]['adjusted_net_worth']
             }
-        })
+        }
+        print("Sending response:", response_data)
+        return Response(response_data)
         
     except Exception as e:
+        print("Error in project_wealth:", str(e))
         return Response(
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR

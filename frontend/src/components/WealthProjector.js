@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from '../utils/axios';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -57,23 +58,11 @@ function WealthProjector() {
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:8000/api/project-wealth/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to calculate projection');
-      }
-
-      const data = await response.json();
-      setProjectionData(data);
+      const response = await axios.post('/api/project-wealth/', formData);
+      setProjectionData(response.data);
       setShowChart(true);
     } catch (err) {
-      setError(err.message);
+      setError('Failed to calculate projection. Please try again.');
       setShowChart(false);
     } finally {
       setIsLoading(false);

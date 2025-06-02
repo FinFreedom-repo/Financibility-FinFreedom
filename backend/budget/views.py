@@ -92,6 +92,13 @@ class BudgetViewSet(viewsets.ModelViewSet):
         file = request.FILES['file']
         print("File received:", file.name, "Type:", file.content_type)
 
+        # Read and print first line
+        try:
+            first_line = file.readline().decode('utf-8').strip()
+            print("First line of document:", first_line)
+        except Exception as e:
+            print("Error reading first line:", str(e))
+
         # Just confirm receipt of the file
         return Response({
             'message': 'Document received successfully',
