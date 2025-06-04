@@ -31,14 +31,14 @@ class BudgetViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         print("Create method called with data:", request.data)
-        # Check if any budget exists
-        if Budget.objects.exists():
-            print("Budget already exists, returning existing budget")
-            existing_budget = Budget.objects.first()
+        # Check if budget exists for current user
+        if Budget.objects.filter(user=request.user).exists():
+            print("Budget already exists for user, returning existing budget")
+            existing_budget = Budget.objects.filter(user=request.user).first()
             serializer = self.get_serializer(existing_budget)
             return Response(serializer.data, status=status.HTTP_200_OK)
         
-        print("No existing budget, creating new one")
+        print("No existing budget for user, creating new one")
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):

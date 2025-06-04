@@ -21,6 +21,7 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
+from routers.grok_router import GrokExcelView
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/api/', permanent=False)),
@@ -28,4 +29,5 @@ urlpatterns = [
     path('api/', include('api.urls')),
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/grok/analyze-excel/', GrokExcelView.as_view(), name='grok-analyze-excel'),
 ]

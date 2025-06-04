@@ -40,8 +40,8 @@ function MonthlyBudget() {
     try {
       console.log('Starting to load budget data...');
       setIsLoading(true);
-      console.log('Making API call to /api/budget/...');
-      const response = await axios.get('/api/budget/');
+      console.log('Making API call to /api/budgets/...');
+      const response = await axios.get('/api/budgets/');
       console.log('API Response:', response);
       
       // The backend already filters by user, so we should get an array with at most one budget
@@ -111,15 +111,15 @@ function MonthlyBudget() {
       };
 
       // First get the existing budget to get its ID
-      const response = await axios.get('/api/budget/');
+      const response = await axios.get('/api/budgets/');
       const existingBudget = response.data[0]; // Get the first budget
 
       if (existingBudget) {
         // If budget exists, update it
-        await axios.put(`/api/budget/${existingBudget.id}/`, budgetData);
+        await axios.put(`/api/budgets/${existingBudget.id}/`, budgetData);
       } else {
         // If no budget exists, create a new one
-        await axios.post('/api/budget/', budgetData);
+        await axios.post('/api/budgets/', budgetData);
       }
       setError(null);
       setSuccessMessage('Budget saved successfully!');
