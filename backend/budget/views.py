@@ -76,31 +76,3 @@ class BudgetViewSet(viewsets.ModelViewSet):
     def initial(self, request, *args, **kwargs):
         print("Initial request handling for method:", request.method)
         return super().initial(request, *args, **kwargs)
-
-    @action(detail=False, methods=['post'])
-    def upload_statement(self, request):
-        print("Upload statement called with files:", request.FILES)
-        print("Upload statement called with data:", request.data)
-        
-        if 'file' not in request.FILES:
-            print("No file in request.FILES")
-            return Response(
-                {'error': 'No file provided'}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        file = request.FILES['file']
-        print("File received:", file.name, "Type:", file.content_type)
-
-        # Read and print first line
-        try:
-            first_line = file.readline().decode('utf-8').strip()
-            print("First line of document:", first_line)
-        except Exception as e:
-            print("Error reading first line:", str(e))
-
-        # Just confirm receipt of the file
-        return Response({
-            'message': 'Document received successfully',
-            'filename': file.name
-        }, status=status.HTTP_200_OK)

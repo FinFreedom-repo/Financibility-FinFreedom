@@ -141,4 +141,29 @@
 .upload-status.error {
   background-color: #ffebee;
   color: #c62828;
+}
+
+.analysis-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.analysis-section h3 {
+  color: #1a237e;
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.analysis-content {
+  color: #333;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.analysis-content p {
+  margin: 0.5rem 0;
 } 

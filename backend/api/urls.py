@@ -1,7 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import AccountViewSet, TransactionViewSet, CategoryViewSet
-from . import views
+from .views import (
+    AccountViewSet, 
+    TransactionViewSet, 
+    CategoryViewSet,
+    project_wealth
+)
+from .expense_analyzer import ExpenseAnalyzerView
 from budget.views import BudgetViewSet
 
 print("Registering viewsets...")
@@ -15,5 +20,6 @@ print("Available actions for BudgetViewSet:", BudgetViewSet.get_extra_actions())
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('project-wealth/', views.project_wealth, name='project-wealth'),
+    path('expense-analyzer/upload/', ExpenseAnalyzerView.as_view(), name='expense-analyzer-upload'),
+    path('project-wealth/', project_wealth, name='project-wealth'),
 ]

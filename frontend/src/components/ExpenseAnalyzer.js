@@ -5,18 +5,15 @@ import '../styles/ExpenseAnalyzer.css';
 function ExpenseAnalyzer() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState('');
+  const [analysis, setAnalysis] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      // Check if file is a PDF or CSV
-      if (file.type === 'application/pdf' || file.type === 'text/csv') {
-        setSelectedFile(file);
-        setUploadStatus('');
-      } else {
-        setUploadStatus('Please select a PDF or CSV file');
-        setSelectedFile(null);
-      }
+      setSelectedFile(file);
+      setUploadStatus('');
+      setAnalysis(null); // Clear previous analysis
     }
   };
 
@@ -30,19 +27,23 @@ function ExpenseAnalyzer() {
     formData.append('file', selectedFile);
 
     try {
-      setUploadStatus('Uploading...');
+      setIsAnalyzing(true);
+      setUploadStatus('Analyzing...');
       console.log('Uploading file:', selectedFile.name);
-      const response = await axios.post('/api/budgets/upload_statement/', formData, {
+      const response = await axios.post('/api/expense-analyzer/upload/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
       console.log('Upload response:', response.data);
-      setUploadStatus('Upload successful!');
+      setUploadStatus('Analysis complete!');
+      setAnalysis(response.data.analysis);
       setSelectedFile(null);
     } catch (error) {
       console.error('Error uploading file:', error.response?.data || error);
       setUploadStatus(error.response?.data?.error || 'Upload failed. Please try again.');
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -66,7 +67,6 @@ function ExpenseAnalyzer() {
             <input
               type="file"
               id="file-upload"
-              accept=".pdf,.csv"
               onChange={handleFileSelect}
               className="file-input"
             />
@@ -79,15 +79,26 @@ function ExpenseAnalyzer() {
             <button 
               className="upload-button"
               onClick={handleUpload}
-              disabled={!selectedFile}
+              disabled={!selectedFile || isAnalyzing}
             >
-              Upload Statement
+              {isAnalyzing ? 'Analyzing...' : 'Upload Statement'}
             </button>
           </div>
           
           {uploadStatus && (
-            <div className={`upload-status ${uploadStatus.includes('successful') ? 'success' : 'error'}`}>
+            <div className={`upload-status ${uploadStatus.includes('complete') ? 'success' : 'error'}`}>
               {uploadStatus}
+            </div>
+          )}
+
+          {analysis && (
+            <div className="analysis-section">
+              <h3>Analysis Results</h3>
+              <div className="analysis-content">
+                {analysis.split('\n').map((line, index) => (
+                  <p key={index}>{line}</p>
+                ))}
+              </div>
             </div>
           )}
         </div>

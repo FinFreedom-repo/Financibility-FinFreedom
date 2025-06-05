@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from .models import Account, Transaction, Category
 from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer
@@ -7,6 +7,101 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status
 from .wealth_projection import calculate_wealth_projection
+from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser
+import pandas as pd
+import os
+from dotenv import load_dotenv
+import logging
+from openai import OpenAI
+
+logger = logging.getLogger(__name__)
+load_dotenv()
+
+print("=== GrokExcelView module loaded ===")  # This will print when the module is imported
+
+class GrokExcelView(APIView):
+    parser_classes = (MultiPartParser,)
+
+    def post(self, request):
+        print("=== GrokExcelView.post() called ===")  # This will print when the view is hit
+        logger.info("=== Starting Grok Excel Analysis ===")
+        logger.info(f"Request headers: {request.headers}")
+        logger.info(f"Request user: {request.user}")
+        logger.info(f"Request auth: {request.auth}")
+        
+        try:
+            # Get the Excel file from the request
+            excel_file = request.FILES.get('file')
+            if not excel_file:
+                logger.error("No file provided in request")
+                return Response(
+                    {'error': 'No file provided'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            logger.info(f"Received file: {excel_file.name}, size: {excel_file.size} bytes")
+            logger.info(f"File content type: {excel_file.content_type}")
+
+            # Read the entire Excel file
+            logger.info("Reading Excel file with pandas...")
+            df = pd.read_excel(excel_file)
+            logger.info(f"Excel file read successfully. Shape: {df.shape}")
+            logger.info(f"Columns: {df.columns.tolist()}")
+            
+            # Get the first row for the response
+            first_row = df.iloc[0].to_dict()
+            logger.info(f"First row data: {first_row}")
+            
+            # Convert the entire DataFrame to a string format for Grok
+            excel_content = df.to_string()
+            prompt = "Can you tell me what the first line in this document is?\n\n" + excel_content
+            logger.info(f"Generated prompt length: {len(prompt)} characters")
+
+            # Initialize the OpenAI client with xAI's API endpoint
+            api_key = os.getenv("XAI_API_KEY")
+            if not api_key:
+                logger.error("XAI_API_KEY not found in environment variables")
+                return Response(
+                    {'error': 'API key not configured'}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            logger.info("Initializing OpenAI client...")
+            client = OpenAI(
+                api_key=api_key,
+                base_url="https://api.x.ai/v1",
+            )
+
+            # Make a request to the Grok API
+            logger.info("Making request to Grok API...")
+            completion = client.chat.completions.create(
+                model="grok-beta",
+                messages=[
+                    {"role": "system", "content": "You are Grok, a helpful AI assistant."},
+                    {"role": "user", "content": prompt},
+                ],
+            )
+            logger.info("Received response from Grok API")
+
+            # Get the response content
+            grok_response = completion.choices[0].message.content
+            logger.info(f"Grok response length: {len(grok_response)} characters")
+            logger.info(f"Grok response: {grok_response}")
+
+            response_data = {
+                'analysis': grok_response,
+                'line_item': first_row
+            }
+            logger.info("=== Grok Excel Analysis Completed Successfully ===")
+            return Response(response_data)
+
+        except Exception as e:
+            logger.error(f"Error processing request: {str(e)}", exc_info=True)
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # Create your views here.
 
