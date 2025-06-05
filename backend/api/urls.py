@@ -4,9 +4,10 @@ from .views import (
     AccountViewSet, 
     TransactionViewSet, 
     CategoryViewSet,
-    project_wealth
+    project_wealth,
+    GrokExcelView
 )
-from .expense_analyzer import ExpenseAnalyzerView
+from .expense_analyzer import ExpenseAnalyzerView, ExpenseChatView
 from budget.views import BudgetViewSet
 
 print("Registering viewsets...")
@@ -20,6 +21,8 @@ print("Available actions for BudgetViewSet:", BudgetViewSet.get_extra_actions())
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('grok/analyze-excel/', GrokExcelView.as_view(), name='grok-analyze-excel'),
     path('expense-analyzer/upload/', ExpenseAnalyzerView.as_view(), name='expense-analyzer-upload'),
+    path('expense-analyzer/chat/', ExpenseChatView.as_view(), name='expense-analyzer-chat'),
     path('project-wealth/', project_wealth, name='project-wealth'),
 ]
