@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-      setUser({ id: 1 }); // For now, just set a default user
+      setUser({ id: 1, username }); // Store username for use in UI
       return true;
     } catch (error) {
       console.error('Login error:', error);
