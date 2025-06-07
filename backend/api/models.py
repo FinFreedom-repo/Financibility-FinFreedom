@@ -39,3 +39,12 @@ class Transaction(models.Model):
 
     def __str__(self):
         return f"{self.description} - {self.amount}"
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    age = models.PositiveIntegerField(null=True, blank=True)
+    sex = models.CharField(max_length=10, blank=True)
+    marital_status = models.CharField(max_length=20, blank=True)
+
+    def __str__(self):
+        return f"Profile for {self.user.username}"

@@ -1,9 +1,9 @@
 from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
-from .models import Account, Transaction, Category
-from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer
-from rest_framework.decorators import api_view, permission_classes
+from .models import Account, Transaction, Category, UserProfile
+from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer, UserProfileSerializer
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework import status
 from .wealth_projection import calculate_wealth_projection
@@ -134,6 +134,22 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+class UserProfileViewSet(viewsets.ModelViewSet):
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return UserProfile.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        serializer = self.get_serializer(profile)
+        return Response(serializer.data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

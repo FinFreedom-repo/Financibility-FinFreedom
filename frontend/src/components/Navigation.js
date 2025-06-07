@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-function Navigation() {
+function Navigation({ onNavigate }) {
   const location = useLocation();
   
   return (
@@ -10,22 +10,22 @@ function Navigation() {
         <li 
           className={`App-menu-item ${location.pathname === '/monthly-budget' ? 'active' : ''}`}
         >
-          <Link to="/monthly-budget">Monthly Budget</Link>
+          <Link to="/monthly-budget" onClick={onNavigate}>Monthly Budget</Link>
         </li>
         <li 
           className={`App-menu-item ${location.pathname === '/debt-planning' ? 'active' : ''}`}
         >
-          <Link to="/debt-planning">Debt Planning</Link>
+          <Link to="/debt-planning" onClick={onNavigate}>Debt Planning</Link>
         </li>
         <li 
           className={`App-menu-item ${location.pathname === '/expense-analyzer' ? 'active' : ''}`}
         >
-          <Link to="/expense-analyzer">Expense Analyzer</Link>
+          <Link to="/expense-analyzer" onClick={onNavigate}>Expense Analyzer</Link>
         </li>
         <li 
           className={`App-menu-item ${location.pathname === '/wealth-projector' ? 'active' : ''}`}
         >
-          <Link to="/wealth-projector">Wealth Projector</Link>
+          <Link to="/wealth-projector" onClick={onNavigate}>Wealth Projector</Link>
         </li>
       </ul>
     </nav>

@@ -9,12 +9,32 @@ import ExpenseAnalyzer from './components/ExpenseAnalyzer';
 import DebtPlanning from './components/DebtPlanning';
 import Account from './components/Account';
 import './App.css';
+import axios from './utils/axios';
 
 function AppContent() {
   const { user, loading, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [profile, setProfile] = useState({ age: '', sex: '', marital_status: '' });
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Fetch profile info when Account view is opened
+  useEffect(() => {
+    if (showAccount && user && !profileLoaded) {
+      axios.get('/api/profile/me/')
+        .then(res => {
+          setProfile(res.data);
+          setProfileLoaded(true);
+        })
+        .catch(() => setProfileLoaded(true));
+    }
+    if (!showAccount) {
+      setProfileLoaded(false);
+      setSaveSuccess(false);
+    }
+  }, [showAccount, user, profileLoaded]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -32,6 +52,17 @@ function AppContent() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [dropdownOpen]);
+
+  const handleSaveProfile = (data) => {
+    // If profile exists, update; else, create
+    const method = profile && profile.age !== undefined ? 'put' : 'post';
+    const url = profile && profile.age !== undefined ? `/api/profile/${profile.id}/` : '/api/profile/';
+    axios[method](url, data)
+      .then(res => {
+        setProfile(res.data);
+        setSaveSuccess(true);
+      });
+  };
 
   if (loading) {
     return <div>Loading...</div>;
@@ -62,14 +93,23 @@ function AppContent() {
           </header>
           {showAccount ? (
             <div className="App-container">
-              <Navigation />
+              <Navigation onNavigate={() => setShowAccount(false)} />
               <main className="App-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-                <Account username={user.username || ''} />
+                <div style={{ width: '100%' }}>
+                  <Account
+                    username={user.username || ''}
+                    age={profile.age || ''}
+                    sex={profile.sex || ''}
+                    maritalStatus={profile.marital_status || ''}
+                    onSave={handleSaveProfile}
+                  />
+                  {saveSuccess && <div style={{ color: 'green', marginTop: '1rem', textAlign: 'center' }}>Profile saved!</div>}
+                </div>
               </main>
             </div>
           ) : (
             <div className="App-container">
-              <Navigation />
+              <Navigation onNavigate={() => setShowAccount(false)} />
               <main className="App-content">
                 <Routes>
                   <Route path="/wealth-projector" element={<WealthProjector />} />
