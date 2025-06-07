@@ -13,9 +13,10 @@ class BudgetSerializer(serializers.ModelSerializer):
         model = Budget
         fields = [
             'id', 'user', 'created_at', 'updated_at',
-            'income', 'rent', 'credit_card_debt', 'transportation',
-            'utilities', 'internet', 'groceries', 'healthcare',
-            'childcare', 'additional_items'
+            'income', 'housing', 'debt_payments', 'transportation',
+            'food', 'healthcare', 'entertainment', 'shopping',
+            'travel', 'education', 'utilities', 'childcare',
+            'other', 'additional_items'
         ]
         read_only_fields = ['id', 'user', 'created_at', 'updated_at']
 

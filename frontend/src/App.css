@@ -1,5 +1,5 @@
 .App {
-  text-align: left;
+  text-align: center;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -18,25 +18,24 @@
 }
 
 .App-header {
-  background-color: #282c34;
-  padding: 0.75rem 2rem;
+  background-color: #1a237e;
+  padding: 1rem;
   color: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 60px;
 }
 
 .App-title {
   margin: 0;
   font-size: 1.5rem;
-  font-weight: 600;
 }
 
 .App-container {
   display: flex;
   flex: 1;
+  position: relative;
+  background-color: #f0f0f0;
 }
 
 .App-sidebar {
@@ -44,6 +43,7 @@
   background-color: #e0e0e0;
   padding: 2rem 0;
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0; /* Prevent sidebar from shrinking */
 }
 
 .App-menu {
@@ -85,6 +85,8 @@
 .App-content {
   flex: 1;
   padding: 2rem;
+  margin-left: 0; /* Remove the margin since we're using flex layout */
+  overflow-x: auto;
   background-color: #f0f0f0;
 }
 
@@ -92,11 +94,12 @@
   color: #61dafb;
 }
 
-.wealth-projector {
+.wealth-projector, .debt-planning, .monthly-budget, .expense-analyzer {
   background-color: white;
   padding: 2rem;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  min-height: calc(100vh - 60px); /* Subtract header height */
 }
 
 .wealth-header {
@@ -222,59 +225,22 @@
   }
 }
 
-.login-button {
-  background-color: #1a237e;
-  color: white;
-  border: none;
-  padding: 0.6rem 1.2rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.login-button:hover {
-  background-color: #000051;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.login-button:active {
-  transform: translateY(0);
-  box-shadow: none;
+.wealth-projector {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .App-header .login-button {
-  background-color: transparent;
-  color: white;
-  border: 1px solid white;
-  padding: 0.3rem 0.4rem;
-  font-size: 0.7rem;
-  font-weight: 500;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  height: fit-content;
-  margin-left: 1rem;
-  min-width: 90px;
-  max-width: 90px;
+  margin-left: auto;
+  max-width: 120px;
+  min-width: 80px;
+  width: auto;
+  text-align: center;
+  font-size: 0.9rem;
+  padding: 0.5rem 1.2rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.App-header .login-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  transform: none;
-  box-shadow: none;
-}
-
-.App-header .login-button:active {
-  transform: none;
-  box-shadow: none;
 }

@@ -9,14 +9,18 @@ class AdditionalItem(BaseModel):
 
 class BudgetBase(BaseModel):
     income: float = 0
-    rent: float = 0
-    credit_card_debt: float = 0
+    housing: float = 0
+    debt_payments: float = 0
     transportation: float = 0
-    utilities: float = 0
-    internet: float = 0
-    groceries: float = 0
+    food: float = 0
     healthcare: float = 0
+    entertainment: float = 0
+    shopping: float = 0
+    travel: float = 0
+    education: float = 0
+    utilities: float = 0
     childcare: float = 0
+    other: float = 0
     additional_items: List[AdditionalItem] = []
 
 class BudgetCreate(BudgetBase):

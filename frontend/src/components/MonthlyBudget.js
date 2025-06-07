@@ -11,14 +11,18 @@ function MonthlyBudget() {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     income: '',
-    rent: '',
-    creditCardDebt: '',
+    housing: '',
+    debt_payments: '',
     transportation: '',
-    utilities: '',
-    internet: '',
-    groceries: '',
+    food: '',
     healthcare: '',
-    childcare: ''
+    entertainment: '',
+    shopping: '',
+    travel: '',
+    education: '',
+    utilities: '',
+    childcare: '',
+    other: ''
   });
 
   const [additionalItems, setAdditionalItems] = useState([]);
@@ -49,17 +53,20 @@ function MonthlyBudget() {
       
       if (budgetData) {
         console.log('Budget data received:', budgetData);
-        // Update form data
         setFormData({
           income: budgetData.income || '',
-          rent: budgetData.rent || '',
-          creditCardDebt: budgetData.credit_card_debt || '',
+          housing: budgetData.housing || '',
+          debt_payments: budgetData.debt_payments || '',
           transportation: budgetData.transportation || '',
-          utilities: budgetData.utilities || '',
-          internet: budgetData.internet || '',
-          groceries: budgetData.groceries || '',
+          food: budgetData.food || '',
           healthcare: budgetData.healthcare || '',
-          childcare: budgetData.childcare || ''
+          entertainment: budgetData.entertainment || '',
+          shopping: budgetData.shopping || '',
+          travel: budgetData.travel || '',
+          education: budgetData.education || '',
+          utilities: budgetData.utilities || '',
+          childcare: budgetData.childcare || '',
+          other: budgetData.other || ''
         });
 
         // Update additional items
@@ -70,14 +77,18 @@ function MonthlyBudget() {
         // Initialize with empty values if no budget exists
         setFormData({
           income: '',
-          rent: '',
-          creditCardDebt: '',
+          housing: '',
+          debt_payments: '',
           transportation: '',
-          utilities: '',
-          internet: '',
-          groceries: '',
+          food: '',
           healthcare: '',
-          childcare: ''
+          entertainment: '',
+          shopping: '',
+          travel: '',
+          education: '',
+          utilities: '',
+          childcare: '',
+          other: ''
         });
         setAdditionalItems([]);
       }
@@ -94,14 +105,18 @@ function MonthlyBudget() {
     try {
       const budgetData = {
         income: parseFloat(formData.income) || 0,
-        rent: parseFloat(formData.rent) || 0,
-        credit_card_debt: parseFloat(formData.creditCardDebt) || 0,
+        housing: parseFloat(formData.housing) || 0,
+        debt_payments: parseFloat(formData.debt_payments) || 0,
         transportation: parseFloat(formData.transportation) || 0,
-        utilities: parseFloat(formData.utilities) || 0,
-        internet: parseFloat(formData.internet) || 0,
-        groceries: parseFloat(formData.groceries) || 0,
+        food: parseFloat(formData.food) || 0,
         healthcare: parseFloat(formData.healthcare) || 0,
+        entertainment: parseFloat(formData.entertainment) || 0,
+        shopping: parseFloat(formData.shopping) || 0,
+        travel: parseFloat(formData.travel) || 0,
+        education: parseFloat(formData.education) || 0,
+        utilities: parseFloat(formData.utilities) || 0,
         childcare: parseFloat(formData.childcare) || 0,
+        other: parseFloat(formData.other) || 0,
         additional_items: additionalItems.map(item => ({
           type: item.type,
           name: item.name,
@@ -136,14 +151,18 @@ function MonthlyBudget() {
   const updateChartData = () => {
     // Expense chart data
     const expenses = {
-      'Housing': parseFloat(formData.rent) || 0,
-      'Credit Card Interest': parseFloat(formData.creditCardDebt) || 0,
+      'Housing': parseFloat(formData.housing) || 0,
+      'Debt Payments': parseFloat(formData.debt_payments) || 0,
       'Transportation': parseFloat(formData.transportation) || 0,
-      'Utilities': parseFloat(formData.utilities) || 0,
-      'Internet & Streaming': parseFloat(formData.internet) || 0,
-      'Food & Groceries': parseFloat(formData.groceries) || 0,
+      'Food': parseFloat(formData.food) || 0,
       'Healthcare': parseFloat(formData.healthcare) || 0,
-      'Childcare': parseFloat(formData.childcare) || 0
+      'Entertainment': parseFloat(formData.entertainment) || 0,
+      'Shopping': parseFloat(formData.shopping) || 0,
+      'Travel': parseFloat(formData.travel) || 0,
+      'Education': parseFloat(formData.education) || 0,
+      'Utilities': parseFloat(formData.utilities) || 0,
+      'Childcare': parseFloat(formData.childcare) || 0,
+      'Other': parseFloat(formData.other) || 0
     };
 
     // Add additional expenses
@@ -325,7 +344,10 @@ function MonthlyBudget() {
                   placeholder="Enter your total monthly income"
                 />
               </div>
-              {additionalItems.filter(item => item.type === 'income').map((item, index) => (
+              
+              {additionalItems
+                .filter(item => item.type === 'income')
+                .map((item, index) => (
                 <div key={index} className="additional-item">
                   <div className="form-group">
                     <label>Additional Income Source</label>
@@ -366,25 +388,25 @@ function MonthlyBudget() {
             <div className="form-section">
               <h3>Fixed Expenses</h3>
               <div className="form-group">
-                <label htmlFor="rent">Rent/Mortgage</label>
+                <label htmlFor="housing">Housing</label>
                 <input
                   type="number"
-                  id="rent"
-                  name="rent"
-                  value={formData.rent}
+                  id="housing"
+                  name="housing"
+                  value={formData.housing}
                   onChange={handleChange}
                   placeholder="Enter your monthly housing payment"
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="creditCardDebt">Credit Card Interest</label>
+                <label htmlFor="debt_payments">Debt Payments</label>
                 <input
                   type="number"
-                  id="creditCardDebt"
-                  name="creditCardDebt"
-                  value={formData.creditCardDebt}
+                  id="debt_payments"
+                  name="debt_payments"
+                  value={formData.debt_payments}
                   onChange={handleChange}
-                  placeholder="Enter your monthly credit card interest payments"
+                  placeholder="Enter your monthly debt payments"
                 />
               </div>
               <div className="form-group">
@@ -409,28 +431,17 @@ function MonthlyBudget() {
                   placeholder="Include electricity, water, gas, etc."
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="internet">Internet & Streaming</label>
-                <input
-                  type="number"
-                  id="internet"
-                  name="internet"
-                  value={formData.internet}
-                  onChange={handleChange}
-                  placeholder="Include all subscription services"
-                />
-              </div>
             </div>
 
             <div className="form-section">
               <h3>Living Expenses</h3>
               <div className="form-group">
-                <label htmlFor="groceries">Food & Groceries</label>
+                <label htmlFor="food">Food</label>
                 <input
                   type="number"
-                  id="groceries"
-                  name="groceries"
-                  value={formData.groceries}
+                  id="food"
+                  name="food"
+                  value={formData.food}
                   onChange={handleChange}
                   placeholder="Include all food and household items"
                 />
@@ -447,6 +458,50 @@ function MonthlyBudget() {
                 />
               </div>
               <div className="form-group">
+                <label htmlFor="entertainment">Entertainment</label>
+                <input
+                  type="number"
+                  id="entertainment"
+                  name="entertainment"
+                  value={formData.entertainment}
+                  onChange={handleChange}
+                  placeholder="Include streaming services, hobbies, etc."
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="shopping">Shopping</label>
+                <input
+                  type="number"
+                  id="shopping"
+                  name="shopping"
+                  value={formData.shopping}
+                  onChange={handleChange}
+                  placeholder="Include clothing, personal items, etc."
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="travel">Travel</label>
+                <input
+                  type="number"
+                  id="travel"
+                  name="travel"
+                  value={formData.travel}
+                  onChange={handleChange}
+                  placeholder="Include vacations, business trips, etc."
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="education">Education</label>
+                <input
+                  type="number"
+                  id="education"
+                  name="education"
+                  value={formData.education}
+                  onChange={handleChange}
+                  placeholder="Include tuition, books, courses, etc."
+                />
+              </div>
+              <div className="form-group">
                 <label htmlFor="childcare">Childcare</label>
                 <input
                   type="number"
@@ -457,7 +512,21 @@ function MonthlyBudget() {
                   placeholder="Include daycare, after-school care, etc."
                 />
               </div>
-              {additionalItems.filter(item => item.type === 'expense').map((item, index) => (
+              <div className="form-group">
+                <label htmlFor="other">Other</label>
+                <input
+                  type="number"
+                  id="other"
+                  name="other"
+                  value={formData.other}
+                  onChange={handleChange}
+                  placeholder="Include any other expenses"
+                />
+              </div>
+              
+              {additionalItems
+                .filter(item => item.type === 'expense')
+                .map((item, index) => (
                 <div key={index} className="additional-item">
                   <div className="form-group">
                     <label>Additional Expense</label>

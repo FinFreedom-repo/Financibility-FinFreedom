@@ -8,14 +8,20 @@ class Budget(models.Model):
 
     # Base income and expenses
     income = models.FloatField(default=0)
-    rent = models.FloatField(default=0)
-    credit_card_debt = models.FloatField(default=0)
+    
+    # New expense categories
+    housing = models.FloatField(default=0)
+    debt_payments = models.FloatField(default=0)
     transportation = models.FloatField(default=0)
-    utilities = models.FloatField(default=0)
-    internet = models.FloatField(default=0)
-    groceries = models.FloatField(default=0)
+    food = models.FloatField(default=0)
     healthcare = models.FloatField(default=0)
+    entertainment = models.FloatField(default=0)
+    shopping = models.FloatField(default=0)
+    travel = models.FloatField(default=0)
+    education = models.FloatField(default=0)
+    utilities = models.FloatField(default=0)
     childcare = models.FloatField(default=0)
+    other = models.FloatField(default=0)
 
     # Additional items stored as JSON
     additional_items = models.JSONField(default=list)

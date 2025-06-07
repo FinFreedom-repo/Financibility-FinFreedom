@@ -50,28 +50,48 @@ const DebtPlanning = () => {
     if (!budgetData) return null;
 
     const months = generateMonths();
-    const categories = [
-      { name: 'Income', value: budgetData.income, type: 'income' },
-      { name: 'Rent/Mortgage', value: budgetData.rent, type: 'expense' },
-      { name: 'Credit Card Interest', value: budgetData.credit_card_debt, type: 'expense' },
+    
+    // Separate income and expenses
+    const incomeCategories = [
+      { name: 'Income', value: budgetData.income, type: 'income' }
+    ];
+    
+    const expenseCategories = [
+      { name: 'Housing', value: budgetData.housing, type: 'expense' },
+      { name: 'Debt Payments', value: budgetData.debt_payments, type: 'expense' },
       { name: 'Transportation', value: budgetData.transportation, type: 'expense' },
-      { name: 'Utilities', value: budgetData.utilities, type: 'expense' },
-      { name: 'Internet & Streaming', value: budgetData.internet, type: 'expense' },
-      { name: 'Food & Groceries', value: budgetData.groceries, type: 'expense' },
+      { name: 'Food', value: budgetData.food, type: 'expense' },
       { name: 'Healthcare', value: budgetData.healthcare, type: 'expense' },
+      { name: 'Entertainment', value: budgetData.entertainment, type: 'expense' },
+      { name: 'Shopping', value: budgetData.shopping, type: 'expense' },
+      { name: 'Travel', value: budgetData.travel, type: 'expense' },
+      { name: 'Education', value: budgetData.education, type: 'expense' },
+      { name: 'Utilities', value: budgetData.utilities, type: 'expense' },
       { name: 'Childcare', value: budgetData.childcare, type: 'expense' },
+      { name: 'Other', value: budgetData.other, type: 'expense' }
     ];
 
     // Add additional items from the budget
     if (budgetData.additional_items) {
       budgetData.additional_items.forEach(item => {
-        categories.push({
-          name: item.name,
-          value: item.amount,
-          type: item.type
-        });
+        if (item.type === 'income') {
+          incomeCategories.push({
+            name: item.name,
+            value: item.amount,
+            type: 'income'
+          });
+        } else {
+          expenseCategories.push({
+            name: item.name,
+            value: item.amount,
+            type: 'expense'
+          });
+        }
       });
     }
+
+    // Combine all categories with income first, then expenses
+    const allCategories = [...incomeCategories, ...expenseCategories];
 
     return (
       <div className="grid-container">
@@ -84,7 +104,7 @@ const DebtPlanning = () => {
           ))}
         </div>
         <div className="grid-body">
-          {categories.map((category, rowIndex) => (
+          {allCategories.map((category, rowIndex) => (
             <div key={rowIndex} className="grid-row">
               <div className={`grid-cell category-cell ${category.type}`}>
                 {category.name}
