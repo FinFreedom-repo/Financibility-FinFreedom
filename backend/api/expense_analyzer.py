@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import io
 import json
+from budget.models import Budget
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -97,6 +98,18 @@ class ExpenseAnalyzerView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Get categories for the user
+            budget = Budget.objects.filter(user=request.user).order_by('-updated_at').first()
+            fixed_categories = [
+                'housing', 'debt_payments', 'transportation', 'utilities', 'food', 'healthcare',
+                'entertainment', 'shopping', 'travel', 'education', 'childcare', 'other'
+            ]
+            additional_categories = []
+            if budget and budget.additional_items:
+                additional_categories = [item['name'] for item in budget.additional_items if 'name' in item]
+            all_categories = fixed_categories + additional_categories
+            category_list_str = ', '.join(all_categories)
+
             # Initialize the OpenAI client with xAI's API endpoint
             api_key = os.getenv("GROK_API_KEY")
             if not api_key:
@@ -115,22 +128,13 @@ class ExpenseAnalyzerView(APIView):
             )
 
             # Create a prompt for Grok to analyze the expense data
-            prompt = f"""Please categorize all expenses in this data into the following categories:
-            - Housing (rent, mortgage, utilities)
-            - Transportation (gas, car payments, public transit)
-            - Food (groceries, restaurants)
-            - Healthcare (medical bills, insurance, prescriptions)
-            - Entertainment (movies, games, hobbies)
-            - Shopping (clothing, electronics, household items)
-            - Travel (vacations, business trips)
-            - Education (tuition, books, courses)
-            - Personal Care (grooming, wellness)
-            - Other (any expenses that don't fit above categories)
+            prompt = f"""Please categorize all expenses in this data into the following categories: {category_list_str}.
+                        If an expense does not fit, use 'other'.
 
-            For each category, sum up the total expenses and just print out the total for each category. and can you put it in JSON format?
+                        For each category, sum up the total expenses and just print out the total for each category. Please put the result in JSON format.
 
-            Here's the data:
-            {file_content}"""
+                        Here's the data:
+                        {file_content}"""
 
             # Make a request to the Grok API
             print("Making request to Grok API...")

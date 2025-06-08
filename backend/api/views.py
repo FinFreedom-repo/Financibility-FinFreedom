@@ -14,6 +14,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from openai import OpenAI
+from budget.models import Budget
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -53,9 +54,26 @@ class GrokExcelView(APIView):
             first_row = df.iloc[0].to_dict()
             logger.info(f"First row data: {first_row}")
             
+            # Get categories for the user
+            budget = Budget.objects.filter(user=request.user).order_by('-updated_at').first()
+            fixed_categories = [
+                'housing', 'debt_payments', 'transportation', 'utilities', 'food', 'healthcare',
+                'entertainment', 'shopping', 'travel', 'education', 'childcare', 'other'
+            ]
+            additional_categories = []
+            if budget and budget.additional_items:
+                additional_categories = [item['name'] for item in budget.additional_items if 'name' in item]
+            all_categories = fixed_categories + additional_categories
+            category_list_str = ', '.join(all_categories)
+
             # Convert the entire DataFrame to a string format for Grok
             excel_content = df.to_string()
-            prompt = "Can you tell me what the first line in this document is?\n\n" + excel_content
+            prompt = (
+                f"Please categorize all the following expenses into one of these categories: {category_list_str}.\n"
+                "If an expense does not fit, use 'other'.\n\n"
+                "Expenses:\n"
+                + excel_content
+            )
             logger.info(f"Generated prompt length: {len(prompt)} characters")
 
             # Initialize the OpenAI client with xAI's API endpoint
