@@ -121,6 +121,82 @@ const DebtPlanning = () => {
     );
   };
 
+  // Hardcoded debts for display and API
+  const outstandingDebts = [
+    { name: 'Credit Card', balance: 10000, rate: 25, min_payment: 250 },
+    { name: 'Student Loan', balance: 5000, rate: 6, min_payment: 75 }
+  ];
+
+  // Calculate available savings (income - expenses)
+  const availableSavings = budgetData
+    ? budgetData.income - (
+        budgetData.housing + budgetData.debt_payments + budgetData.transportation + budgetData.food +
+        budgetData.healthcare + budgetData.entertainment + budgetData.shopping + budgetData.travel +
+        budgetData.education + budgetData.utilities + budgetData.childcare + budgetData.other
+      )
+    : 0;
+
+  // Debt payoff plan state
+  const [payoffPlan, setPayoffPlan] = useState(null);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planError, setPlanError] = useState(null);
+
+  useEffect(() => {
+    if (budgetData) {
+      setPlanLoading(true);
+      axios.post('/api/debt-planner/', {
+        debts: outstandingDebts,
+        strategy: 'snowball', // default, can add slider later
+        extra_payment: availableSavings > 0 ? availableSavings : 0
+      })
+        .then(res => {
+          setPayoffPlan(res.data);
+          setPlanError(null);
+        })
+        .catch(err => {
+          setPlanError('Failed to calculate debt payoff plan.');
+        })
+        .finally(() => setPlanLoading(false));
+    }
+  }, [budgetData]);
+
+  // Render payoff plan table (debts as rows, months as columns, styled like the grid table)
+  const renderPayoffTable = () => {
+    if (planLoading) return <div className="loading">Calculating payoff plan...</div>;
+    if (planError) return <div className="error">{planError}</div>;
+    if (!payoffPlan) return null;
+    const months = generateMonths();
+    return (
+      <div className="grid-container payoff-plan-table-container">
+        <div className="grid-header">
+          <div className="grid-cell header-cell category-cell" style={{ minWidth: 105, width: 105, maxWidth: 105, display: 'inline-block' }}>Debt</div>
+          <div className="grid-cell header-cell category-cell" style={{ minWidth: 51, width: 51, maxWidth: 51, display: 'inline-block' }}>Interest Rate</div>
+          {months.map((month, idx) => (
+            <div key={idx} className="grid-cell header-cell">{month}</div>
+          ))}
+        </div>
+        <div className="grid-body">
+          {outstandingDebts.map((debt, debtIdx) => (
+            <div key={debtIdx} className="grid-row">
+              <div className="grid-cell category-cell" style={{ minWidth: 105, width: 105, maxWidth: 105, display: 'inline-block' }}>{debt.name}</div>
+              <div className="grid-cell category-cell" style={{ minWidth: 51, width: 51, maxWidth: 51, display: 'inline-block' }}>{debt.rate}%</div>
+              {months.map((_, monthIdx) => {
+                const payoffRow = payoffPlan.plan[monthIdx];
+                const balance = payoffRow && payoffRow.debts[debtIdx] ? payoffRow.debts[debtIdx].balance : debt.balance;
+                return (
+                  <div key={monthIdx} className="grid-cell">${balance.toLocaleString()}</div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <div className="payoff-summary" style={{marginTop: '1rem', textAlign: 'center'}}>
+          <strong>Total Months:</strong> {payoffPlan.months} &nbsp;|&nbsp; <strong>Total Interest Paid:</strong> ${payoffPlan.total_interest.toLocaleString()}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="debt-planning">
@@ -143,6 +219,28 @@ const DebtPlanning = () => {
         <h2>Debt Planning</h2>
         <p className="debt-subtitle">Plan and track your debt repayment strategy</p>
       </div>
+      <div className="outstanding-debts-table-container">
+        <h3>Outstanding Debts</h3>
+        <table className="outstanding-debts-table">
+          <thead>
+            <tr>
+              <th>Debt Name</th>
+              <th>Balance</th>
+              <th>Interest Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {outstandingDebts.map((debt, idx) => (
+              <tr key={idx}>
+                <td>{debt.name}</td>
+                <td>${debt.balance.toLocaleString()}</td>
+                <td>{debt.rate}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {renderPayoffTable()}
       <div className="debt-container">
         {renderGrid()}
       </div>
