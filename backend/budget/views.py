@@ -24,7 +24,7 @@ class BudgetViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         print("List method called")
         queryset = self.get_queryset()
-        print(f"Found {queryset.count()} budgets")
+        print("Getting queryset for budget data")
         serializer = self.get_serializer(queryset, many=True)
         print("Serialized data:", serializer.data)
         return Response(serializer.data)

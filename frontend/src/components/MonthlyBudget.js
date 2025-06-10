@@ -26,6 +26,7 @@ function MonthlyBudget() {
   });
 
   const [additionalItems, setAdditionalItems] = useState([]);
+  const [savingsItems, setSavingsItems] = useState([]);
   const [expenseChartData, setExpenseChartData] = useState(null);
   const [incomeChartData, setIncomeChartData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +39,7 @@ function MonthlyBudget() {
 
   useEffect(() => {
     updateChartData();
-  }, [formData, additionalItems]);
+  }, [formData, additionalItems, savingsItems]);
 
   const loadBudgetData = async () => {
     try {
@@ -71,6 +72,7 @@ function MonthlyBudget() {
 
         // Update additional items
         setAdditionalItems(budgetData.additional_items || []);
+        setSavingsItems(budgetData.savings || []);
         setError(null);
       } else {
         console.log('No budget found for user');
@@ -91,6 +93,7 @@ function MonthlyBudget() {
           other: ''
         });
         setAdditionalItems([]);
+        setSavingsItems([]);
       }
     } catch (err) {
       console.error('Detailed error:', err);
@@ -119,6 +122,10 @@ function MonthlyBudget() {
         other: parseFloat(formData.other) || 0,
         additional_items: additionalItems.map(item => ({
           type: item.type,
+          name: item.name,
+          amount: parseFloat(item.amount) || 0
+        })),
+        savings: savingsItems.map(item => ({
           name: item.name,
           amount: parseFloat(item.amount) || 0
         })),
@@ -248,6 +255,15 @@ function MonthlyBudget() {
     setAdditionalItems(newItems);
   };
 
+  const handleSavingsItemChange = (index, field, value) => {
+    const newItems = [...savingsItems];
+    newItems[index] = {
+      ...newItems[index],
+      [field]: value
+    };
+    setSavingsItems(newItems);
+  };
+
   const addNewItem = (type) => {
     setAdditionalItems([
       ...additionalItems,
@@ -259,10 +275,23 @@ function MonthlyBudget() {
     ]);
   };
 
+  const addNewSavingsItem = () => {
+    setSavingsItems([
+      ...savingsItems,
+      { name: '', amount: '' }
+    ]);
+  };
+
   const removeItem = (index) => {
     const newItems = [...additionalItems];
     newItems.splice(index, 1);
     setAdditionalItems(newItems);
+  };
+
+  const removeSavingsItem = (index) => {
+    const newItems = [...savingsItems];
+    newItems.splice(index, 1);
+    setSavingsItems(newItems);
   };
 
   const calculateTotalExpenses = () => {
@@ -292,8 +321,12 @@ function MonthlyBudget() {
     return baseIncome + additionalIncome;
   };
 
+  const calculateTotalSavings = () => {
+    return savingsItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  };
+
   const calculateRemaining = () => {
-    return calculateTotalIncome() - calculateTotalExpenses();
+    return calculateTotalIncome() - calculateTotalExpenses() - calculateTotalSavings();
   };
 
   const formatCurrency = (value) => {
@@ -563,6 +596,47 @@ function MonthlyBudget() {
                 + Add Expense
               </button>
             </div>
+
+            <div className="form-section">
+              <h3>Savings</h3>
+              {savingsItems.map((item, index) => (
+                <div key={index} className="additional-item">
+                  <div className="form-group">
+                    <label>Savings Item</label>
+                    <input
+                      type="text"
+                      value={item.name}
+                      onChange={(e) => handleSavingsItemChange(index, 'name', e.target.value)}
+                      placeholder="e.g., 401K, 529"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Amount</label>
+                    <input
+                      type="number"
+                      value={item.amount}
+                      onChange={(e) => handleSavingsItemChange(index, 'amount', e.target.value)}
+                      placeholder="Enter amount"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="remove-button"
+                    onClick={() => removeSavingsItem(index)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="add-button"
+                onClick={addNewSavingsItem}
+              >
+                + Add Savings
+              </button>
+            </div>
+
             <button
               type="submit"
               className="save-button"
@@ -651,6 +725,12 @@ function MonthlyBudget() {
                 <span>Total Expenses:</span>
                 <span className="negative">
                   {formatCurrency(calculateTotalExpenses())}
+                </span>
+              </div>
+              <div className="summary-item total">
+                <span>Total Savings:</span>
+                <span className="positive">
+                  {formatCurrency(calculateTotalSavings())}
                 </span>
               </div>
               <div className="summary-item total">

@@ -111,4 +111,26 @@
   background-color: #ffebee;
   border-radius: 8px;
   margin: 1rem 0;
+}
+
+.income-expense-separator {
+  height: 0;
+  border-top: 2px solid #1a237e;
+  margin: 0.2rem 0 0.2rem 0;
+}
+
+.net-savings-row {
+  background: #e3f0fb;
+  font-weight: 700;
+  border-bottom: 2px solid #1976d2;
+}
+
+.net-savings-label {
+  color: #1976d2;
+  font-weight: 700;
+}
+
+.net-savings-cell {
+  color: #1976d2;
+  font-weight: 700;
 } 

@@ -24,6 +24,9 @@ class Budget(models.Model):
     # Additional items stored as JSON
     additional_items = models.JSONField(default=list)
 
+    # Savings stored as JSON
+    savings = models.JSONField(default=list)
+
     class Meta:
         ordering = ['-updated_at']
 

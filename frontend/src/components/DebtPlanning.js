@@ -93,6 +93,13 @@ const DebtPlanning = () => {
     // Combine all categories with income first, then expenses
     const allCategories = [...incomeCategories, ...expenseCategories];
 
+    // Calculate net savings for each month
+    const netSavings = months.map(() => {
+      const income = incomeCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
+      const expenses = expenseCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
+      return income - expenses;
+    });
+
     return (
       <div className="grid-container">
         <div className="grid-header">
@@ -104,17 +111,26 @@ const DebtPlanning = () => {
           ))}
         </div>
         <div className="grid-body">
+          {/* Net Savings row */}
+          <div className="grid-row net-savings-row">
+            <div className="grid-cell category-cell net-savings-label">Net Savings</div>
+            {netSavings.map((value, idx) => (
+              <div key={idx} className="grid-cell net-savings-cell">{formatCurrency(value)}</div>
+            ))}
+          </div>
           {allCategories.map((category, rowIndex) => (
-            <div key={rowIndex} className="grid-row">
-              <div className={`grid-cell category-cell ${category.type}`}>
-                {category.name}
+            <React.Fragment key={rowIndex}>
+              {/* Add a border between income and expenses */}
+              {rowIndex === incomeCategories.length && (
+                <div className="income-expense-separator" />
+              )}
+              <div className="grid-row">
+                <div className={`grid-cell category-cell ${category.type}`}>{category.name}</div>
+                {months.map((_, colIndex) => (
+                  <div key={colIndex} className="grid-cell">{formatCurrency(category.value)}</div>
+                ))}
               </div>
-              {months.map((_, colIndex) => (
-                <div key={colIndex} className="grid-cell">
-                  {formatCurrency(category.value)}
-                </div>
-              ))}
-            </div>
+            </React.Fragment>
           ))}
         </div>
       </div>
@@ -171,6 +187,7 @@ const DebtPlanning = () => {
         <div className="grid-header">
           <div className="grid-cell header-cell category-cell" style={{ minWidth: 105, width: 105, maxWidth: 105, display: 'inline-block' }}>Debt</div>
           <div className="grid-cell header-cell category-cell" style={{ minWidth: 51, width: 51, maxWidth: 51, display: 'inline-block' }}>Interest Rate</div>
+          <div className="grid-cell header-cell">Start</div>
           {months.map((month, idx) => (
             <div key={idx} className="grid-cell header-cell">{month}</div>
           ))}
@@ -180,6 +197,9 @@ const DebtPlanning = () => {
             <div key={debtIdx} className="grid-row">
               <div className="grid-cell category-cell" style={{ minWidth: 105, width: 105, maxWidth: 105, display: 'inline-block' }}>{debt.name}</div>
               <div className="grid-cell category-cell" style={{ minWidth: 51, width: 51, maxWidth: 51, display: 'inline-block' }}>{debt.rate}%</div>
+              {/* Start: Starting balance */}
+              <div className="grid-cell">${debt.balance.toLocaleString()}</div>
+              {/* Months: from payoff plan */}
               {months.map((_, monthIdx) => {
                 const payoffRow = payoffPlan.plan[monthIdx];
                 const balance = payoffRow && payoffRow.debts[debtIdx] ? payoffRow.debts[debtIdx].balance : debt.balance;

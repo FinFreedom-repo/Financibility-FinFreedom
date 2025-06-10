@@ -25,6 +25,7 @@ class Budget(models.Model):
 
     # Additional items stored as JSON
     additional_items = models.JSONField(default=list)
+    savings = models.JSONField(default=list)  # Added savings field for 401K, 529, etc.
 
     class Meta:
         ordering = ['-updated_at']
