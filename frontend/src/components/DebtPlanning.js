@@ -97,7 +97,8 @@ const DebtPlanning = () => {
     const netSavings = months.map(() => {
       const income = incomeCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
       const expenses = expenseCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
-      return income - expenses;
+      const totalSavings = budgetData.savings ? budgetData.savings.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
+      return income - expenses - totalSavings;
     });
 
     return (
@@ -118,6 +119,15 @@ const DebtPlanning = () => {
               <div key={idx} className="grid-cell net-savings-cell">{formatCurrency(value)}</div>
             ))}
           </div>
+          {/* Savings items rows */}
+          {budgetData.savings && budgetData.savings.map((savingsItem, savingsIdx) => (
+            <div key={savingsIdx} className="grid-row personal-savings-row">
+              <div className="grid-cell category-cell personal-savings-label">{savingsItem.name}</div>
+              {netSavings.map((_, idx) => (
+                <div key={idx} className="grid-cell personal-savings-cell">{formatCurrency(savingsItem.amount)}</div>
+              ))}
+            </div>
+          ))}
           {allCategories.map((category, rowIndex) => (
             <React.Fragment key={rowIndex}>
               {/* Add a border between income and expenses */}
