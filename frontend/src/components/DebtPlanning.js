@@ -197,7 +197,6 @@ const DebtPlanning = () => {
         <div className="grid-header">
           <div className="grid-cell header-cell category-cell" style={{ minWidth: 105, width: 105, maxWidth: 105, display: 'inline-block' }}>Debt</div>
           <div className="grid-cell header-cell category-cell" style={{ minWidth: 51, width: 51, maxWidth: 51, display: 'inline-block' }}>Interest Rate</div>
-          <div className="grid-cell header-cell">Start</div>
           {months.map((month, idx) => (
             <div key={idx} className="grid-cell header-cell">{month}</div>
           ))}
@@ -207,9 +206,6 @@ const DebtPlanning = () => {
             <div key={debtIdx} className="grid-row">
               <div className="grid-cell category-cell" style={{ minWidth: 105, width: 105, maxWidth: 105, display: 'inline-block' }}>{debt.name}</div>
               <div className="grid-cell category-cell" style={{ minWidth: 51, width: 51, maxWidth: 51, display: 'inline-block' }}>{debt.rate}%</div>
-              {/* Start: Starting balance */}
-              <div className="grid-cell">${debt.balance.toLocaleString()}</div>
-              {/* Months: from payoff plan */}
               {months.map((_, monthIdx) => {
                 const payoffRow = payoffPlan.plan[monthIdx];
                 const balance = payoffRow && payoffRow.debts[debtIdx] ? payoffRow.debts[debtIdx].balance : debt.balance;
