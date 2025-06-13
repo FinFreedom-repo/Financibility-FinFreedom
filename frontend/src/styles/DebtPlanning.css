@@ -149,4 +149,8 @@
 .personal-savings-cell {
   color: #2e7d32;
   font-weight: 600;
+}
+
+.negative-value {
+  color: #ff0000;
 } 

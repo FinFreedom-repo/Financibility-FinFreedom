@@ -58,7 +58,11 @@ const DebtPlanning = () => {
     
     const expenseCategories = [
       { name: 'Housing', value: budgetData.housing, type: 'expense' },
-      { name: 'Debt Payments', value: budgetData.debt_payments, type: 'expense' },
+      ...outstandingDebts.map(debt => ({
+        name: `${debt.name} - Interest`,
+        value: (debt.balance * (debt.rate / 100 / 12)), // Monthly interest calculation
+        type: 'expense'
+      })),
       { name: 'Transportation', value: budgetData.transportation, type: 'expense' },
       { name: 'Food', value: budgetData.food, type: 'expense' },
       { name: 'Healthcare', value: budgetData.healthcare, type: 'expense' },
@@ -116,7 +120,9 @@ const DebtPlanning = () => {
           <div className="grid-row net-savings-row">
             <div className="grid-cell category-cell net-savings-label">Net Savings</div>
             {netSavings.map((value, idx) => (
-              <div key={idx} className="grid-cell net-savings-cell">{formatCurrency(value)}</div>
+              <div key={idx} className={`grid-cell net-savings-cell ${value < 0 ? 'negative-value' : ''}`}>
+                {formatCurrency(value)}
+              </div>
             ))}
           </div>
           {/* Savings items rows */}
