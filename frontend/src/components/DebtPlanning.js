@@ -58,11 +58,12 @@ const DebtPlanning = () => {
     
     const expenseCategories = [
       { name: 'Housing', value: budgetData.housing, type: 'expense' },
-      ...outstandingDebts.map(debt => ({
+      // Add interest payments from the payoff plan
+      ...(payoffPlan ? payoffPlan.debts.map(debt => ({
         name: `${debt.name} - Interest`,
-        value: (debt.balance * (debt.rate / 100 / 12)), // Monthly interest calculation
+        value: debt.min_payment * (debt.rate / 100 / 12), // Monthly interest calculation
         type: 'expense'
-      })),
+      })) : []),
       { name: 'Transportation', value: budgetData.transportation, type: 'expense' },
       { name: 'Food', value: budgetData.food, type: 'expense' },
       { name: 'Healthcare', value: budgetData.healthcare, type: 'expense' },
@@ -162,7 +163,7 @@ const DebtPlanning = () => {
   // Calculate available savings (income - expenses)
   const availableSavings = budgetData
     ? budgetData.income - (
-        budgetData.housing + budgetData.debt_payments + budgetData.transportation + budgetData.food +
+        budgetData.housing + budgetData.transportation + budgetData.food +
         budgetData.healthcare + budgetData.entertainment + budgetData.shopping + budgetData.travel +
         budgetData.education + budgetData.utilities + budgetData.childcare + budgetData.other
       )
@@ -172,13 +173,14 @@ const DebtPlanning = () => {
   const [payoffPlan, setPayoffPlan] = useState(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState(null);
+  const [strategy, setStrategy] = useState('snowball');
 
   useEffect(() => {
     if (budgetData) {
       setPlanLoading(true);
       axios.post('/api/debt-planner/', {
         debts: outstandingDebts,
-        strategy: 'snowball', // default, can add slider later
+        strategy: strategy,
         extra_payment: availableSavings > 0 ? availableSavings : 0
       })
         .then(res => {
@@ -190,7 +192,7 @@ const DebtPlanning = () => {
         })
         .finally(() => setPlanLoading(false));
     }
-  }, [budgetData]);
+  }, [budgetData, strategy]);
 
   // Render payoff plan table (debts as rows, months as columns, styled like the grid table)
   const renderPayoffTable = () => {
@@ -208,7 +210,7 @@ const DebtPlanning = () => {
           ))}
         </div>
         <div className="grid-body">
-          {outstandingDebts.map((debt, debtIdx) => (
+          {payoffPlan.debts.map((debt, debtIdx) => (
             <div key={debtIdx} className="grid-row">
               <div className="grid-cell category-cell" style={{ minWidth: 105, width: 105, maxWidth: 105, display: 'inline-block' }}>{debt.name}</div>
               <div className="grid-cell category-cell" style={{ minWidth: 51, width: 51, maxWidth: 51, display: 'inline-block' }}>{debt.rate}%</div>
@@ -250,6 +252,17 @@ const DebtPlanning = () => {
       <div className="debt-header">
         <h2>Debt Planning</h2>
         <p className="debt-subtitle">Plan and track your debt repayment strategy</p>
+      </div>
+      <div className="strategy-controls">
+        <div className="strategy-toggle">
+          <div className={`strategy-option ${strategy === 'snowball' ? 'active' : ''}`} onClick={() => setStrategy('snowball')}>
+            Snowball
+          </div>
+          <div className={`strategy-option ${strategy === 'avalanche' ? 'active' : ''}`} onClick={() => setStrategy('avalanche')}>
+            Avalanche
+          </div>
+          <div className={`slider ${strategy}`}></div>
+        </div>
       </div>
       <div className="outstanding-debts-table-container">
         <h3>Outstanding Debts</h3>
