@@ -9,13 +9,24 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in on mount
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      // You might want to verify the token here
-      setUser({ id: 1 }); // For now, just set a default user
-    }
-    setLoading(false);
+    const verifyToken = async () => {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        try {
+          // Verify token by making a request to a protected endpoint
+          const response = await axios.get('/api/profile/me/');
+          setUser({ id: response.data.id, username: response.data.username });
+        } catch (error) {
+          // If token verification fails, clear tokens and user state
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    verifyToken();
   }, []);
 
   const login = async (username, password) => {
@@ -28,7 +39,10 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-      setUser({ id: 1, username }); // Store username for use in UI
+      
+      // Get user profile after successful login
+      const profileResponse = await axios.get('/api/profile/me/');
+      setUser({ id: profileResponse.data.id, username: profileResponse.data.username });
       return true;
     } catch (error) {
       console.error('Login error:', error);

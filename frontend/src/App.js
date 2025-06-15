@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navigation from './components/Navigation';
 import WealthProjector from './components/WealthProjector';
@@ -11,6 +11,23 @@ import Dashboard from './components/Dashboard';
 import Account from './components/Account';
 import './App.css';
 import axios from './utils/axios';
+
+// Protected Route component
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    // Redirect to login if not authenticated
+    return <Navigate to="/" state={{ from: location }} replace />;
+  }
+
+  return children;
+}
 
 function AppContent() {
   const { user, loading, logout } = useAuth();
@@ -113,11 +130,31 @@ function AppContent() {
               <Navigation onNavigate={() => setShowAccount(false)} />
               <main className="App-content">
                 <Routes>
-                  <Route path="/wealth-projector" element={<WealthProjector />} />
-                  <Route path="/monthly-budget" element={<MonthlyBudget />} />
-                  <Route path="/expense-analyzer" element={<ExpenseAnalyzer />} />
-                  <Route path="/debt-planning" element={<DebtPlanning />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/wealth-projector" element={
+                    <ProtectedRoute>
+                      <WealthProjector />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/monthly-budget" element={
+                    <ProtectedRoute>
+                      <MonthlyBudget />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/expense-analyzer" element={
+                    <ProtectedRoute>
+                      <ExpenseAnalyzer />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/debt-planning" element={
+                    <ProtectedRoute>
+                      <DebtPlanning />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard" element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
               </main>

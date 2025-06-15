@@ -6,6 +6,56 @@ const DebtPlanning = () => {
   const [budgetData, setBudgetData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [incomeCategories, setIncomeCategories] = useState([]);
+  const [expenseCategories, setExpenseCategories] = useState([]);
+
+  // Update categories when budgetData changes
+  useEffect(() => {
+    if (budgetData) {
+      // Base income category
+      const baseIncome = [{ name: 'Income', value: budgetData.income, type: 'income' }];
+      
+      // Base expense categories
+      const baseExpenses = [
+        { name: 'Housing', value: budgetData.housing, type: 'expense' },
+        { name: 'Transportation', value: budgetData.transportation, type: 'expense' },
+        { name: 'Food', value: budgetData.food, type: 'expense' },
+        { name: 'Healthcare', value: budgetData.healthcare, type: 'expense' },
+        { name: 'Entertainment', value: budgetData.entertainment, type: 'expense' },
+        { name: 'Shopping', value: budgetData.shopping, type: 'expense' },
+        { name: 'Travel', value: budgetData.travel, type: 'expense' },
+        { name: 'Education', value: budgetData.education, type: 'expense' },
+        { name: 'Utilities', value: budgetData.utilities, type: 'expense' },
+        { name: 'Childcare', value: budgetData.childcare, type: 'expense' },
+        { name: 'Other', value: budgetData.other, type: 'expense' }
+      ];
+
+      // Add additional items
+      if (budgetData.additional_items) {
+        const additionalIncome = budgetData.additional_items
+          .filter(item => item.type === 'income')
+          .map(item => ({
+            name: item.name,
+            value: item.amount,
+            type: 'income'
+          }));
+
+        const additionalExpenses = budgetData.additional_items
+          .filter(item => item.type === 'expense')
+          .map(item => ({
+            name: item.name,
+            value: item.amount,
+            type: 'expense'
+          }));
+
+        setIncomeCategories([...baseIncome, ...additionalIncome]);
+        setExpenseCategories([...baseExpenses, ...additionalExpenses]);
+      } else {
+        setIncomeCategories(baseIncome);
+        setExpenseCategories(baseExpenses);
+      }
+    }
+  }, [budgetData]);
 
   useEffect(() => {
     loadBudgetData();
@@ -51,47 +101,6 @@ const DebtPlanning = () => {
 
     const months = generateMonths();
     
-    // Separate income and expenses
-    const incomeCategories = [
-      { name: 'Income', value: budgetData.income, type: 'income' }
-    ];
-    
-    const expenseCategories = [
-      { name: 'Housing', value: budgetData.housing, type: 'expense' },
-      { name: 'Transportation', value: budgetData.transportation, type: 'expense' },
-      { name: 'Food', value: budgetData.food, type: 'expense' },
-      { name: 'Healthcare', value: budgetData.healthcare, type: 'expense' },
-      { name: 'Entertainment', value: budgetData.entertainment, type: 'expense' },
-      { name: 'Shopping', value: budgetData.shopping, type: 'expense' },
-      { name: 'Travel', value: budgetData.travel, type: 'expense' },
-      { name: 'Education', value: budgetData.education, type: 'expense' },
-      { name: 'Utilities', value: budgetData.utilities, type: 'expense' },
-      { name: 'Childcare', value: budgetData.childcare, type: 'expense' },
-      { name: 'Other', value: budgetData.other, type: 'expense' }
-    ];
-
-    // Add additional items from the budget
-    if (budgetData.additional_items) {
-      budgetData.additional_items.forEach(item => {
-        if (item.type === 'income') {
-          incomeCategories.push({
-            name: item.name,
-            value: item.amount,
-            type: 'income'
-          });
-        } else {
-          expenseCategories.push({
-            name: item.name,
-            value: item.amount,
-            type: 'expense'
-          });
-        }
-      });
-    }
-
-    // Combine all categories with income first, then expenses
-    const allCategories = [...incomeCategories, ...expenseCategories];
-
     // Calculate net savings for each month
     const netSavings = months.map(() => {
       const income = incomeCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
@@ -129,19 +138,23 @@ const DebtPlanning = () => {
               ))}
             </div>
           ))}
-          {allCategories.map((category, rowIndex) => (
-            <React.Fragment key={rowIndex}>
-              {/* Add a border between income and expenses */}
-              {rowIndex === incomeCategories.length && (
-                <div className="income-expense-separator" />
-              )}
-              <div className="grid-row">
-                <div className={`grid-cell category-cell ${category.type}`}>{category.name}</div>
-                {months.map((_, colIndex) => (
-                  <div key={colIndex} className="grid-cell">{formatCurrency(category.value)}</div>
-                ))}
-              </div>
-            </React.Fragment>
+          {/* Income categories */}
+          {incomeCategories.map((category, rowIndex) => (
+            <div key={rowIndex} className="grid-row">
+              <div className={`grid-cell category-cell ${category.type}`}>{category.name}</div>
+              {months.map((_, colIndex) => (
+                <div key={colIndex} className="grid-cell">{formatCurrency(category.value)}</div>
+              ))}
+            </div>
+          ))}
+          {/* Expense categories */}
+          {expenseCategories.map((category, rowIndex) => (
+            <div key={rowIndex} className="grid-row">
+              <div className={`grid-cell category-cell ${category.type}`}>{category.name}</div>
+              {months.map((_, colIndex) => (
+                <div key={colIndex} className="grid-cell">{formatCurrency(category.value)}</div>
+              ))}
+            </div>
           ))}
         </div>
       </div>
@@ -156,11 +169,12 @@ const DebtPlanning = () => {
 
   // Calculate available savings (income - expenses)
   const availableSavings = budgetData
-    ? budgetData.income - (
-        budgetData.housing + budgetData.transportation + budgetData.food +
-        budgetData.healthcare + budgetData.entertainment + budgetData.shopping + budgetData.travel +
-        budgetData.education + budgetData.utilities + budgetData.childcare + budgetData.other
-      )
+    ? (() => {
+        const income = incomeCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
+        const expenses = expenseCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
+        const totalSavings = budgetData.savings ? budgetData.savings.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
+        return income - expenses - totalSavings;
+      })()
     : 0;
 
   // Debt payoff plan state
