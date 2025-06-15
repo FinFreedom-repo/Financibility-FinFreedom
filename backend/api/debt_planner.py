@@ -15,7 +15,6 @@ class DebtPlannerView(APIView):
         debts = data.get('debts', [])
         strategy = data.get('strategy', 'snowball')
         net_savings = float(data.get('net_savings', 0))
-        print("net savings", net_savings)
 
         logger.info(f"Starting debt planner with strategy: {strategy}")
         logger.info(f"Net savings available: ${net_savings:.2f}")
@@ -66,7 +65,6 @@ class DebtPlannerView(APIView):
         max_months = 24  # 2 years maximum
         while any(d['balance'] > 0.01 for d in debts) and month < max_months:
             month += 1
-            logger.info(f"\nProcessing month {month}")
             month_plan = {'month': month, 'debts': []}
             available_extra = net_savings
             month_interest = 0
