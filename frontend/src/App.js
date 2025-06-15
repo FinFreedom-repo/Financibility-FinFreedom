@@ -7,6 +7,7 @@ import Login from './components/Login';
 import MonthlyBudget from './components/MonthlyBudget';
 import ExpenseAnalyzer from './components/ExpenseAnalyzer';
 import DebtPlanning from './components/DebtPlanning';
+import Dashboard from './components/Dashboard';
 import Account from './components/Account';
 import './App.css';
 import axios from './utils/axios';
@@ -116,7 +117,8 @@ function AppContent() {
                   <Route path="/monthly-budget" element={<MonthlyBudget />} />
                   <Route path="/expense-analyzer" element={<ExpenseAnalyzer />} />
                   <Route path="/debt-planning" element={<DebtPlanning />} />
-                  <Route path="/" element={<Navigate to="/wealth-projector" replace />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
               </main>
             </div>

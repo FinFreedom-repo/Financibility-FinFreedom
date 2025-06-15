@@ -1,0 +1,48 @@
+.dashboard {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 0;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  min-height: calc(100vh - 60px);
+}
+
+.dashboard-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.dashboard h1 {
+  color: #1a237e;
+  margin: 0 0 1rem 0;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.welcome-message {
+  font-size: 1.1rem;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.notice-box {
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  border: 1px solid #e0e0e0;
+}
+
+.notice-box h2 {
+  color: #1a237e;
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.notice-box p {
+  color: #666;
+  line-height: 1.6;
+  margin: 0;
+} 

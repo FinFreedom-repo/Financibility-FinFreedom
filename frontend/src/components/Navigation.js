@@ -8,6 +8,11 @@ function Navigation({ onNavigate }) {
     <nav className="App-sidebar">
       <ul className="App-menu">
         <li 
+          className={`App-menu-item ${location.pathname === '/dashboard' ? 'active' : ''}`}
+        >
+          <Link to="/dashboard" onClick={onNavigate}>Dashboard</Link>
+        </li>
+        <li 
           className={`App-menu-item ${location.pathname === '/monthly-budget' ? 'active' : ''}`}
         >
           <Link to="/monthly-budget" onClick={onNavigate}>Monthly Budget</Link>

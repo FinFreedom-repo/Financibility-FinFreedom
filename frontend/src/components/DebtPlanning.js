@@ -58,12 +58,6 @@ const DebtPlanning = () => {
     
     const expenseCategories = [
       { name: 'Housing', value: budgetData.housing, type: 'expense' },
-      // Add interest payments from the payoff plan
-      ...(payoffPlan ? payoffPlan.debts.map(debt => ({
-        name: `${debt.name} - Interest`,
-        value: debt.min_payment * (debt.rate / 100 / 12), // Monthly interest calculation
-        type: 'expense'
-      })) : []),
       { name: 'Transportation', value: budgetData.transportation, type: 'expense' },
       { name: 'Food', value: budgetData.food, type: 'expense' },
       { name: 'Healthcare', value: budgetData.healthcare, type: 'expense' },
@@ -181,7 +175,7 @@ const DebtPlanning = () => {
       axios.post('/api/debt-planner/', {
         debts: outstandingDebts,
         strategy: strategy,
-        extra_payment: availableSavings > 0 ? availableSavings : 0
+        net_savings: availableSavings > 0 ? availableSavings : 0
       })
         .then(res => {
           setPayoffPlan(res.data);
@@ -266,24 +260,24 @@ const DebtPlanning = () => {
       </div>
       <div className="outstanding-debts-table-container">
         <h3>Outstanding Debts</h3>
-        <table className="outstanding-debts-table">
-          <thead>
-            <tr>
-              <th>Debt Name</th>
-              <th>Balance</th>
-              <th>Interest Rate</th>
-            </tr>
-          </thead>
-          <tbody>
+        <div className="grid-container">
+          <div className="grid-header">
+            <div className="grid-cell header-cell category-cell" style={{ width: '120px' }}>Debt Name</div>
+            <div className="grid-cell header-cell" style={{ width: '100px' }}>Balance</div>
+            <div className="grid-cell header-cell" style={{ width: '100px' }}>Interest Rate</div>
+            <div className="grid-cell header-cell" style={{ width: '100px' }}>Monthly Interest</div>
+          </div>
+          <div className="grid-body">
             {outstandingDebts.map((debt, idx) => (
-              <tr key={idx}>
-                <td>{debt.name}</td>
-                <td>${debt.balance.toLocaleString()}</td>
-                <td>{debt.rate}%</td>
-              </tr>
+              <div key={idx} className="grid-row">
+                <div className="grid-cell category-cell" style={{ width: '120px' }}>{debt.name}</div>
+                <div className="grid-cell" style={{ width: '100px' }}>${debt.balance.toLocaleString()}</div>
+                <div className="grid-cell" style={{ width: '100px' }}>{debt.rate}%</div>
+                <div className="grid-cell" style={{ width: '100px' }}>${(debt.balance * (debt.rate / 100 / 12)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
       {renderPayoffTable()}
       <div className="debt-container">

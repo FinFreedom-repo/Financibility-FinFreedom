@@ -251,4 +251,72 @@ input:checked + .slider:before {
 
 .slider.round:before {
   border-radius: 50%;
+}
+
+.outstanding-debts-table-container {
+  margin-bottom: 2rem;
+  max-width: 800px;
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.outstanding-debts-table-container h3 {
+  color: #1a237e;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.outstanding-debts-table-container .grid-container {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  width: fit-content;
+}
+
+.outstanding-debts-table-container .grid-header {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #1a237e;
+  display: flex;
+}
+
+.outstanding-debts-table-container .grid-row {
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+}
+
+.outstanding-debts-table-container .grid-row:last-child {
+  border-bottom: none;
+}
+
+.outstanding-debts-table-container .grid-cell {
+  padding: 0.75rem 0.5rem;
+  text-align: right;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.outstanding-debts-table-container .grid-cell.category-cell {
+  text-align: left;
+  font-weight: 500;
+  color: #1a237e;
+  min-width: 120px;
+}
+
+.outstanding-debts-table-container .grid-cell:not(.category-cell) {
+  min-width: 100px;
+}
+
+.outstanding-debts-table-container .header-cell {
+  font-weight: 600;
+  color: #1a237e;
+  text-align: center;
+}
+
+.outstanding-debts-table-container .grid-row .grid-cell:nth-child(4) {
+  font-weight: 700;
+  color: #1a237e;
 } 
