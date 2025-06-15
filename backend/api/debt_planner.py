@@ -101,10 +101,12 @@ class DebtPlannerView(APIView):
 
                 # Apply payment based on strategy
                 payment = 0
-                if strategy == 'snowball' and i == 0 and available_extra > 0:
-                    payment = min(available_extra, d['balance'])
-                    logger.info(f"{d['name']} - Adding payment of ${payment:.2f} (snowball)")
-                    available_extra -= payment
+                if strategy == 'snowball':
+                    # For snowball, apply all available extra to the first non-zero debt
+                    if d['balance'] > 0 and available_extra > 0:
+                        payment = min(available_extra, d['balance'])
+                        logger.info(f"{d['name']} - Adding payment of ${payment:.2f} (snowball)")
+                        available_extra -= payment
                 elif strategy == 'avalanche' and d['balance'] > 0 and available_extra > 0:
                     payment = min(available_extra, d['balance'])
                     logger.info(f"{d['name']} - Adding payment of ${payment:.2f} (avalanche)")

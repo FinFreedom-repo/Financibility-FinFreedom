@@ -3,6 +3,8 @@
   padding: 2rem;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  width: 100%;
 }
 
 .debt-header {
@@ -37,6 +39,8 @@
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   background-color: white;
+  display: flex;
+  flex-direction: column;
 }
 
 .grid-header {
@@ -45,16 +49,22 @@
   top: 0;
   background-color: #f8f9fa;
   border-bottom: 2px solid #1a237e;
+  width: 100%;
+  min-width: max-content;
 }
 
 .grid-body {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  min-width: max-content;
 }
 
 .grid-row {
   display: flex;
   border-bottom: 1px solid #e0e0e0;
+  width: 100%;
+  min-width: max-content;
 }
 
 .grid-row:last-child {
@@ -62,7 +72,7 @@
 }
 
 .grid-cell {
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 120px;
   padding: 0.75rem;
   text-align: right;
@@ -117,12 +127,17 @@
   height: 0;
   border-top: 2px solid #1a237e;
   margin: 0.2rem 0 0.2rem 0;
+  width: 100%;
+  min-width: max-content;
 }
 
 .net-savings-row {
   background: #e3f0fb;
   font-weight: 700;
   border-bottom: 2px solid #1976d2;
+  width: 100%;
+  min-width: max-content;
+  display: flex;
 }
 
 .net-savings-label {
@@ -139,6 +154,9 @@
   background: #e8f5e9;
   font-weight: 600;
   border-bottom: 2px solid #2e7d32;
+  width: 100%;
+  min-width: max-content;
+  display: flex;
 }
 
 .personal-savings-label {
@@ -255,7 +273,7 @@ input:checked + .slider:before {
 
 .outstanding-debts-table-container {
   margin-bottom: 2rem;
-  max-width: 800px;
+  max-width: 650px;
   margin-left: 0;
   margin-right: auto;
 }
@@ -274,7 +292,7 @@ input:checked + .slider:before {
   overflow: hidden;
   background-color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  width: fit-content;
+  width: 100%;
 }
 
 .outstanding-debts-table-container .grid-header {
@@ -297,17 +315,18 @@ input:checked + .slider:before {
   text-align: right;
   font-size: 0.9rem;
   flex-shrink: 0;
+  width: 95px;
 }
 
 .outstanding-debts-table-container .grid-cell.category-cell {
   text-align: left;
   font-weight: 500;
   color: #1a237e;
-  min-width: 120px;
+  width: 110px;
 }
 
 .outstanding-debts-table-container .grid-cell:not(.category-cell) {
-  min-width: 100px;
+  width: 95px;
 }
 
 .outstanding-debts-table-container .header-cell {
