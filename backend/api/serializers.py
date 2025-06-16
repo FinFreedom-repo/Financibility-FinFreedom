@@ -23,6 +23,8 @@ class TransactionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    
     class Meta:
         model = UserProfile
-        fields = ['id', 'age', 'sex', 'marital_status']
+        fields = ['id', 'username', 'age', 'sex', 'marital_status']

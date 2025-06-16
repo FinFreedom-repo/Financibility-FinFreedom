@@ -38,15 +38,25 @@ function AppContent() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const dropdownRef = useRef(null);
 
+  // Add logging for user state changes
+  useEffect(() => {
+    console.log('AppContent - Current user state:', user);
+  }, [user]);
+
   // Fetch profile info when Account view is opened
   useEffect(() => {
     if (showAccount && user && !profileLoaded) {
+      console.log('Fetching profile data for user:', user);
       axios.get('/api/profile/me/')
         .then(res => {
+          console.log('Profile data received:', res.data);
           setProfile(res.data);
           setProfileLoaded(true);
         })
-        .catch(() => setProfileLoaded(true));
+        .catch(error => {
+          console.error('Error fetching profile:', error);
+          setProfileLoaded(true);
+        });
     }
     if (!showAccount) {
       setProfileLoaded(false);
@@ -73,12 +83,19 @@ function AppContent() {
 
   const handleSaveProfile = (data) => {
     // If profile exists, update; else, create
-    const method = profile && profile.age !== undefined ? 'put' : 'post';
-    const url = profile && profile.age !== undefined ? `/api/profile/${profile.id}/` : '/api/profile/';
+    const method = profile && profile.id ? 'put' : 'post';
+    const url = profile && profile.id ? `/api/profile/${profile.id}/` : '/api/profile/';
+    console.log(`Saving profile with ${method.toUpperCase()} to ${url}:`, data);
+    
     axios[method](url, data)
       .then(res => {
+        console.log('Profile save response:', res.data);
         setProfile(res.data);
         setSaveSuccess(true);
+      })
+      .catch(error => {
+        console.error('Error saving profile:', error);
+        setSaveSuccess(false);
       });
   };
 
@@ -93,12 +110,13 @@ function AppContent() {
           <header className="App-header">
             <h1 className="App-title">Financability</h1>
             <div className="user-menu-container" ref={dropdownRef}>
+              {console.log('Current user state in header:', user)}
               <div
                 className="user-icon"
                 onClick={() => setDropdownOpen((open) => !open)}
-                title={user.username || 'User'}
+                title={user?.username || 'User'}
               >
-                {user.username ? user.username.charAt(0).toUpperCase() : '?'}
+                {user?.username ? user.username.charAt(0).toUpperCase() : '?'}
               </div>
               {dropdownOpen && (
                 <div className="user-dropdown">

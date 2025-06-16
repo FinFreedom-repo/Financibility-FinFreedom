@@ -31,18 +31,31 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
+      console.log('Attempting login for user:', username);
       const response = await axios.post('/api/auth/token/', {
         username,
         password,
       });
       const { access, refresh } = response.data;
+      console.log('Login successful, received tokens');
+      
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
       
       // Get user profile after successful login
+      console.log('Fetching user profile...');
       const profileResponse = await axios.get('/api/profile/me/');
-      setUser({ id: profileResponse.data.id, username: profileResponse.data.username });
+      console.log('Raw profile response:', profileResponse);
+      console.log('Profile data:', profileResponse.data);
+      
+      // Use the username from the login attempt if not in profile
+      const userData = { 
+        id: profileResponse.data.id, 
+        username: profileResponse.data.username || username // Fallback to login username
+      };
+      console.log('Setting user state with:', userData);
+      setUser(userData);
       return true;
     } catch (error) {
       console.error('Login error:', error);
