@@ -11,6 +11,7 @@ from .views import (
 from .expense_analyzer import ExpenseAnalyzerView, ExpenseChatView
 from budget.views import BudgetViewSet
 from .debt_planner import DebtPlannerView
+from .dashboard import DashboardView
 
 print("Registering viewsets...")
 router = DefaultRouter()
@@ -29,4 +30,5 @@ urlpatterns = [
     path('expense-analyzer/chat/', ExpenseChatView.as_view(), name='expense-analyzer-chat'),
     path('project-wealth/', project_wealth, name='project-wealth'),
     path('debt-planner/', DebtPlannerView.as_view(), name='debt-planner'),
+    path('dashboard/', DashboardView.as_view(), name='dashboard'),
 ]
