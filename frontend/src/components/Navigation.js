@@ -13,6 +13,11 @@ function Navigation({ onNavigate }) {
           <Link to="/dashboard" onClick={onNavigate}>Dashboard</Link>
         </li>
         <li 
+          className={`App-menu-item ${location.pathname === '/accounts-and-debts' ? 'active' : ''}`}
+        >
+          <Link to="/accounts-and-debts" onClick={onNavigate}>Accounts and Debts</Link>
+        </li>
+        <li 
           className={`App-menu-item ${location.pathname === '/monthly-budget' ? 'active' : ''}`}
         >
           <Link to="/monthly-budget" onClick={onNavigate}>Monthly Budget</Link>

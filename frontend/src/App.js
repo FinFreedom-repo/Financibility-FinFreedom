@@ -8,6 +8,7 @@ import MonthlyBudget from './components/MonthlyBudget';
 import ExpenseAnalyzer from './components/ExpenseAnalyzer';
 import DebtPlanning from './components/DebtPlanning';
 import Dashboard from './components/Dashboard';
+import AccountsAndDebts from './components/AccountsAndDebts';
 import Account from './components/Account';
 import './App.css';
 import axios from './utils/axios';
@@ -171,6 +172,11 @@ function AppContent() {
                   <Route path="/dashboard" element={
                     <ProtectedRoute>
                       <Dashboard />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/accounts-and-debts" element={
+                    <ProtectedRoute>
+                      <AccountsAndDebts />
                     </ProtectedRoute>
                   } />
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
