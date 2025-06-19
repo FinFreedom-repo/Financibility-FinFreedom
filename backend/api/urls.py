@@ -12,6 +12,10 @@ from .expense_analyzer import ExpenseAnalyzerView, ExpenseChatView
 from budget.views import BudgetViewSet
 from .debt_planner import DebtPlannerView
 from .dashboard import DashboardView
+from .accounts_debts import (
+    account_list, account_detail, debt_list, debt_detail,
+    bulk_save_accounts_debts, get_accounts_debts_summary
+)
 
 print("Registering viewsets...")
 router = DefaultRouter()
@@ -31,4 +35,12 @@ urlpatterns = [
     path('project-wealth/', project_wealth, name='project-wealth'),
     path('debt-planner/', DebtPlannerView.as_view(), name='debt-planner'),
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
+    
+    # Accounts and Debts endpoints
+    path('accounts/', account_list, name='account_list'),
+    path('accounts/<int:pk>/', account_detail, name='account_detail'),
+    path('debts/', debt_list, name='debt_list'),
+    path('debts/<int:pk>/', debt_detail, name='debt_detail'),
+    path('accounts-debts/bulk-save/', bulk_save_accounts_debts, name='bulk_save_accounts_debts'),
+    path('accounts-debts/summary/', get_accounts_debts_summary, name='get_accounts_debts_summary'),
 ]

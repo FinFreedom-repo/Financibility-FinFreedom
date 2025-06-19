@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Account, Transaction, Category, UserProfile
+from .models import Account, Transaction, Category, UserProfile, Debt
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -15,7 +15,8 @@ class CategorySerializer(serializers.ModelSerializer):
 class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
-        fields = '__all__'
+        fields = ['id', 'name', 'account_type', 'balance', 'interest_rate', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -28,3 +29,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ['id', 'username', 'age', 'sex', 'marital_status']
+
+class DebtSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Debt
+        fields = ['id', 'name', 'debt_type', 'balance', 'interest_rate', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']

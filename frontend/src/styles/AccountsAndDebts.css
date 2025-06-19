@@ -11,6 +11,68 @@
   margin: 0 auto;
 }
 
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.page-header h1 {
+  color: #1a237e;
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.save-button {
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.save-button:hover:not(:disabled) {
+  background-color: #1b5e20;
+}
+
+.save-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.save-message {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.save-message.success {
+  color: #2e7d32;
+}
+
+.save-message.error {
+  color: #d32f2f;
+}
+
+.loading-message {
+  text-align: center;
+  font-size: 1.1rem;
+  color: #666;
+  padding: 2rem;
+}
+
 .accounts-and-debts h1 {
   color: #1a237e;
   margin: 0 0 1rem 0;
@@ -139,6 +201,14 @@
   outline: none;
   border-color: #1a237e;
   box-shadow: 0 0 0 2px rgba(26, 35, 126, 0.1);
+}
+
+.form-hint {
+  display: block;
+  margin-top: 0.25rem;
+  color: #666;
+  font-size: 0.85rem;
+  font-style: italic;
 }
 
 .form-actions {
