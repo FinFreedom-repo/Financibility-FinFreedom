@@ -121,6 +121,44 @@
   margin: 0;
 }
 
+.data-loaded-indicator {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: #e8f5e8;
+  border: 1px solid #4caf50;
+  border-radius: 6px;
+}
+
+.indicator-text {
+  color: #2e7d32;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.refresh-data-button {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.refresh-data-button:hover:not(:disabled) {
+  background-color: #388e3c;
+}
+
+.refresh-data-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
 .wealth-projector-container {
   display: flex;
   gap: 2rem;

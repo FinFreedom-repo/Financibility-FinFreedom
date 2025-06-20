@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
+import accountsDebtsService from '../services/accountsDebtsService';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -43,6 +44,59 @@ function WealthProjector() {
   const [projectionData, setProjectionData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  // Load accounts and debts data on component mount
+  useEffect(() => {
+    loadAccountsDebtsData();
+  }, []);
+
+  const loadAccountsDebtsData = async () => {
+    try {
+      const data = await accountsDebtsService.getAccountsDebtsSummary();
+      
+      // Calculate totals and weighted averages
+      const totalAssets = (data.accounts || []).reduce((sum, account) => sum + parseFloat(account.balance), 0);
+      const totalDebts = (data.debts || []).reduce((sum, debt) => sum + parseFloat(debt.balance), 0);
+      
+      // Calculate weighted average asset interest rate
+      let weightedAssetInterest = 0;
+      if (totalAssets > 0) {
+        const assetInterestSum = (data.accounts || []).reduce((sum, account) => {
+          return sum + (parseFloat(account.balance) * parseFloat(account.interest_rate));
+        }, 0);
+        weightedAssetInterest = assetInterestSum / totalAssets;
+      }
+      
+      // Calculate weighted average debt interest rate
+      let weightedDebtInterest = 0;
+      if (totalDebts > 0) {
+        const debtInterestSum = (data.debts || []).reduce((sum, debt) => {
+          return sum + (parseFloat(debt.balance) * parseFloat(debt.interest_rate));
+        }, 0);
+        weightedDebtInterest = debtInterestSum / totalDebts;
+      }
+      
+      // Calculate net worth
+      const netWorth = totalAssets - totalDebts;
+      
+      // Update form data with calculated values
+      setFormData(prevData => ({
+        ...prevData,
+        startWealth: netWorth.toString(),
+        debt: totalDebts.toString(),
+        debtInterest: weightedDebtInterest.toFixed(2),
+        assetInterest: weightedAssetInterest.toFixed(2),
+        // Use checking account rate if available, otherwise default
+        checkingInterest: (data.accounts || []).find(acc => acc.account_type === 'checking')?.interest_rate || '4'
+      }));
+      
+      setDataLoaded(true);
+    } catch (error) {
+      console.error('Error loading accounts and debts data:', error);
+      setDataLoaded(true); // Still mark as loaded so user can proceed
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -254,6 +308,18 @@ function WealthProjector() {
       <div className="wealth-header">
         <h2>Wealth Projector</h2>
         <p className="default-values-note">Default values are based on historical averages and typical scenarios</p>
+        {dataLoaded && (
+          <div className="data-loaded-indicator">
+            <span className="indicator-text">✓ Data loaded from your accounts and debts</span>
+            <button 
+              className="refresh-data-button"
+              onClick={loadAccountsDebtsData}
+              disabled={isLoading}
+            >
+              Refresh Data
+            </button>
+          </div>
+        )}
       </div>
       <div className="wealth-projector-container">
         <div className="wealth-form-container">
