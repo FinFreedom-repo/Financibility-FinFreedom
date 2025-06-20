@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'api',
     'budget',
+    'routers',
 ]
 
 MIDDLEWARE = [
