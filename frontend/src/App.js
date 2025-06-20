@@ -83,7 +83,9 @@ function AppContent() {
   }, [dropdownOpen]);
 
   const handleSaveProfile = (data) => {
-    // If profile exists, update; else, create
+    console.log('Saving profile data:', data);
+    
+    // Use the UserProfileViewSet endpoints
     const method = profile && profile.id ? 'put' : 'post';
     const url = profile && profile.id ? `/api/profile/${profile.id}/` : '/api/profile/';
     console.log(`Saving profile with ${method.toUpperCase()} to ${url}:`, data);
@@ -93,6 +95,8 @@ function AppContent() {
         console.log('Profile save response:', res.data);
         setProfile(res.data);
         setSaveSuccess(true);
+        // Reset the success message after 3 seconds
+        setTimeout(() => setSaveSuccess(false), 3000);
       })
       .catch(error => {
         console.error('Error saving profile:', error);

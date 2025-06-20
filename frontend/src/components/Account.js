@@ -1,16 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../styles/Account.css';
 
-const SEX_OPTIONS = ['', 'Male', 'Female', 'Other'];
-const MARITAL_STATUS_OPTIONS = ['', 'Single', 'Married', 'Divorced', 'Widowed', 'Other'];
+const SEX_OPTIONS = [
+  { value: '', label: 'Select sex' },
+  { value: 'M', label: 'Male' },
+  { value: 'F', label: 'Female' },
+  { value: 'O', label: 'Other' }
+];
+
+const MARITAL_STATUS_OPTIONS = [
+  { value: '', label: 'Select status' },
+  { value: 'single', label: 'Single' },
+  { value: 'married', label: 'Married' },
+  { value: 'divorced', label: 'Divorced' },
+  { value: 'widowed', label: 'Widowed' }
+];
 
 function Account({ username, age: initialAge = '', sex: initialSex = '', maritalStatus: initialMaritalStatus = '', onSave }) {
   const [age, setAge] = useState(initialAge);
   const [sex, setSex] = useState(initialSex);
   const [maritalStatus, setMaritalStatus] = useState(initialMaritalStatus);
 
+  // Update local state when props change
+  useEffect(() => {
+    console.log('Account component received props:', { initialAge, initialSex, initialMaritalStatus });
+    setAge(initialAge);
+    setSex(initialSex);
+    setMaritalStatus(initialMaritalStatus);
+  }, [initialAge, initialSex, initialMaritalStatus]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    console.log('Submitting profile data:', { age, sex, marital_status: maritalStatus });
     if (onSave) {
       onSave({ age, sex, marital_status: maritalStatus });
     }
@@ -26,13 +47,22 @@ function Account({ username, age: initialAge = '', sex: initialSex = '', marital
         </div>
         <div className="form-group">
           <label>Age</label>
-          <input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="Enter age" />
+          <input 
+            type="number" 
+            value={age} 
+            onChange={e => setAge(e.target.value)} 
+            placeholder="Enter age"
+            min="1"
+            max="120"
+          />
         </div>
         <div className="form-group">
           <label>Sex</label>
           <select value={sex} onChange={e => setSex(e.target.value)}>
             {SEX_OPTIONS.map(option => (
-              <option key={option} value={option}>{option || 'Select sex'}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </div>
@@ -40,7 +70,9 @@ function Account({ username, age: initialAge = '', sex: initialSex = '', marital
           <label>Marital Status</label>
           <select value={maritalStatus} onChange={e => setMaritalStatus(e.target.value)}>
             {MARITAL_STATUS_OPTIONS.map(option => (
-              <option key={option} value={option}>{option || 'Select status'}</option>
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </div>
