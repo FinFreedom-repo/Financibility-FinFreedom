@@ -220,3 +220,78 @@ def project_wealth(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def calculate_net_savings(request):
+    """Calculate net savings using the same logic as debt planning"""
+    try:
+        # Get the user's budget
+        budget = Budget.objects.filter(user=request.user).order_by('-updated_at').first()
+        
+        if not budget:
+            return Response({'net_savings': 0, 'annual_contributions': 0})
+        
+        # Calculate total income
+        total_income = budget.income or 0
+        
+        # Add additional income items
+        if budget.additional_items:
+            additional_income = sum(
+                item.get('amount', 0) for item in budget.additional_items 
+                if item.get('type') == 'income'
+            )
+            total_income += additional_income
+        
+        # Calculate total expenses from base categories
+        base_expenses = (
+            (budget.housing or 0) +
+            (budget.transportation or 0) +
+            (budget.food or 0) +
+            (budget.healthcare or 0) +
+            (budget.entertainment or 0) +
+            (budget.shopping or 0) +
+            (budget.travel or 0) +
+            (budget.education or 0) +
+            (budget.utilities or 0) +
+            (budget.childcare or 0) +
+            (budget.other or 0)
+        )
+        
+        # Add additional expense items
+        additional_expenses = 0
+        if budget.additional_items:
+            additional_expenses = sum(
+                item.get('amount', 0) for item in budget.additional_items 
+                if item.get('type') == 'expense'
+            )
+        
+        total_expenses = base_expenses + additional_expenses
+        
+        # Calculate total savings goals
+        total_savings_goals = 0
+        if budget.savings:
+            total_savings_goals = sum(item.get('amount', 0) for item in budget.savings)
+        
+        # Calculate net savings (same as debt planning)
+        net_savings = total_income - total_expenses - total_savings_goals
+        annual_contributions = net_savings * 12
+        
+        return Response({
+            'net_savings': net_savings,
+            'annual_contributions': annual_contributions,
+            'breakdown': {
+                'total_income': total_income,
+                'total_expenses': total_expenses,
+                'total_savings_goals': total_savings_goals,
+                'base_expenses': base_expenses,
+                'additional_expenses': additional_expenses
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error calculating net savings: {str(e)}")
+        return Response(
+            {'error': 'Failed to calculate net savings'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
