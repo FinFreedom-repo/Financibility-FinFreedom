@@ -7,7 +7,8 @@ from .views import (
     project_wealth,
     GrokExcelView,
     UserProfileViewSet,
-    calculate_net_savings
+    calculate_net_savings,
+    register_user
 )
 from .expense_analyzer import ExpenseAnalyzerView, ExpenseChatView
 from budget.views import BudgetViewSet
@@ -37,6 +38,7 @@ urlpatterns = [
     path('debt-planner/', DebtPlannerView.as_view(), name='debt-planner'),
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
     path('net-savings/', calculate_net_savings, name='calculate-net-savings'),
+    path('auth/register/', register_user, name='register'),
     
     # Accounts and Debts endpoints
     path('accounts/', account_list, name='account_list'),

@@ -29,6 +29,24 @@ export const AuthProvider = ({ children }) => {
     verifyToken();
   }, []);
 
+  const register = async (username, email, password) => {
+    try {
+      console.log('Attempting registration for user:', username);
+      const response = await axios.post('/api/auth/register/', {
+        username,
+        email,
+        password,
+      });
+      console.log('Registration successful');
+      
+      // After successful registration, log the user in
+      return await login(username, password);
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  };
+
   const login = async (username, password) => {
     try {
       console.log('Attempting login for user:', username);
@@ -71,7 +89,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, register, loading }}>
       {children}
     </AuthContext.Provider>
   );

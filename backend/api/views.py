@@ -15,6 +15,8 @@ from dotenv import load_dotenv
 import logging
 from openai import OpenAI
 from budget.models import Budget
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -293,5 +295,56 @@ def calculate_net_savings(request):
         print(f"Error calculating net savings: {str(e)}")
         return Response(
             {'error': 'Failed to calculate net savings'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+def register_user(request):
+    """
+    Register a new user
+    """
+    try:
+        username = request.data.get('username')
+        email = request.data.get('email')
+        password = request.data.get('password')
+        
+        # Validate required fields
+        if not username or not email or not password:
+            return Response(
+                {'error': 'Username, email, and password are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if user already exists
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {'error': 'Username already exists'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {'error': 'Email already exists'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create the user
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password
+        )
+        
+        # Create a user profile
+        UserProfile.objects.create(user=user)
+        
+        return Response(
+            {'message': 'User registered successfully'},
+            status=status.HTTP_201_CREATED
+        )
+        
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

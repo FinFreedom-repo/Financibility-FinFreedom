@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
 import accountsDebtsService from '../services/accountsDebtsService';
+import '../styles/WealthProjector.css';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,7 +27,7 @@ ChartJS.register(
   Filler
 );
 
-function WealthProjector() {
+function WealthProjector({ onNavigateToAccount }) {
   const [formData, setFormData] = useState({
     age: '25',
     startWealth: '0',
@@ -37,7 +38,7 @@ function WealthProjector() {
     taxRate: '25',
     annualContributions: '1000',
     checkingInterest: '4',
-    maxAge: '100'
+    maxAge: '85'
   });
 
   const [showChart, setShowChart] = useState(false);
@@ -45,33 +46,96 @@ function WealthProjector() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+  const [budgetData, setBudgetData] = useState(null);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [netSavingsData, setNetSavingsData] = useState(null);
 
-  // Load accounts and debts data on component mount
+  // Load all user data on component mount
   useEffect(() => {
-    loadAccountsDebtsData();
+    loadAllUserData();
   }, []);
 
-  const loadAccountsDebtsData = async () => {
+  // Refresh data when component becomes visible again (e.g., after profile update)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && dataLoaded) {
+        console.log('Component became visible, refreshing data...');
+        loadAllUserData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [dataLoaded]);
+
+  // Log form data changes for debugging
+  useEffect(() => {
+    if (dataLoaded) {
+      console.log('Form data updated:', formData);
+    }
+  }, [formData, dataLoaded]);
+
+  // Monitor formData changes specifically
+  useEffect(() => {
+    console.log('formData state changed:', formData);
+  }, [formData]);
+
+  const loadAllUserData = async () => {
     try {
-      const data = await accountsDebtsService.getAccountsDebtsSummary();
+      setDataLoading(true);
+      console.log('Loading user data...');
+      
+      // Load user profile data
+      const profileResponse = await axios.get('/api/profile/me/');
+      console.log('Profile data loaded:', profileResponse.data);
+      setUserProfile(profileResponse.data);
+
+      // Load budget data
+      const budgetResponse = await axios.get('/api/budgets/');
+      const budget = budgetResponse.data[0];
+      console.log('Budget data loaded:', budget);
+      setBudgetData(budget);
+
+      // Load net savings calculation from backend
+      const netSavingsResponse = await axios.get('/api/net-savings/');
+      const netSavingsData = netSavingsResponse.data;
+      console.log('Net savings data loaded:', netSavingsData);
+
+      // Load accounts and debts data
+      const accountsDebtsData = await accountsDebtsService.getAccountsDebtsSummary();
+      console.log('Accounts and debts data loaded:', accountsDebtsData);
       
       // Calculate totals and weighted averages
-      const totalAssets = (data.accounts || []).reduce((sum, account) => sum + parseFloat(account.balance), 0);
-      const totalDebts = (data.debts || []).reduce((sum, debt) => sum + parseFloat(debt.balance), 0);
+      const totalAssets = (accountsDebtsData.accounts || []).reduce((sum, account) => sum + parseFloat(account.balance), 0);
+      const totalDebts = (accountsDebtsData.debts || []).reduce((sum, debt) => sum + parseFloat(debt.balance), 0);
       
-      // Calculate weighted average asset interest rate
+      console.log('Calculated totals - Assets:', totalAssets, 'Debts:', totalDebts);
+      console.log('Accounts array:', accountsDebtsData.accounts);
+      console.log('Debts array:', accountsDebtsData.debts);
+      
+      // Calculate weighted average asset interest rate (excluding checking accounts)
       let weightedAssetInterest = 0;
+      let totalInvestmentAssets = 0;
       if (totalAssets > 0) {
-        const assetInterestSum = (data.accounts || []).reduce((sum, account) => {
-          return sum + (parseFloat(account.balance) * parseFloat(account.interest_rate));
-        }, 0);
-        weightedAssetInterest = assetInterestSum / totalAssets;
+        // Filter out checking accounts for the main asset interest calculation
+        const investmentAccounts = (accountsDebtsData.accounts || []).filter(acc => acc.account_type !== 'checking');
+        totalInvestmentAssets = investmentAccounts.reduce((sum, account) => sum + parseFloat(account.balance), 0);
+        
+        if (totalInvestmentAssets > 0) {
+          const assetInterestSum = investmentAccounts.reduce((sum, account) => {
+            return sum + (parseFloat(account.balance) * parseFloat(account.interest_rate));
+          }, 0);
+          weightedAssetInterest = assetInterestSum / totalInvestmentAssets;
+        }
       }
       
       // Calculate weighted average debt interest rate
       let weightedDebtInterest = 0;
       if (totalDebts > 0) {
-        const debtInterestSum = (data.debts || []).reduce((sum, debt) => {
+        const debtInterestSum = (accountsDebtsData.debts || []).reduce((sum, debt) => {
           return sum + (parseFloat(debt.balance) * parseFloat(debt.interest_rate));
         }, 0);
         weightedDebtInterest = debtInterestSum / totalDebts;
@@ -80,21 +144,39 @@ function WealthProjector() {
       // Calculate net worth
       const netWorth = totalAssets - totalDebts;
       
-      // Update form data with calculated values
-      setFormData(prevData => ({
-        ...prevData,
-        startWealth: netWorth.toString(),
+      // Prepare new form data
+      const newFormData = {
+        age: profileResponse.data.age ? profileResponse.data.age.toString() : '25',
+        startWealth: totalAssets.toString(),
         debt: totalDebts.toString(),
         debtInterest: weightedDebtInterest.toFixed(2),
-        assetInterest: weightedAssetInterest.toFixed(2),
+        assetInterest: '10.5', // Historical market average
+        annualContributions: netSavingsData.annual_contributions.toString(), // From backend calculation
+        inflation: '2.5',
+        taxRate: '25',
+        maxAge: '85',
         // Use checking account rate if available, otherwise default
-        checkingInterest: (data.accounts || []).find(acc => acc.account_type === 'checking')?.interest_rate || '4'
-      }));
+        checkingInterest: (accountsDebtsData.accounts || []).find(acc => acc.account_type === 'checking')?.interest_rate || '4'
+      };
+      
+      console.log('Setting form data with:', newFormData);
+      console.log('User profile data:', profileResponse.data);
+      console.log('Age from profile:', profileResponse.data.age);
+      console.log('Net worth calculation:', { totalAssets, totalDebts, netWorth });
+      console.log('Net savings breakdown:', netSavingsData.breakdown);
+      
+      // Update form data with all calculated values
+      setFormData(newFormData);
       
       setDataLoaded(true);
+      setDataLoading(false);
+      setNetSavingsData(netSavingsData);
+      console.log('Data loading completed successfully');
     } catch (error) {
-      console.error('Error loading accounts and debts data:', error);
+      console.error('Error loading user data:', error);
+      console.error('Error details:', error.response?.data || error.message);
       setDataLoaded(true); // Still mark as loaded so user can proceed
+      setDataLoading(false);
     }
   };
 
@@ -146,7 +228,7 @@ function WealthProjector() {
       labels: ages,
       datasets: [
         {
-          label: 'Total Wealth',
+          label: 'Net Worth',
           data: wealth,
           borderColor: '#1a237e',
           backgroundColor: 'rgba(26, 35, 126, 0.1)',
@@ -307,13 +389,31 @@ function WealthProjector() {
     <div className="wealth-projector">
       <div className="wealth-header">
         <h2>Wealth Projector</h2>
-        <p className="default-values-note">Default values are based on historical averages and typical scenarios</p>
-        {dataLoaded && (
+        <p className="default-values-note">Default values are automatically loaded from your profile, accounts, debts, and budget</p>
+        {dataLoading ? (
+          <div className="data-loading-indicator">
+            <div className="loading-spinner"></div>
+            <span className="loading-text">Loading your financial data...</span>
+          </div>
+        ) : dataLoaded && (
           <div className="data-loaded-indicator">
-            <span className="indicator-text">✓ Data loaded from your accounts and debts</span>
+            <div className="data-summary">
+              <span className="indicator-text">✓ Data loaded:</span>
+              <ul className="data-details">
+                {userProfile?.age ? (
+                  <li>Age: {userProfile.age}</li>
+                ) : (
+                  <li>Age: Not set in profile (using default: 25)</li>
+                )}
+                {budgetData && <li>Budget: Income ${netSavingsData?.breakdown?.total_income?.toLocaleString() || 0}, Net Savings ${(parseFloat(formData.annualContributions) / 12).toLocaleString()}/month</li>}
+                <li>Net Worth: ${parseFloat(formData.startWealth).toLocaleString()}</li>
+                <li>Debts: ${parseFloat(formData.debt).toLocaleString()} at {formData.debtInterest}% avg</li>
+                <li>Annual Contributions: ${parseFloat(formData.annualContributions).toLocaleString()}</li>
+              </ul>
+            </div>
             <button 
               className="refresh-data-button"
-              onClick={loadAccountsDebtsData}
+              onClick={loadAllUserData}
               disabled={isLoading}
             >
               Refresh Data
@@ -335,6 +435,22 @@ function WealthProjector() {
                 placeholder="Enter your age"
                 required
               />
+              {userProfile?.age ? (
+                <small className="data-source">From your profile</small>
+              ) : (
+                <div className="age-warning">
+                  <small className="data-source-warning">⚠️ Age not set in profile - please update your profile or enter manually</small>
+                  {onNavigateToAccount && (
+                    <button 
+                      type="button" 
+                      className="update-profile-button"
+                      onClick={onNavigateToAccount}
+                    >
+                      Update Profile
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="form-group">
@@ -353,7 +469,7 @@ function WealthProjector() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="startWealth">Starting Wealth ($)</label>
+              <label htmlFor="startWealth">Net Worth</label>
               <input
                 type="number"
                 id="startWealth"
@@ -363,10 +479,11 @@ function WealthProjector() {
                 placeholder="Enter starting amount"
                 required
               />
+              <small className="data-source">Calculated from your accounts</small>
             </div>
 
             <div className="form-group">
-              <label htmlFor="debt">Total Debt ($)</label>
+              <label htmlFor="debt">Total Debt</label>
               <input
                 type="number"
                 id="debt"
@@ -376,10 +493,11 @@ function WealthProjector() {
                 placeholder="Enter total debt"
                 required
               />
+              <small className="data-source">From your debt accounts</small>
             </div>
 
             <div className="form-group">
-              <label htmlFor="debtInterest">Debt Interest Rate (%)</label>
+              <label htmlFor="debtInterest">Debt Interest Rate (Avg)</label>
               <input
                 type="number"
                 id="debtInterest"
@@ -390,10 +508,11 @@ function WealthProjector() {
                 step="0.01"
                 required
               />
+              <small className="data-source">Weighted average from your debts</small>
             </div>
 
             <div className="form-group">
-              <label htmlFor="assetInterest">Asset Interest Rate (%)</label>
+              <label htmlFor="assetInterest">Investment Interest Rate (Historical Market Average)</label>
               <input
                 type="number"
                 id="assetInterest"
@@ -404,6 +523,7 @@ function WealthProjector() {
                 step="0.01"
                 required
               />
+              <small className="data-source">Historical S&P 500 average return (10.5%)</small>
             </div>
 
             <div className="form-group">
@@ -435,7 +555,7 @@ function WealthProjector() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="annualContributions">Annual Contributions ($)</label>
+              <label htmlFor="annualContributions">Annual Contributions</label>
               <input
                 type="number"
                 id="annualContributions"
@@ -445,6 +565,7 @@ function WealthProjector() {
                 placeholder="Enter annual amount"
                 required
               />
+              <small className="data-source">Based on your budget net savings (monthly × 12)</small>
             </div>
 
             <div className="form-group">
@@ -459,6 +580,7 @@ function WealthProjector() {
                 step="0.01"
                 required
               />
+              <small className="data-source">From your checking account (used for checking account projections)</small>
             </div>
 
             <button 

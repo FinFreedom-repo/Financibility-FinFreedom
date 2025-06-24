@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navigation from './components/Navigation';
 import WealthProjector from './components/WealthProjector';
 import Login from './components/Login';
+import Home from './components/Home';
+import Register from './components/Register';
 import MonthlyBudget from './components/MonthlyBudget';
 import ExpenseAnalyzer from './components/ExpenseAnalyzer';
 import DebtPlanning from './components/DebtPlanning';
@@ -155,7 +157,7 @@ function AppContent() {
                 <Routes>
                   <Route path="/wealth-projector" element={
                     <ProtectedRoute>
-                      <WealthProjector />
+                      <WealthProjector onNavigateToAccount={() => setShowAccount(true)} />
                     </ProtectedRoute>
                   } />
                   <Route path="/monthly-budget" element={
@@ -191,7 +193,9 @@ function AppContent() {
         </>
       ) : (
         <Routes>
-          <Route path="/" element={<Login />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       )}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
+import accountsDebtsService from '../services/accountsDebtsService';
 import '../styles/DebtPlanning.css';
 
 const DebtPlanning = () => {
@@ -8,6 +9,9 @@ const DebtPlanning = () => {
   const [error, setError] = useState(null);
   const [incomeCategories, setIncomeCategories] = useState([]);
   const [expenseCategories, setExpenseCategories] = useState([]);
+  const [outstandingDebts, setOutstandingDebts] = useState([]);
+  const [debtsLoading, setDebtsLoading] = useState(true);
+  const [debtsError, setDebtsError] = useState(null);
 
   // Update categories when budgetData changes
   useEffect(() => {
@@ -59,6 +63,7 @@ const DebtPlanning = () => {
 
   useEffect(() => {
     loadBudgetData();
+    loadDebts();
   }, []);
 
   const loadBudgetData = async () => {
@@ -72,6 +77,27 @@ const DebtPlanning = () => {
       setError('Failed to load budget data. Please try again later.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadDebts = async () => {
+    try {
+      setDebtsLoading(true);
+      const debts = await accountsDebtsService.getDebts();
+      // Transform debts to match the format expected by the debt planner
+      const transformedDebts = debts.map(debt => ({
+        name: debt.name,
+        balance: parseFloat(debt.balance),
+        rate: parseFloat(debt.interest_rate),
+        min_payment: parseFloat(debt.balance) * (parseFloat(debt.interest_rate) / 100 / 12) // Calculate minimum payment as monthly interest
+      }));
+      setOutstandingDebts(transformedDebts);
+      setDebtsError(null);
+    } catch (err) {
+      console.error('Error loading debts:', err);
+      setDebtsError('Failed to load debts. Please try again later.');
+    } finally {
+      setDebtsLoading(false);
     }
   };
 
@@ -161,12 +187,6 @@ const DebtPlanning = () => {
     );
   };
 
-  // Hardcoded debts for display and API
-  const outstandingDebts = [
-    { name: 'Credit Card', balance: 10000, rate: 25, min_payment: 250 },
-    { name: 'Student Loan', balance: 5000, rate: 6, min_payment: 75 }
-  ];
-
   // Calculate available savings (income - expenses)
   const availableSavings = budgetData
     ? (() => {
@@ -184,7 +204,7 @@ const DebtPlanning = () => {
   const [strategy, setStrategy] = useState('snowball');
 
   useEffect(() => {
-    if (budgetData) {
+    if (budgetData && outstandingDebts.length > 0) {
       setPlanLoading(true);
       axios.post('/api/debt-planner/', {
         debts: outstandingDebts,
@@ -200,7 +220,7 @@ const DebtPlanning = () => {
         })
         .finally(() => setPlanLoading(false));
     }
-  }, [budgetData, strategy]);
+  }, [budgetData, strategy, outstandingDebts]);
 
   // Render payoff plan table (debts as rows, months as columns, styled like the grid table)
   const renderPayoffTable = () => {
@@ -274,26 +294,34 @@ const DebtPlanning = () => {
       </div>
       <div className="outstanding-debts-table-container">
         <h3>Outstanding Debts</h3>
-        <div className="grid-container">
-          <div className="grid-header">
-            <div className="grid-cell header-cell category-cell" style={{ width: '120px' }}>Debt Name</div>
-            <div className="grid-cell header-cell" style={{ width: '100px' }}>Balance</div>
-            <div className="grid-cell header-cell" style={{ width: '100px' }}>Interest Rate</div>
-            <div className="grid-cell header-cell" style={{ width: '100px' }}>Monthly Interest</div>
+        {debtsLoading ? (
+          <div className="loading">Loading debts...</div>
+        ) : debtsError ? (
+          <div className="error">{debtsError}</div>
+        ) : outstandingDebts.length === 0 ? (
+          <div className="no-debts">No outstanding debts found. Add some debts in the Accounts & Debts section to see your debt payoff plan.</div>
+        ) : (
+          <div className="grid-container">
+            <div className="grid-header">
+              <div className="grid-cell header-cell category-cell" style={{ width: '120px' }}>Debt Name</div>
+              <div className="grid-cell header-cell" style={{ width: '100px' }}>Balance</div>
+              <div className="grid-cell header-cell" style={{ width: '100px' }}>Interest Rate</div>
+              <div className="grid-cell header-cell" style={{ width: '100px' }}>Monthly Interest</div>
+            </div>
+            <div className="grid-body">
+              {outstandingDebts.map((debt, idx) => (
+                <div key={idx} className="grid-row">
+                  <div className="grid-cell category-cell" style={{ width: '120px' }}>{debt.name}</div>
+                  <div className="grid-cell" style={{ width: '100px' }}>${debt.balance.toLocaleString()}</div>
+                  <div className="grid-cell" style={{ width: '100px' }}>{debt.rate}%</div>
+                  <div className="grid-cell" style={{ width: '100px' }}>${(debt.balance * (debt.rate / 100 / 12)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="grid-body">
-            {outstandingDebts.map((debt, idx) => (
-              <div key={idx} className="grid-row">
-                <div className="grid-cell category-cell" style={{ width: '120px' }}>{debt.name}</div>
-                <div className="grid-cell" style={{ width: '100px' }}>${debt.balance.toLocaleString()}</div>
-                <div className="grid-cell" style={{ width: '100px' }}>{debt.rate}%</div>
-                <div className="grid-cell" style={{ width: '100px' }}>${(debt.balance * (debt.rate / 100 / 12)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
-      {renderPayoffTable()}
+      {outstandingDebts.length > 0 && renderPayoffTable()}
       <div className="debt-container">
         {renderGrid()}
       </div>
