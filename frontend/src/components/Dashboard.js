@@ -57,10 +57,43 @@ function Dashboard() {
             </div>
           </div>
           <div className="dashboard-main">
-            <h1>Welcome to Financability</h1>
-            <p className="welcome-message">
-              Your personal financial management dashboard. Here you'll find tools and insights to help you achieve your financial goals.
-            </p>
+            <div className="welcome-section">
+              <h1>Welcome to Financability! 👋</h1>
+              <div className="welcome-content">
+                <p className="welcome-message">
+                  Your personal financial management dashboard is here to help you take control of your money and build a secure financial future. 
+                  This is your command center for tracking accounts, managing debts, creating budgets, and planning your path to financial freedom.
+                </p>
+                
+                <div className="dashboard-features">
+                  <h3>What you can do here:</h3>
+                  <ul>
+                    <li>📊 <strong>Track Accounts & Debts:</strong> Get a complete picture of your financial situation</li>
+                    <li>💰 <strong>Monthly Budgeting:</strong> Create and stick to realistic spending plans</li>
+                    <li>📈 <strong>Expense Analysis:</strong> Understand where your money goes</li>
+                    <li>🎯 <strong>Debt Planning:</strong> Create strategies to eliminate debt faster</li>
+                    <li>🚀 <strong>Wealth Projection:</strong> See your financial future with different scenarios</li>
+                  </ul>
+                </div>
+
+                <div className="first-steps-section">
+                  <h3>🚀 Ready to get started?</h3>
+                  <p>
+                    The best way to begin your financial journey is to input your current accounts and debts. 
+                    This gives us the foundation we need to provide personalized insights and recommendations.
+                  </p>
+                  <div className="cta-buttons">
+                    <button className="cta-button primary">
+                      📝 Add Your Accounts & Debts
+                    </button>
+                    <p className="cta-note">
+                      This takes just a few minutes and will unlock all the dashboard features!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="notice-box">
               <h2>Financial Overview</h2>
               <p>Coming soon! We're developing a comprehensive financial overview to help you track your progress.</p>
