@@ -7,6 +7,7 @@ from .views import (
     project_wealth,
     GrokExcelView,
     UserProfileViewSet,
+    FinancialStepViewSet,
     calculate_net_savings,
     register_user
 )
@@ -25,6 +26,7 @@ router.register(r'accounts', AccountViewSet, basename='account')
 router.register(r'transactions', TransactionViewSet, basename='transaction')
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'profile', UserProfileViewSet, basename='profile')
+router.register(r'financial-steps', FinancialStepViewSet, basename='financial-step')
 print("Registering BudgetViewSet...")
 router.register(r'budgets', BudgetViewSet, basename='budget')
 print("Available actions for BudgetViewSet:", BudgetViewSet.get_extra_actions())

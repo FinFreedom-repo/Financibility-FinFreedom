@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from '../utils/axios';
 import '../styles/Dashboard.css';
 
 function Dashboard() {
+  const [financialSteps, setFinancialSteps] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const babySteps = [
     {
       id: 1,
@@ -35,12 +40,108 @@ function Dashboard() {
     }
   ];
 
+  useEffect(() => {
+    fetchFinancialSteps();
+  }, []);
+
+  const fetchFinancialSteps = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/api/financial-steps/me/');
+      setFinancialSteps(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching financial steps:', err);
+      setError('Failed to load financial progress');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStepStatus = (stepId) => {
+    if (!financialSteps) return '❌';
+    
+    const currentStep = financialSteps.current_step;
+    const stepProgress = financialSteps.step_progress;
+    
+    // If this step is completed (current step is higher)
+    if (currentStep > stepId) {
+      return '✅';
+    }
+    
+    // If this is the current step and it's completed
+    if (currentStep === stepId && stepProgress.completed) {
+      return '✅';
+    }
+    
+    // If this is the current step and it's in progress
+    if (currentStep === stepId && !stepProgress.completed) {
+      return '🔄';
+    }
+    
+    // Future step
+    return '❌';
+  };
+
+  const getStepProgress = (stepId) => {
+    if (!financialSteps || financialSteps.current_step !== stepId) return null;
+    
+    const progress = financialSteps.step_progress;
+    if (!progress || progress.completed) return null;
+    
+    return {
+      progress: progress.progress || 0,
+      current: progress.current_amount || progress.current_debt || progress.current_percent || 0,
+      goal: progress.goal_amount || progress.goal_percent || 0,
+      message: progress.message
+    };
+  };
+
+  const renderStepProgress = (stepId) => {
+    const progress = getStepProgress(stepId);
+    if (!progress) return null;
+    
+    return (
+      <div className="step-progress">
+        <div className="progress-bar">
+          <div 
+            className="progress-fill" 
+            style={{ width: `${progress.progress}%` }}
+          ></div>
+        </div>
+        <div className="progress-text">
+          {progress.message || `${Math.round(progress.progress)}% complete`}
+          {progress.current && progress.goal && (
+            <span> (${progress.current.toLocaleString()} / ${progress.goal.toLocaleString()})</span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="dashboard">
+        <div className="dashboard-content">
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <p>Loading your financial progress...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard">
       <div className="dashboard-content">
         <div className="dashboard-grid">
           <div className="baby-steps-section">
             <h2>Financial Planning Checklist</h2>
+            {error && (
+              <div className="error-message" style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'rgba(220, 53, 69, 0.1)', border: '1px solid rgba(220, 53, 69, 0.3)', borderRadius: '4px', color: '#dc3545' }}>
+                {error}
+              </div>
+            )}
             <div className="baby-steps-list">
               {babySteps.map((step) => (
                 <div key={step.id} className="baby-step-item">
@@ -49,9 +150,10 @@ function Dashboard() {
                   </div>
                   <div className="step-title-row">
                     <h3>{step.title}</h3>
-                    <span className="step-status">❌</span>
+                    <span className="step-status">{getStepStatus(step.id)}</span>
                   </div>
                   <p>{step.description}</p>
+                  {renderStepProgress(step.id)}
                 </div>
               ))}
             </div>
@@ -92,11 +194,6 @@ function Dashboard() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="notice-box">
-              <h2>Financial Overview</h2>
-              <p>Coming soon! We're developing a comprehensive financial overview to help you track your progress.</p>
             </div>
           </div>
         </div>

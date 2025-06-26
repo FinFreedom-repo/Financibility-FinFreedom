@@ -1,8 +1,8 @@
 from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
-from .models import Account, Transaction, Category, UserProfile
-from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer, UserProfileSerializer
+from .models import Account, Transaction, Category, UserProfile, FinancialStep
+from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer, UserProfileSerializer, FinancialStepSerializer
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework import status
@@ -169,6 +169,39 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     def me(self, request):
         profile, created = UserProfile.objects.get_or_create(user=request.user)
         serializer = self.get_serializer(profile)
+        return Response(serializer.data)
+
+class FinancialStepViewSet(viewsets.ModelViewSet):
+    serializer_class = FinancialStepSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return FinancialStep.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        """Get or create the user's financial step progress."""
+        financial_step, created = FinancialStep.objects.get_or_create(user=request.user)
+        serializer = self.get_serializer(financial_step)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='update-progress')
+    def update_progress(self, request):
+        """Update the user's financial step progress."""
+        financial_step, created = FinancialStep.objects.get_or_create(user=request.user)
+        
+        # Update fields from request data
+        for field in request.data:
+            if hasattr(financial_step, field):
+                setattr(financial_step, field, request.data[field])
+        
+        financial_step.save()
+        
+        # Calculate and return updated progress
+        serializer = self.get_serializer(financial_step)
         return Response(serializer.data)
 
 @api_view(['POST'])
