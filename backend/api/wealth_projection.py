@@ -37,8 +37,22 @@ def calculate_wealth_projection(data):
     # Store projections
     projections = []
     
-    # Calculate for the specified number of years
-    for year in range(years_to_project + 1):
+    # Add the first data point with original input values (no calculations applied)
+    projections.append({
+        'year': 0,
+        'age': current_age,
+        'wealth': round(wealth, 2),
+        'debt': round(debt, 2),
+        'net_worth': round(wealth - debt, 2),
+        'adjusted_wealth': round(wealth, 2),  # No inflation adjustment for year 0
+        'adjusted_debt': round(debt, 2),      # No inflation adjustment for year 0
+        'adjusted_net_worth': round(wealth - debt, 2),
+        'checking_wealth': round(checking_wealth, 2),
+        'adjusted_checking_wealth': round(checking_wealth, 2)
+    })
+    
+    # Calculate for the remaining years (starting from year 1)
+    for year in range(1, years_to_project + 1):
         # Calculate interest on assets (after tax)
         asset_interest = wealth * asset_interest_rate
         asset_interest_after_tax = asset_interest * (1 - tax_rate)
