@@ -184,9 +184,16 @@ class FinancialStepViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='me')
     def me(self, request):
         """Get or create the user's financial step progress."""
-        financial_step, created = FinancialStep.objects.get_or_create(user=request.user)
-        serializer = self.get_serializer(financial_step)
-        return Response(serializer.data)
+        try:
+            financial_step, created = FinancialStep.objects.get_or_create(user=request.user)
+            serializer = self.get_serializer(financial_step)
+            return Response(serializer.data)
+        except Exception as e:
+            logger.error(f"Error in FinancialStepViewSet.me: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Failed to load financial steps', 'details': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=False, methods=['post'], url_path='update-progress')
     def update_progress(self, request):
