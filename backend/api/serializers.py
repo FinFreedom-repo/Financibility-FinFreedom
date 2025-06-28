@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Account, Transaction, Category, UserProfile, Debt, FinancialStep
+from .models import Account, Transaction, Category, UserProfile, Debt, FinancialStep, AccountAudit, TransactionAudit, DebtAudit
+from datetime import date
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,14 +14,34 @@ class CategorySerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class AccountSerializer(serializers.ModelSerializer):
+    effective_date = serializers.DateField(required=False)
+    balance = serializers.DecimalField(max_digits=15, decimal_places=2)
+    interest_rate = serializers.DecimalField(max_digits=5, decimal_places=2)
+    
     class Meta:
         model = Account
-        fields = ['id', 'name', 'account_type', 'balance', 'interest_rate', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        fields = '__all__'
+        read_only_fields = ['user', 'created_at', 'updated_at']
+    
+    def validate_effective_date(self, value):
+        """Validate effective_date field"""
+        if value is None:
+            return date.today()
+        return value
+
+class AccountAuditSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AccountAudit
+        fields = '__all__'
 
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
+        fields = '__all__'
+
+class TransactionAuditSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TransactionAudit
         fields = '__all__'
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -31,10 +52,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'age', 'sex', 'marital_status']
 
 class DebtSerializer(serializers.ModelSerializer):
+    effective_date = serializers.DateField(required=False)
+    balance = serializers.DecimalField(max_digits=15, decimal_places=2)
+    interest_rate = serializers.DecimalField(max_digits=5, decimal_places=2)
+    
     class Meta:
         model = Debt
-        fields = ['id', 'name', 'debt_type', 'balance', 'interest_rate', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        fields = '__all__'
+        read_only_fields = ['user', 'created_at', 'updated_at']
+    
+    def validate_effective_date(self, value):
+        """Validate effective_date field"""
+        if value is None:
+            return date.today()
+        return value
+
+class DebtAuditSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DebtAudit
+        fields = '__all__'
 
 class FinancialStepSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)

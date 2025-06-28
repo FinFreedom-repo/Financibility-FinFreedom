@@ -1,6 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User
 from decimal import Decimal
+from datetime import date
+
+def today():
+    return date.today()
 
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -24,14 +28,44 @@ class Account(models.Model):
     account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES, default='checking')
     balance = models.DecimalField(max_digits=15, decimal_places=2)
     interest_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
+    effective_date = models.DateField(default=today, help_text="Date this balance is effective for")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-effective_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        # Always create a new record for each update (never overwrite)
+        if self.pk:
+            self.pk = None  # Force insert
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def latest_for_user_and_name(cls, user, name):
+        """Get the latest account record for a user and account name."""
+        return cls.objects.filter(user=user, name=name).order_by('-effective_date', '-created_at').first()
+
+class AccountAudit(models.Model):
+    """Audit trail for account changes"""
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='audit_records')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    old_balance = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    new_balance = models.DecimalField(max_digits=15, decimal_places=2)
+    old_interest_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    new_interest_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    effective_date = models.DateField(help_text="Date this change is effective for")
+    change_reason = models.CharField(max_length=200, blank=True, help_text="Reason for the change")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.user.username} - {self.name}"
+        return f"{self.account.name} - {self.effective_date} - {self.new_balance}"
 
 class Transaction(models.Model):
     TRANSACTION_TYPES = [
@@ -46,12 +80,54 @@ class Transaction(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
     date = models.DateField()
+    effective_date = models.DateField(default=today, help_text="Date this transaction is effective for")
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.description} - {self.amount}"
+
+    def save(self, *args, **kwargs):
+        # Check if this is an update (not a new record)
+        if self.pk:
+            try:
+                old_instance = Transaction.objects.get(pk=self.pk)
+                # Create audit record if amount or description changed
+                if (old_instance.amount != self.amount or 
+                    old_instance.description != self.description):
+                    TransactionAudit.objects.create(
+                        transaction=self,
+                        user=self.user,
+                        old_amount=old_instance.amount,
+                        new_amount=self.amount,
+                        old_description=old_instance.description,
+                        new_description=self.description,
+                        effective_date=self.effective_date,
+                        change_reason=f"Updated transaction: {self.description}"
+                    )
+            except Transaction.DoesNotExist:
+                pass  # This shouldn't happen, but handle gracefully
+        
+        super().save(*args, **kwargs)
+
+class TransactionAudit(models.Model):
+    """Audit trail for transaction changes"""
+    transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='audit_records')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    old_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    new_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    old_description = models.CharField(max_length=200, null=True, blank=True)
+    new_description = models.CharField(max_length=200)
+    effective_date = models.DateField(help_text="Date this change is effective for")
+    change_reason = models.CharField(max_length=200, blank=True, help_text="Reason for the change")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.transaction.description} - {self.effective_date} - {self.new_amount}"
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -77,18 +153,48 @@ class Debt(models.Model):
     debt_type = models.CharField(max_length=20, choices=DEBT_TYPES, default='credit-card')
     balance = models.DecimalField(max_digits=15, decimal_places=2)
     interest_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
+    effective_date = models.DateField(default=today, help_text="Date this balance is effective for")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-effective_date', '-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        # Always create a new record for each update (never overwrite)
+        if self.pk:
+            self.pk = None  # Force insert
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def latest_for_user_and_name(cls, user, name):
+        """Get the latest debt record for a user and debt name."""
+        return cls.objects.filter(user=user, name=name).order_by('-effective_date', '-created_at').first()
+
+class DebtAudit(models.Model):
+    """Audit trail for debt changes"""
+    debt = models.ForeignKey(Debt, on_delete=models.CASCADE, related_name='audit_records')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    old_balance = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    new_balance = models.DecimalField(max_digits=15, decimal_places=2)
+    old_interest_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    new_interest_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    effective_date = models.DateField(help_text="Date this change is effective for")
+    change_reason = models.CharField(max_length=200, blank=True, help_text="Reason for the change")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.user.username} - {self.name}"
+        return f"{self.debt.name} - {self.effective_date} - {self.new_balance}"
 
 class FinancialStep(models.Model):
     STEP_CHOICES = [
-        (1, 'Save $1,000 for your starter emergency fund'),
+        (1, 'Save $2,000 for your starter emergency fund'),
         (2, 'Pay off all debt (except the house) using the debt snowball'),
         (3, 'Save 3-6 months of expenses in a fully funded emergency fund'),
         (4, 'Invest 15% of your household income in retirement'),
@@ -98,7 +204,7 @@ class FinancialStep(models.Model):
     
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     current_step = models.IntegerField(choices=STEP_CHOICES, default=1)
-    emergency_fund_goal = models.DecimalField(max_digits=15, decimal_places=2, default=1000.00)
+    emergency_fund_goal = models.DecimalField(max_digits=15, decimal_places=2, default=2000.00)
     emergency_fund_current = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
     monthly_expenses = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
     retirement_contribution_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
@@ -114,9 +220,9 @@ class FinancialStep(models.Model):
     def sync_with_user_data(self):
         """Sync financial step data with user's actual accounts and debts."""
         try:
-            # Calculate emergency fund from savings accounts
-            savings_accounts = self.user.accounts.filter(account_type='savings')
-            self.emergency_fund_current = savings_accounts.aggregate(
+            # Calculate emergency fund from ALL accounts (not just savings)
+            all_accounts = self.user.accounts.all()
+            self.emergency_fund_current = all_accounts.aggregate(
                 total=models.Sum('balance')
             )['total'] or Decimal('0.00')
             

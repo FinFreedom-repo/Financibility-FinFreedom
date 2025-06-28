@@ -10,7 +10,7 @@ function Dashboard() {
   const babySteps = [
     {
       id: 1,
-      title: "Save $1,000 for your starter emergency fund",
+      title: "Save $2,000 for your starter emergency fund",
       description: "This is your first step to financial security."
     },
     {
@@ -47,7 +47,7 @@ function Dashboard() {
   const fetchFinancialSteps = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/financial-steps/me/');
+      const response = await axios.get('/api/financial-steps/calculate/');
       setFinancialSteps(response.data);
       setError(null);
     } catch (err) {
@@ -92,7 +92,8 @@ function Dashboard() {
     return {
       progress: progress.progress || 0,
       current: progress.current_amount || progress.current_debt || progress.current_percent || 0,
-      goal: progress.goal_amount || progress.goal_percent || 0,
+      goal: progress.goal_amount || progress.goal_percent || progress.max_total_debt || 0,
+      amount_paid_off: progress.amount_paid_off || 0,
       message: progress.message
     };
   };
@@ -111,9 +112,9 @@ function Dashboard() {
         </div>
         <div className="progress-text">
           {progress.message || `${Math.round(progress.progress)}% complete`}
-          {progress.current && progress.goal && (
+          {stepId !== 2 && progress.current && progress.goal ? (
             <span> (${progress.current.toLocaleString()} / ${progress.goal.toLocaleString()})</span>
-          )}
+          ) : null}
         </div>
       </div>
     );

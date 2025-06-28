@@ -8,9 +8,11 @@ function AccountsAndDebts() {
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [showDebtForm, setShowDebtForm] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [hasChanges, setHasChanges] = useState(false);
+  
+  // Editing states
+  const [editingAccount, setEditingAccount] = useState(null);
+  const [editingDebt, setEditingDebt] = useState(null);
   
   // Default interest rates based on market averages
   const defaultAccountRates = {
@@ -34,7 +36,8 @@ function AccountsAndDebts() {
     name: '',
     balance: '',
     accountType: 'checking',
-    interestRate: '0.01'
+    interestRate: '0.01',
+    effectiveDate: new Date().toISOString().split('T')[0] // Default to today
   });
   
   // Form states for debts
@@ -42,13 +45,45 @@ function AccountsAndDebts() {
     name: '',
     balance: '',
     debtType: 'credit-card',
-    interestRate: '24.99'
+    interestRate: '24.99',
+    effectiveDate: new Date().toISOString().split('T')[0] // Default to today
   });
+
+  // History viewing states
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyData, setHistoryData] = useState([]);
+  const [historyType, setHistoryType] = useState(''); // 'account' or 'debt'
+  const [historyName, setHistoryName] = useState('');
 
   // Load data on component mount
   useEffect(() => {
     loadAccountsDebts();
   }, []);
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editingAccount) {
+      setAccountForm({
+        name: editingAccount.name,
+        balance: editingAccount.balance.toString(),
+        accountType: editingAccount.accountType,
+        interestRate: editingAccount.interestRate.toString(),
+        effectiveDate: new Date().toISOString().split('T')[0]
+      });
+    }
+  }, [editingAccount]);
+
+  useEffect(() => {
+    if (editingDebt) {
+      setDebtForm({
+        name: editingDebt.name,
+        balance: editingDebt.balance.toString(),
+        debtType: editingDebt.debtType,
+        interestRate: editingDebt.interestRate.toString(),
+        effectiveDate: new Date().toISOString().split('T')[0]
+      });
+    }
+  }, [editingDebt]);
 
   const loadAccountsDebts = async () => {
     try {
@@ -74,7 +109,6 @@ function AccountsAndDebts() {
       
       setAccounts(mappedAccounts);
       setDebts(mappedDebts);
-      setHasChanges(false);
     } catch (error) {
       console.error('Error loading accounts and debts:', error);
     } finally {
@@ -98,88 +132,129 @@ function AccountsAndDebts() {
     });
   };
 
-  const handleAccountSubmit = (e) => {
+  const handleAccountSubmit = async (e) => {
     e.preventDefault();
-    const newAccount = {
-      id: Date.now(),
-      ...accountForm,
-      balance: parseFloat(accountForm.balance) || 0,
-      interestRate: parseFloat(accountForm.interestRate) || 0
-    };
-    setAccounts([...accounts, newAccount]);
-    setAccountForm({ 
-      name: '', 
-      balance: '', 
-      accountType: 'checking',
-      interestRate: '0.01'
-    });
-    setShowAccountForm(false);
-    setHasChanges(true);
-  };
-
-  const handleDebtSubmit = (e) => {
-    e.preventDefault();
-    const newDebt = {
-      id: Date.now(),
-      ...debtForm,
-      balance: parseFloat(debtForm.balance) || 0,
-      interestRate: parseFloat(debtForm.interestRate) || 0
-    };
-    setDebts([...debts, newDebt]);
-    setDebtForm({ 
-      name: '', 
-      balance: '', 
-      debtType: 'credit-card',
-      interestRate: '24.99'
-    });
-    setShowDebtForm(false);
-    setHasChanges(true);
-  };
-
-  const deleteAccount = (id) => {
-    setAccounts(accounts.filter(account => account.id !== id));
-    setHasChanges(true);
-  };
-
-  const deleteDebt = (id) => {
-    setDebts(debts.filter(debt => debt.id !== id));
-    setHasChanges(true);
-  };
-
-  const handleSave = async () => {
     try {
-      setSaving(true);
-      setSaveMessage('');
+      const accountData = {
+        name: accountForm.name,
+        account_type: accountForm.accountType,
+        balance: parseFloat(accountForm.balance) || 0,
+        interest_rate: parseFloat(accountForm.interestRate) || 0,
+        effective_date: accountForm.effectiveDate || new Date().toISOString().split('T')[0]
+      };
       
-      // Prepare data for backend (remove frontend-generated IDs)
-      const accountsForBackend = accounts.map(account => ({
-        name: account.name,
-        account_type: account.accountType,
-        balance: account.balance,
-        interest_rate: account.interestRate
-      }));
-
-      const debtsForBackend = debts.map(debt => ({
-        name: debt.name,
-        debt_type: debt.debtType,
-        balance: debt.balance,
-        interest_rate: debt.interestRate
-      }));
-
-      await accountsDebtsService.bulkSaveAccountsDebts(accountsForBackend, debtsForBackend);
+      console.log('Sending account data:', accountData);
+      await accountsDebtsService.createAccount(accountData);
       
-      // Reload data to get proper IDs from backend
+      // Reset form and editing state
+      setAccountForm({ 
+        name: '', 
+        balance: '', 
+        accountType: 'checking',
+        interestRate: '0.01',
+        effectiveDate: new Date().toISOString().split('T')[0]
+      });
+      setShowAccountForm(false);
+      setEditingAccount(null);
+      
+      // Reload data
       await loadAccountsDebts();
       
-      setSaveMessage('Changes saved successfully!');
+      setSaveMessage(editingAccount ? 'Account updated successfully!' : 'Account added successfully!');
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
-      console.error('Error saving accounts and debts:', error);
-      setSaveMessage('Error saving changes. Please try again.');
+      console.error('Error adding account:', error);
+      console.error('Error response:', error.response?.data);
+      setSaveMessage('Error adding account. Please try again.');
       setTimeout(() => setSaveMessage(''), 3000);
-    } finally {
-      setSaving(false);
     }
+  };
+
+  const handleDebtSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const debtData = {
+        name: debtForm.name,
+        debt_type: debtForm.debtType,
+        balance: parseFloat(debtForm.balance) || 0,
+        interest_rate: parseFloat(debtForm.interestRate) || 0,
+        effective_date: debtForm.effectiveDate || new Date().toISOString().split('T')[0]
+      };
+      
+      console.log('Sending debt data:', debtData);
+      await accountsDebtsService.createDebt(debtData);
+      
+      // Reset form and editing state
+      setDebtForm({ 
+        name: '', 
+        balance: '', 
+        debtType: 'credit-card',
+        interestRate: '24.99',
+        effectiveDate: new Date().toISOString().split('T')[0]
+      });
+      setShowDebtForm(false);
+      setEditingDebt(null);
+      
+      // Reload data
+      await loadAccountsDebts();
+      
+      setSaveMessage(editingDebt ? 'Debt updated successfully!' : 'Debt added successfully!');
+      setTimeout(() => setSaveMessage(''), 3000);
+    } catch (error) {
+      console.error('Error adding debt:', error);
+      console.error('Error response:', error.response?.data);
+      setSaveMessage('Error adding debt. Please try again.');
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  };
+
+  const deleteAccount = async (id) => {
+    try {
+      await accountsDebtsService.deleteAccount(id);
+      await loadAccountsDebts();
+      setSaveMessage('Account deleted successfully!');
+      setTimeout(() => setSaveMessage(''), 3000);
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      setSaveMessage('Error deleting account. Please try again.');
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  };
+
+  const deleteDebt = async (id) => {
+    try {
+      await accountsDebtsService.deleteDebt(id);
+      await loadAccountsDebts();
+      setSaveMessage('Debt deleted successfully!');
+      setTimeout(() => setSaveMessage(''), 3000);
+    } catch (error) {
+      console.error('Error deleting debt:', error);
+      setSaveMessage('Error deleting debt. Please try again.');
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  };
+
+  const viewHistory = async (type, name) => {
+    try {
+      setHistoryType(type);
+      setHistoryName(name);
+      
+      // Fetch history from backend
+      const response = await accountsDebtsService.getHistory(type, name);
+      setHistoryData(response);
+      setShowHistory(true);
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      setSaveMessage('Error loading history. Please try again.');
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  };
+
+  const closeHistory = () => {
+    setShowHistory(false);
+    setHistoryData([]);
+    setHistoryType('');
+    setHistoryName('');
   };
 
   const totalAccountBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
@@ -200,22 +275,11 @@ function AccountsAndDebts() {
       <div className="accounts-and-debts-content">
         <div className="page-header">
           <h1>Accounts and Debts</h1>
-          <div className="header-actions">
-            {hasChanges && (
-              <button 
-                className="save-button"
-                onClick={handleSave}
-                disabled={saving}
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
-            )}
-            {saveMessage && (
-              <span className={`save-message ${saveMessage.includes('Error') ? 'error' : 'success'}`}>
-                {saveMessage}
-              </span>
-            )}
-          </div>
+          {saveMessage && (
+            <span className={`save-message ${saveMessage.includes('Error') ? 'error' : 'success'}`}>
+              {saveMessage}
+            </span>
+          )}
         </div>
         
         <p className="welcome-message">
@@ -253,7 +317,7 @@ function AccountsAndDebts() {
           
           {showAccountForm && (
             <form className="form-card" onSubmit={handleAccountSubmit}>
-              <h3>Add New Account</h3>
+              <h3>{editingAccount ? 'Edit Account' : 'Add New Account'}</h3>
               <div className="form-group">
                 <label>Account Name:</label>
                 <input
@@ -301,8 +365,39 @@ function AccountsAndDebts() {
                   Suggested: {defaultAccountRates[accountForm.accountType]}% for {accountForm.accountType} accounts
                 </small>
               </div>
+              <div className="form-group">
+                <label>Effective Date:</label>
+                <input
+                  type="date"
+                  value={accountForm.effectiveDate}
+                  onChange={(e) => setAccountForm({...accountForm, effectiveDate: e.target.value})}
+                  required
+                />
+                <small className="form-hint">
+                  Date this balance is effective for (defaults to today)
+                </small>
+              </div>
               <div className="form-actions">
-                <button type="submit" className="submit-button">Add Account</button>
+                <button type="submit" className="submit-button">
+                  {editingAccount ? 'Update Account' : 'Add Account'}
+                </button>
+                <button 
+                  type="button" 
+                  className="cancel-button"
+                  onClick={() => {
+                    setShowAccountForm(false);
+                    setEditingAccount(null);
+                    setAccountForm({
+                      name: '',
+                      balance: '',
+                      accountType: 'checking',
+                      interestRate: '0.01',
+                      effectiveDate: new Date().toISOString().split('T')[0]
+                    });
+                  }}
+                >
+                  Cancel
+                </button>
               </div>
             </form>
           )}
@@ -323,12 +418,29 @@ function AccountsAndDebts() {
                       {account.interestRate}% APY
                     </p>
                   </div>
-                  <button 
-                    className="delete-button"
-                    onClick={() => deleteAccount(account.id)}
-                  >
-                    Delete
-                  </button>
+                  <div className="item-actions">
+                    <button 
+                      className="edit-button"
+                      onClick={() => {
+                        setEditingAccount(account);
+                        setShowAccountForm(true);
+                      }}
+                    >
+                      Update
+                    </button>
+                    <button 
+                      className="history-button"
+                      onClick={() => viewHistory('account', account.name)}
+                    >
+                      View History
+                    </button>
+                    <button 
+                      className="delete-button"
+                      onClick={() => deleteAccount(account.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -348,7 +460,7 @@ function AccountsAndDebts() {
           
           {showDebtForm && (
             <form className="form-card" onSubmit={handleDebtSubmit}>
-              <h3>Add New Debt</h3>
+              <h3>{editingDebt ? 'Edit Debt' : 'Add New Debt'}</h3>
               <div className="form-group">
                 <label>Debt Name:</label>
                 <input
@@ -398,8 +510,39 @@ function AccountsAndDebts() {
                   Suggested: {defaultDebtRates[debtForm.debtType]}% for {debtForm.debtType.replace('-', ' ')}s
                 </small>
               </div>
+              <div className="form-group">
+                <label>Effective Date:</label>
+                <input
+                  type="date"
+                  value={debtForm.effectiveDate}
+                  onChange={(e) => setDebtForm({...debtForm, effectiveDate: e.target.value})}
+                  required
+                />
+                <small className="form-hint">
+                  Date this balance is effective for (defaults to today)
+                </small>
+              </div>
               <div className="form-actions">
-                <button type="submit" className="submit-button">Add Debt</button>
+                <button type="submit" className="submit-button">
+                  {editingDebt ? 'Update Debt' : 'Add Debt'}
+                </button>
+                <button 
+                  type="button" 
+                  className="cancel-button"
+                  onClick={() => {
+                    setShowDebtForm(false);
+                    setEditingDebt(null);
+                    setDebtForm({
+                      name: '',
+                      balance: '',
+                      debtType: 'credit-card',
+                      interestRate: '24.99',
+                      effectiveDate: new Date().toISOString().split('T')[0]
+                    });
+                  }}
+                >
+                  Cancel
+                </button>
               </div>
             </form>
           )}
@@ -420,18 +563,77 @@ function AccountsAndDebts() {
                       {debt.interestRate}% APR
                     </p>
                   </div>
-                  <button 
-                    className="delete-button"
-                    onClick={() => deleteDebt(debt.id)}
-                  >
-                    Delete
-                  </button>
+                  <div className="item-actions">
+                    <button 
+                      className="edit-button"
+                      onClick={() => {
+                        setEditingDebt(debt);
+                        setShowDebtForm(true);
+                      }}
+                    >
+                      Update
+                    </button>
+                    <button 
+                      className="history-button"
+                      onClick={() => viewHistory('debt', debt.name)}
+                    >
+                      View History
+                    </button>
+                    <button 
+                      className="delete-button"
+                      onClick={() => deleteDebt(debt.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </div>
+
+      {/* History Modal */}
+      {showHistory && (
+        <div className="history-modal-overlay" onClick={closeHistory}>
+          <div className="history-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="history-modal-header">
+              <h3>{historyType === 'account' ? 'Account' : 'Debt'} History: {historyName}</h3>
+              <button className="close-button" onClick={closeHistory}>×</button>
+            </div>
+            <div className="history-modal-content">
+              {historyData.length === 0 ? (
+                <p>No history found for this {historyType}.</p>
+              ) : (
+                <div className="history-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Effective Date</th>
+                        <th>Balance</th>
+                        <th>Interest Rate</th>
+                        <th>Updated At</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyData.map((item, index) => (
+                        <tr key={index}>
+                          <td>{new Date(item.effective_date).toLocaleDateString()}</td>
+                          <td className={historyType === 'account' ? 'positive' : 'negative'}>
+                            ${parseFloat(item.balance).toLocaleString()}
+                          </td>
+                          <td>{item.interest_rate}%</td>
+                          <td>{new Date(item.created_at).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

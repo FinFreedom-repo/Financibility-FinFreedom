@@ -7,9 +7,12 @@ from .views import (
     project_wealth,
     GrokExcelView,
     UserProfileViewSet,
-    FinancialStepViewSet,
+    calculate_financial_steps,
     calculate_net_savings,
-    register_user
+    register_user,
+    AccountAuditViewSet,
+    TransactionAuditViewSet,
+    DebtAuditViewSet
 )
 from .expense_analyzer import ExpenseAnalyzerView, ExpenseChatView
 from budget.views import BudgetViewSet
@@ -26,7 +29,9 @@ router.register(r'accounts', AccountViewSet, basename='account')
 router.register(r'transactions', TransactionViewSet, basename='transaction')
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'profile', UserProfileViewSet, basename='profile')
-router.register(r'financial-steps', FinancialStepViewSet, basename='financial-step')
+router.register(r'account-audits', AccountAuditViewSet, basename='account-audit')
+router.register(r'transaction-audits', TransactionAuditViewSet, basename='transaction-audit')
+router.register(r'debt-audits', DebtAuditViewSet, basename='debt-audit')
 print("Registering BudgetViewSet...")
 router.register(r'budgets', BudgetViewSet, basename='budget')
 print("Available actions for BudgetViewSet:", BudgetViewSet.get_extra_actions())
@@ -41,6 +46,7 @@ urlpatterns = [
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
     path('net-savings/', calculate_net_savings, name='calculate-net-savings'),
     path('auth/register/', register_user, name='register'),
+    path('financial-steps/calculate/', calculate_financial_steps, name='calculate-financial-steps'),
     
     # Accounts and Debts endpoints
     path('accounts/', account_list, name='account_list'),

@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404
 from .models import Account, Debt
 from .serializers import AccountSerializer, DebtSerializer
 import logging
+from django.db.models import Max
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +21,16 @@ def account_list(request):
         return Response(serializer.data)
     
     elif request.method == 'POST':
+        logger.info(f"Creating account with data: {request.data}")
         serializer = AccountSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(user=request.user)
+            account = serializer.save(user=request.user)
+            logger.info(f"Account created successfully: {account.id}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            logger.error(f"Account creation validation errors: {serializer.errors}")
+            logger.error(f"Request data: {request.data}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -58,11 +64,16 @@ def debt_list(request):
         return Response(serializer.data)
     
     elif request.method == 'POST':
+        logger.info(f"Creating debt with data: {request.data}")
         serializer = DebtSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(user=request.user)
+            debt = serializer.save(user=request.user)
+            logger.info(f"Debt created successfully: {debt.id}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            logger.error(f"Debt creation validation errors: {serializer.errors}")
+            logger.error(f"Request data: {request.data}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
@@ -89,16 +100,12 @@ def debt_detail(request, pk):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def bulk_save_accounts_debts(request):
-    """Save multiple accounts and debts at once"""
+    """Save multiple accounts and debts at once (append-only)"""
     try:
         accounts_data = request.data.get('accounts', [])
         debts_data = request.data.get('debts', [])
         
-        # Clear existing data for this user
-        Account.objects.filter(user=request.user).delete()
-        Debt.objects.filter(user=request.user).delete()
-        
-        # Create new accounts
+        # Create new accounts (append-only, no deletion)
         created_accounts = []
         for account_data in accounts_data:
             serializer = AccountSerializer(data=account_data)
@@ -108,7 +115,7 @@ def bulk_save_accounts_debts(request):
             else:
                 logger.error(f"Invalid account data: {serializer.errors}")
         
-        # Create new debts
+        # Create new debts (append-only, no deletion)
         created_debts = []
         for debt_data in debts_data:
             serializer = DebtSerializer(data=debt_data)
@@ -137,10 +144,19 @@ def bulk_save_accounts_debts(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_accounts_debts_summary(request):
-    """Get all accounts and debts for the user with summary data"""
+    """Get all accounts and debts for the user with summary data (most recent records only)"""
     try:
-        accounts = Account.objects.filter(user=request.user)
-        debts = Debt.objects.filter(user=request.user)
+        # Get the most recent record for each unique account name
+        accounts = Account.objects.filter(user=request.user).values('name').annotate(
+            latest_id=Max('id')
+        ).values('latest_id')
+        accounts = Account.objects.filter(id__in=accounts)
+        
+        # Get the most recent record for each unique debt name
+        debts = Debt.objects.filter(user=request.user).values('name').annotate(
+            latest_id=Max('id')
+        ).values('latest_id')
+        debts = Debt.objects.filter(id__in=debts)
         
         accounts_serializer = AccountSerializer(accounts, many=True)
         debts_serializer = DebtSerializer(debts, many=True)

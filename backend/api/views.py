@@ -1,8 +1,8 @@
 from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
-from .models import Account, Transaction, Category, UserProfile, FinancialStep
-from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer, UserProfileSerializer, FinancialStepSerializer
+from .models import Account, Transaction, Category, UserProfile, Debt, AccountAudit, TransactionAudit, DebtAudit
+from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer, UserProfileSerializer, AccountAuditSerializer, TransactionAuditSerializer, DebtAuditSerializer, DebtSerializer
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework import status
@@ -17,6 +17,9 @@ from openai import OpenAI
 from budget.models import Budget
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
+from django.db import models
+from decimal import Decimal
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -130,10 +133,34 @@ class AccountViewSet(viewsets.ModelViewSet):
     serializer_class = AccountSerializer
 
     def get_queryset(self):
-        return Account.objects.filter(user=self.request.user)
+        user = self.request.user
+        history = self.request.query_params.get('history')
+        qs = Account.objects.filter(user=user)
+        if history:
+            return qs.order_by('-effective_date', '-created_at')
+        # Only return the latest record for each account name
+        latest_ids = (
+            qs.values('name')
+            .annotate(max_id=models.Max('id'))
+            .values_list('max_id', flat=True)
+        )
+        return qs.filter(id__in=latest_ids)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        # Instead of updating, create a new record
+        data = request.data.copy()
+        data['user'] = request.user.id
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
 
 class TransactionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -169,46 +196,6 @@ class UserProfileViewSet(viewsets.ModelViewSet):
     def me(self, request):
         profile, created = UserProfile.objects.get_or_create(user=request.user)
         serializer = self.get_serializer(profile)
-        return Response(serializer.data)
-
-class FinancialStepViewSet(viewsets.ModelViewSet):
-    serializer_class = FinancialStepSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return FinancialStep.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-    @action(detail=False, methods=['get'], url_path='me')
-    def me(self, request):
-        """Get or create the user's financial step progress."""
-        try:
-            financial_step, created = FinancialStep.objects.get_or_create(user=request.user)
-            serializer = self.get_serializer(financial_step)
-            return Response(serializer.data)
-        except Exception as e:
-            logger.error(f"Error in FinancialStepViewSet.me: {str(e)}", exc_info=True)
-            return Response(
-                {'error': 'Failed to load financial steps', 'details': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    @action(detail=False, methods=['post'], url_path='update-progress')
-    def update_progress(self, request):
-        """Update the user's financial step progress."""
-        financial_step, created = FinancialStep.objects.get_or_create(user=request.user)
-        
-        # Update fields from request data
-        for field in request.data:
-            if hasattr(financial_step, field):
-                setattr(financial_step, field, request.data[field])
-        
-        financial_step.save()
-        
-        # Calculate and return updated progress
-        serializer = self.get_serializer(financial_step)
         return Response(serializer.data)
 
 @api_view(['POST'])
@@ -388,3 +375,233 @@ def register_user(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def calculate_financial_steps(request):
+    """Calculate financial steps dynamically from user data."""
+    try:
+        # Get user's accounts and debts
+        accounts = Account.objects.filter(user=request.user)
+        debts = Debt.objects.filter(user=request.user)
+        
+        # Calculate total account balance
+        total_account_balance = accounts.aggregate(
+            total=models.Sum('balance')
+        )['total'] or Decimal('0.00')
+        
+        # Calculate total debt (excluding mortgage)
+        total_debt = debts.exclude(debt_type='mortgage').aggregate(
+            total=models.Sum('balance')
+        )['total'] or Decimal('0.00')
+        
+        # Calculate mortgage balance
+        mortgage_balance = debts.filter(debt_type='mortgage').aggregate(
+            total=models.Sum('balance')
+        )['total'] or Decimal('0.00')
+        
+        # Get user's budget for monthly expenses
+        budget = Budget.objects.filter(user=request.user).order_by('-updated_at').first()
+        monthly_expenses = Decimal('0.00')
+        if budget:
+            expense_fields = [
+                'housing', 'debt_payments', 'transportation', 'utilities',
+                'food', 'healthcare', 'entertainment', 'shopping',
+                'travel', 'education', 'childcare', 'other'
+            ]
+            monthly_expenses = sum(getattr(budget, field, 0) for field in expense_fields)
+            if budget.additional_items:
+                additional_expenses = sum(
+                    item.get('amount', 0) for item in budget.additional_items 
+                    if item.get('type') == 'expense'
+                )
+                monthly_expenses += additional_expenses
+        
+        # Determine current step and progress
+        current_step = 1
+        step_progress = {}
+        
+        # Step 1: Save $2,000 for emergency fund
+        if total_account_balance >= 2000:
+            current_step = 2
+            step_progress = {'completed': True, 'next_step': 2}
+        else:
+            progress = min((total_account_balance / 2000) * 100, 100)
+            step_progress = {
+                'completed': False,
+                'progress': progress,
+                'current_amount': total_account_balance,
+                'goal_amount': 2000
+            }
+        
+        # Step 2: Pay off all debt (except mortgage)
+        if current_step == 2:
+            # Get current debt (from latest records only - what's displayed)
+            current_debts = debts.exclude(debt_type='mortgage')
+            # Get only the latest record for each debt name
+            latest_debt_ids = (
+                current_debts.values('name')
+                .annotate(max_id=models.Max('id'))
+                .values_list('max_id', flat=True)
+            )
+            current_debts_latest = current_debts.filter(id__in=latest_debt_ids)
+            current_total_debt = current_debts_latest.aggregate(
+                total=models.Sum('balance')
+            )['total'] or Decimal('0.00')
+            
+            # Find max total non-mortgage debt ever from ALL historical records
+            all_historical_debts = Debt.objects.filter(user=request.user).exclude(debt_type='mortgage')
+            
+            # Build a dict: {date: total_balance} for each effective date
+            debt_by_date = defaultdict(Decimal)
+            for debt in all_historical_debts:
+                debt_by_date[debt.effective_date] += debt.balance
+            
+            # Find the maximum total debt ever
+            max_total_debt = max(debt_by_date.values()) if debt_by_date else Decimal('0.00')
+            
+            # Calculate progress: how much paid off from max
+            if max_total_debt > 0:
+                # Progress = (max_debt - current_debt) / max_debt * 100
+                progress = max(0, min(100, ((max_total_debt - current_total_debt) / max_total_debt) * 100))
+                amount_paid_off = max_total_debt - current_total_debt
+            else:
+                progress = 100  # No debt ever, so 100% complete
+                amount_paid_off = Decimal('0.00')
+            
+            if current_total_debt <= 0:
+                current_step = 3
+                step_progress = {'completed': True, 'next_step': 3}
+            else:
+                step_progress = {
+                    'completed': False,
+                    'progress': progress,
+                    'current_debt': current_total_debt,
+                    'max_total_debt': max_total_debt,
+                    'amount_paid_off': amount_paid_off,
+                    'goal_amount': 0,
+                    'message': f'Paid off ${amount_paid_off:,.2f} of ${max_total_debt:,.2f} total debt ({progress:.1f}% complete)'
+                }
+        
+        # Step 3: 3-6 months emergency fund
+        if current_step == 3 and monthly_expenses > 0:
+            target_emergency = monthly_expenses * 6  # 6 months
+            if total_account_balance >= target_emergency:
+                current_step = 4
+                step_progress = {'completed': True, 'next_step': 4}
+            else:
+                progress = min((total_account_balance / target_emergency) * 100, 100)
+                step_progress = {
+                    'completed': False,
+                    'progress': progress,
+                    'current_amount': total_account_balance,
+                    'goal_amount': target_emergency
+                }
+        elif current_step == 3:
+            step_progress = {
+                'completed': False,
+                'progress': 0,
+                'message': 'Please set your monthly expenses to calculate emergency fund goal'
+            }
+        
+        # Step 4: Invest 15% in retirement (placeholder - would need income data)
+        if current_step == 4:
+            # For now, assume they need to manually set this
+            step_progress = {
+                'completed': False,
+                'progress': 0,
+                'message': 'Set your retirement contribution to 15% of income'
+            }
+        
+        # Step 5: College fund (placeholder)
+        if current_step == 5:
+            step_progress = {
+                'completed': False,
+                'progress': 0,
+                'message': 'Set up college fund for children'
+            }
+        
+        # Step 6: Pay off mortgage
+        if current_step == 6:
+            if mortgage_balance <= 0:
+                step_progress = {'completed': True, 'final_step': True}
+            else:
+                step_progress = {
+                    'completed': False,
+                    'progress': 0,
+                    'current_mortgage': mortgage_balance,
+                    'goal_amount': 0
+                }
+        
+        response_data = {
+            'current_step': current_step,
+            'step_progress': step_progress,
+            'total_account_balance': total_account_balance,
+            'total_debt': total_debt,
+            'mortgage_balance': mortgage_balance,
+            'monthly_expenses': monthly_expenses
+        }
+        
+        return Response(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error calculating financial steps: {str(e)}", exc_info=True)
+        return Response(
+            {'error': 'Failed to calculate financial steps', 'details': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+class AccountAuditViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = AccountAuditSerializer
+
+    def get_queryset(self):
+        return AccountAudit.objects.filter(user=self.request.user)
+
+class TransactionAuditViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = TransactionAuditSerializer
+
+    def get_queryset(self):
+        return TransactionAudit.objects.filter(user=self.request.user)
+
+class DebtAuditViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = DebtAuditSerializer
+
+    def get_queryset(self):
+        return DebtAudit.objects.filter(user=self.request.user)
+
+class DebtViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = DebtSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        history = self.request.query_params.get('history')
+        qs = Debt.objects.filter(user=user)
+        if history:
+            return qs.order_by('-effective_date', '-created_at')
+        # Only return the latest record for each debt name
+        latest_ids = (
+            qs.values('name')
+            .annotate(max_id=models.Max('id'))
+            .values_list('max_id', flat=True)
+        )
+        return qs.filter(id__in=latest_ids)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        # Instead of updating, create a new record
+        data = request.data.copy()
+        data['user'] = request.user.id
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)

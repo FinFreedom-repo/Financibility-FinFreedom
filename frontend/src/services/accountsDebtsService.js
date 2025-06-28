@@ -113,6 +113,21 @@ class AccountsDebtsService {
       throw error;
     }
   }
+
+  // Get history for a specific account or debt
+  async getHistory(type, name) {
+    try {
+      const endpoint = type === 'account' ? '/api/accounts/' : '/api/debts/';
+      const response = await axios.get(`${endpoint}?history=true`);
+      
+      // Filter the response to only include records for the specific name
+      const filteredData = response.data.filter(item => item.name === name);
+      return filteredData;
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      throw error;
+    }
+  }
 }
 
 export default new AccountsDebtsService(); 

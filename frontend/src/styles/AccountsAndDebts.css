@@ -213,6 +213,9 @@
 
 .form-actions {
   margin-top: 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 .submit-button {
@@ -229,6 +232,22 @@
 
 .submit-button:hover {
   background-color: #1b5e20;
+}
+
+.cancel-button {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.cancel-button:hover {
+  background-color: #5a6268;
 }
 
 .empty-state {
@@ -316,6 +335,22 @@
   background-color: #b71c1c;
 }
 
+.edit-button {
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.edit-button:hover {
+  background-color: #1565c0;
+}
+
 .notice-box {
   background-color: #f8f9fa;
   border-radius: 12px;
@@ -327,4 +362,153 @@
   color: #666;
   line-height: 1.6;
   margin: 0;
+}
+
+.item-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.history-button {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s;
+}
+
+.history-button:hover {
+  background: #5a6268;
+}
+
+/* History Modal Styles */
+.history-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.history-modal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.history-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+}
+
+.history-modal-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.close-button:hover {
+  background: #e9ecef;
+  color: #333;
+}
+
+.history-modal-content {
+  padding: 1.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.history-table {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.history-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.history-table th,
+.history-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.history-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+}
+
+.history-table td.positive {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.history-table td.negative {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .history-modal {
+    width: 95%;
+    margin: 1rem;
+  }
+  
+  .history-table {
+    font-size: 0.75rem;
+  }
+  
+  .history-table th,
+  .history-table td {
+    padding: 0.5rem;
+  }
+  
+  .item-actions {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .history-button,
+  .delete-button {
+    width: 100%;
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+  }
 } 
