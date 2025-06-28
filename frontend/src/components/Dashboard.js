@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../utils/axios';
+import USAFlag from './USAFlag';
 import '../styles/Dashboard.css';
 
 function Dashboard() {
@@ -161,7 +162,7 @@ function Dashboard() {
           </div>
           <div className="dashboard-main">
             <div className="welcome-section">
-              <h1>Welcome to Financability! 👋</h1>
+              <h1>Welcome to FinFreedom <USAFlag />! 👋</h1>
               <div className="welcome-content">
                 <p className="welcome-message">
                   Your personal financial management dashboard is here to help you take control of your money and build a secure financial future. 

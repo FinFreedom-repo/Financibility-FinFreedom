@@ -1,0 +1,212 @@
+.navigation {
+  width: 280px;
+  background: linear-gradient(135deg, #6a8dff 0%, #764ba2 100%), repeating-linear-gradient(135deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 12px);
+  backdrop-filter: blur(18px);
+  border-right: none;
+  transition: width 0.3s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 48px 0 rgba(60, 60, 120, 0.38), 0 0 0 3px #fff6 inset, 0 2px 0 0 rgba(255,255,255,0.18) inset, 0 0 0 1.5px #fff8;
+  z-index: 20;
+  border-radius: 26px 0 32px 0;
+}
+
+.navigation::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.22) 0%, transparent 60%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.13) 0%, transparent 60%),
+    linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.11) 50%, transparent 70%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.navigation > * {
+  position: relative;
+  z-index: 2;
+}
+
+.navigation.collapsed {
+  width: 70px;
+}
+
+.nav-toggle {
+  position: relative;
+  align-self: flex-end;
+  margin: 1rem 1rem 0 0;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  padding: 0.5rem;
+  cursor: pointer;
+  color: white;
+  font-size: 1.2rem;
+  transition: all 0.3s ease;
+  z-index: 10;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-toggle:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.nav-toggle.collapsed {
+  margin-right: 0.5rem;
+}
+
+.nav-header {
+  padding: 0 2rem 2rem 2rem;
+  border-bottom: 1px solid #d0d0d0;
+  margin-bottom: 1rem;
+}
+
+.nav-title {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #1a237e;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.App-menu {
+  list-style: none;
+  padding: 0.5rem 0 0 0;
+  margin: 0;
+  flex: 1;
+}
+
+.App-menu-item {
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+  font-weight: 500;
+  position: relative;
+}
+
+.App-menu-item a {
+  color: white;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 1rem 1.5rem;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.App-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.App-menu-item.active {
+  background: linear-gradient(90deg, rgba(106,141,255,0.38) 0%, rgba(118,75,162,0.38) 100%) !important;
+  border-left: 7px solid #6a8dff !important;
+  box-shadow: 0 0 24px 6px #6a8dffcc, 0 0 0 4px #fff4 inset, 0 2px 12px 0 #764ba2cc !important;
+  position: relative;
+  filter: drop-shadow(0 0 12px #6a8dffcc);
+  color: #fff !important;
+}
+
+.App-menu-item.active a {
+  color: #fff !important;
+  font-weight: 700;
+  text-shadow: 0 2px 8px #6a8dff88;
+}
+
+.App-menu-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  border-radius: 0 12px 12px 0;
+  background: linear-gradient(180deg, #fff 0%, #6a8dff 100%);
+  box-shadow: 0 0 24px 8px #6a8dffcc;
+  z-index: 2;
+}
+
+.App-menu-item a:hover {
+  color: white;
+  transform: translateX(5px);
+}
+
+.menu-icon {
+  font-size: 1.3rem;
+  margin-right: 1rem;
+  min-width: 20px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.menu-text {
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  opacity: 1;
+}
+
+.navigation.collapsed .menu-text {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.navigation.collapsed .menu-icon {
+  margin-right: 0;
+  font-size: 1.5rem;
+}
+
+.navigation.collapsed .App-menu-item a {
+  justify-content: center;
+  padding: 1rem 0.5rem;
+}
+
+.navigation.collapsed .App-menu-item:hover a {
+  transform: none;
+}
+
+/* Tooltip for collapsed state */
+.navigation.collapsed .App-menu-item {
+  position: relative;
+}
+
+.navigation.collapsed .App-menu-item::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  margin-left: 0.5rem;
+  z-index: 1000;
+}
+
+.navigation.collapsed .App-menu-item:hover::after {
+  opacity: 1;
+} 

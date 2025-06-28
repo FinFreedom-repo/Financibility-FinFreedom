@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import USAFlag from './USAFlag';
 import '../styles/Login.css';
 
 function Login() {
@@ -30,8 +31,9 @@ function Login() {
 
   return (
     <div className="login-container">
-      <div className="login-box">
-        <h1>Welcome to Financability</h1>
+      <div className="login-form">
+        <h2 className="login-title">FinFreedom <USAFlag /></h2>
+        <h3 className="login-subtitle">Sign In</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="username">Username</label>

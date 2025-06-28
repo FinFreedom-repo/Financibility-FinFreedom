@@ -14,6 +14,7 @@ import AccountsAndDebts from './components/AccountsAndDebts';
 import Account from './components/Account';
 import './App.css';
 import axios from './utils/axios';
+import USAFlag from './components/USAFlag';
 
 // Protected Route component
 function ProtectedRoute({ children }) {
@@ -114,24 +115,28 @@ function AppContent() {
     <div className="App">
       {user ? (
         <>
-          <header className="App-header">
-            <h1 className="App-title">Financability</h1>
-            <div className="user-menu-container" ref={dropdownRef}>
-              {console.log('Current user state in header:', user)}
-              <div
-                className="user-icon"
-                onClick={() => setDropdownOpen((open) => !open)}
-                title={user?.username || 'User'}
-              >
-                {user?.username ? user.username.charAt(0).toUpperCase() : '?'}
-              </div>
-              {dropdownOpen && (
-                <div className="user-dropdown">
-                  <button className="dropdown-item" onClick={() => { setShowAccount(true); setDropdownOpen(false); }}>Account</button>
-                  <button className="dropdown-item">Settings</button>
-                  <button className="dropdown-item" onClick={logout}>Logout</button>
+          <header className="app-header">
+            <div className="header-content">
+              <h1 className="app-title">FinFreedom <USAFlag /></h1>
+              <nav className="nav-menu">
+                <div className="user-menu-container" ref={dropdownRef}>
+                  {console.log('Current user state in header:', user)}
+                  <div
+                    className="user-icon"
+                    onClick={() => setDropdownOpen((open) => !open)}
+                    title={user?.username || 'User'}
+                  >
+                    {user?.username ? user.username.charAt(0).toUpperCase() : '?'}
+                  </div>
+                  {dropdownOpen && (
+                    <div className="user-dropdown">
+                      <button className="dropdown-item" onClick={() => { setShowAccount(true); setDropdownOpen(false); }}>Account</button>
+                      <button className="dropdown-item">Settings</button>
+                      <button className="dropdown-item" onClick={logout}>Logout</button>
+                    </div>
+                  )}
                 </div>
-              )}
+              </nav>
             </div>
           </header>
           {showAccount ? (

@@ -17,25 +17,42 @@
   }
 }
 
-.App-header {
-  background-color: #1a237e;
-  padding: 1rem;
+.app-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 1rem 2rem;
   color: white;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.App-title {
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.app-title {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
 }
 
 .App-container {
   display: flex;
   flex: 1;
   position: relative;
-  background-color: #f0f0f0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  height: calc(100vh - 80px); /* Subtract header height */
+  overflow: hidden;
 }
 
 .App-sidebar {
@@ -87,7 +104,9 @@
   padding: 2rem;
   margin-left: 0; /* Remove the margin since we're using flex layout */
   overflow-x: auto;
-  background-color: #f0f0f0;
+  background: transparent;
+  box-shadow: none;
+  border: none;
 }
 
 .App-link {
@@ -95,11 +114,13 @@
 }
 
 .wealth-projector, .debt-planning, .monthly-budget, .expense-analyzer {
-  background-color: white;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
   padding: 2rem;
-  border-radius: 0;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   min-height: calc(100vh - 60px); /* Subtract header height */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .wealth-header {
@@ -270,7 +291,7 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
-.App-header .login-button {
+.app-header .login-button {
   margin-left: auto;
   max-width: 120px;
   min-width: 80px;
@@ -287,53 +308,65 @@
   position: relative;
   display: flex;
   align-items: center;
-  margin-left: auto;
 }
 
 .user-icon {
   width: 40px;
   height: 40px;
-  background: #4a90e2;
-  color: #fff;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
-  font-weight: bold;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  transition: background 0.2s;
+  font-weight: bold;
+  color: white;
+  font-size: 1.2rem;
+  transition: all 0.3s ease;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
+
 .user-icon:hover {
-  background: #357abd;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .user-dropdown {
   position: absolute;
-  top: 48px;
+  top: 100%;
   right: 0;
-  background: #fff;
-  color: #1a237e;
+  margin-top: 0.5rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-  min-width: 140px;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  padding: 0.5rem 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  min-width: 150px;
+  z-index: 1000;
+  overflow: hidden;
 }
 
 .dropdown-item {
-  background: none;
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1rem;
   border: none;
-  color: #1a237e;
+  background: none;
+  color: #333;
   text-align: left;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
   cursor: pointer;
-  transition: background 0.15s;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease;
 }
+
 .dropdown-item:hover {
-  background: #f0f0f0;
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.nav-menu {
+  display: flex;
+  align-items: center;
 }

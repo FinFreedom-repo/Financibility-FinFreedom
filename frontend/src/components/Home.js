@@ -1,14 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import USAFlag from './USAFlag';
 import '../styles/Home.css';
 
-const Home = () => {
+function Home() {
   return (
     <div className="home">
       <div className="home-header">
         <div className="home-header-content">
-          <h1 className="home-title">Financability</h1>
-          <p className="home-subtitle">Your Step-by-Step Roadmap to Financial Freedom</p>
+          <h1 className="home-title">FinFreedom <USAFlag /></h1>
+          <p className="home-subtitle">Your Path to Financial Freedom</p>
         </div>
         <div className="home-auth-buttons">
           <Link to="/login" className="login-button">Login</Link>
@@ -20,9 +21,9 @@ const Home = () => {
         <div className="hero-content">
           <h2>Take Control of Your Financial Future</h2>
           <p>
-            Financability provides a comprehensive suite of tools to help you build wealth, 
-            manage debt, and achieve financial independence through data-driven insights and 
-            personalized planning.
+            FinFreedom 🇺🇸 provides a comprehensive suite of tools to help you build wealth, 
+            eliminate debt, and achieve true financial independence. Start your journey today
+            with our proven strategies and personalized insights.
           </p>
           <Link to="/register" className="cta-button">Start Your Journey</Link>
         </div>
@@ -120,7 +121,7 @@ const Home = () => {
       <div className="home-footer">
         <div className="footer-content">
           <div className="footer-section">
-            <h4>Financability</h4>
+            <h4>FinFreedom 🇺🇸</h4>
             <p>Your roadmap to financial freedom</p>
           </div>
           <div className="footer-section">
@@ -143,11 +144,11 @@ const Home = () => {
           </div>
         </div>
         <div className="footer-bottom">
-          <p>&copy; 2024 Financability. All rights reserved.</p>
+          <p>&copy; 2024 FinFreedom 🇺🇸. All rights reserved.</p>
         </div>
       </div>
     </div>
   );
-};
+}
 
 export default Home; 

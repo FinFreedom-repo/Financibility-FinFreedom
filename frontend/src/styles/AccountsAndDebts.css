@@ -1,9 +1,8 @@
 .accounts-and-debts {
-  background-color: white;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   padding: 2rem;
-  border-radius: 0;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  min-height: calc(100vh - 60px);
 }
 
 .accounts-and-debts-content {
@@ -19,11 +18,12 @@
 }
 
 .page-header h1 {
-  color: #1a237e;
+  color: white;
   margin: 0;
   font-size: 2rem;
   font-weight: 600;
   letter-spacing: -0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .header-actions {
@@ -59,33 +59,38 @@
 }
 
 .save-message.success {
-  color: #2e7d32;
+  color: #4CAF50;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .save-message.error {
-  color: #d32f2f;
+  color: #ff6b6b;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .loading-message {
   text-align: center;
   font-size: 1.1rem;
-  color: #666;
+  color: white;
   padding: 2rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .accounts-and-debts h1 {
-  color: #1a237e;
+  color: white;
   margin: 0 0 1rem 0;
   font-size: 2rem;
   font-weight: 600;
   letter-spacing: -0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .welcome-message {
   font-size: 1.1rem;
-  color: #666;
+  color: rgba(255, 255, 255, 0.9);
   line-height: 1.6;
   margin-bottom: 2rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .summary-cards {
@@ -96,32 +101,42 @@
 }
 
 .summary-card {
-  background-color: #f8f9fa;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
   padding: 1.5rem;
-  border: 1px solid #e0e0e0;
   text-align: center;
+  transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
 .summary-card h3 {
-  color: #1a237e;
+  color: white;
   margin: 0 0 0.5rem 0;
   font-size: 1rem;
   font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .balance-amount {
   font-size: 1.8rem;
   font-weight: bold;
   margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .balance-amount.positive {
-  color: #2e7d32;
+  color: #4CAF50;
 }
 
 .balance-amount.negative {
-  color: #d32f2f;
+  color: #ff6b6b;
 }
 
 .accounts-section,
@@ -137,42 +152,54 @@
 }
 
 .section-header h2 {
-  color: #1a237e;
+  color: white;
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .add-button {
-  background-color: #1a237e;
+  background: rgba(255, 255, 255, 0.2);
   color: white;
-  border: none;
-  padding: 0.75rem 0.5rem;
-  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.75rem 1rem;
+  border-radius: 25px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  transition: background-color 0.2s;
-  width: 100px;
+  transition: all 0.3s ease;
+  width: auto;
+  min-width: 100px;
 }
 
 .add-button:hover {
-  background-color: #0d47a1;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
 }
 
 .form-card {
-  background-color: #f8f9fa;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
   padding: 1.5rem;
-  border: 1px solid #e0e0e0;
   margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.form-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
 .form-card h3 {
-  color: #1a237e;
+  color: white;
   margin: 0 0 1rem 0;
   font-size: 1.2rem;
   font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .form-group {
@@ -182,33 +209,43 @@
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
-  color: #333;
+  color: white;
   font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .form-group input,
 .form-group select {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
   font-size: 1rem;
   box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  backdrop-filter: blur(10px);
+}
+
+.form-group input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #1a237e;
-  box-shadow: 0 0 0 2px rgba(26, 35, 126, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .form-hint {
   display: block;
   margin-top: 0.25rem;
-  color: #666;
+  color: rgba(255, 255, 255, 0.8);
   font-size: 0.85rem;
   font-style: italic;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .form-actions {
@@ -219,49 +256,56 @@
 }
 
 .submit-button {
-  background-color: #2e7d32;
+  background: #4CAF50;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
-  border-radius: 6px;
+  border-radius: 25px;
   cursor: pointer;
   font-size: 1rem;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
 }
 
 .submit-button:hover {
-  background-color: #1b5e20;
+  background: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
 }
 
 .cancel-button {
-  background-color: #6c757d;
+  background: rgba(255, 255, 255, 0.2);
   color: white;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 0.75rem 1.5rem;
-  border-radius: 6px;
+  border-radius: 25px;
   cursor: pointer;
   font-size: 1rem;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
 }
 
 .cancel-button:hover {
-  background-color: #5a6268;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
 }
 
 .empty-state {
-  background-color: #f8f9fa;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
   padding: 2rem;
-  border: 1px solid #e0e0e0;
   text-align: center;
 }
 
 .empty-state p {
-  color: #666;
+  color: rgba(255, 255, 255, 0.9);
   margin: 0;
   font-size: 1rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .items-list {
@@ -271,97 +315,112 @@
 }
 
 .item-card {
-  background-color: white;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
   padding: 1rem;
-  border: 1px solid #e0e0e0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: box-shadow 0.2s;
+  transition: all 0.3s ease;
 }
 
 .item-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
 .item-info h4 {
-  color: #333;
+  color: white;
   margin: 0 0 0.25rem 0;
   font-size: 1.1rem;
   font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .item-type {
-  color: #666;
+  color: rgba(255, 255, 255, 0.8);
   margin: 0 0 0.25rem 0;
   font-size: 0.9rem;
   text-transform: capitalize;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .item-balance {
   font-size: 1.2rem;
   font-weight: bold;
   margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .item-balance.positive {
-  color: #2e7d32;
+  color: #4CAF50;
 }
 
 .item-balance.negative {
-  color: #d32f2f;
+  color: #ff6b6b;
 }
 
 .item-details {
-  color: #666;
+  color: rgba(255, 255, 255, 0.8);
   margin: 0.25rem 0 0 0;
   font-size: 0.9rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .delete-button {
-  background-color: #d32f2f;
+  background: #ff6b6b;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
+  border-radius: 20px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
 }
 
 .delete-button:hover {
-  background-color: #b71c1c;
+  background: #ff5252;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
 }
 
 .edit-button {
-  background-color: #1976d2;
+  background: #1976d2;
   color: white;
   border: none;
   padding: 0.5rem 1rem;
-  border-radius: 6px;
+  border-radius: 20px;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
 }
 
 .edit-button:hover {
-  background-color: #1565c0;
+  background: #1565c0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.4);
 }
 
 .notice-box {
-  background-color: #f8f9fa;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
   padding: 1.5rem;
-  border: 1px solid #e0e0e0;
 }
 
 .notice-box p {
-  color: #666;
+  color: rgba(255, 255, 255, 0.9);
   line-height: 1.6;
   margin: 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .item-actions {
@@ -371,18 +430,20 @@
 }
 
 .history-button {
-  background: #6c757d;
+  background: rgba(255, 255, 255, 0.2);
   color: white;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 0.5rem 1rem;
-  border-radius: 4px;
+  border-radius: 20px;
   cursor: pointer;
   font-size: 0.875rem;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
 }
 
 .history-button:hover {
-  background: #5a6268;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
 }
 
 /* History Modal Styles */

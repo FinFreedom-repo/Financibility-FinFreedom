@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import USAFlag from './USAFlag';
 import '../styles/Register.css';
 
 const Register = () => {
@@ -51,8 +52,9 @@ const Register = () => {
     <div className="register-container">
       <div className="register-card">
         <div className="register-header">
-          <h1>Create Account</h1>
-          <p>Join Financability and start your journey to financial freedom</p>
+          <h2 className="register-title">FinFreedom <USAFlag /></h2>
+          <h3 className="register-subtitle">Create Account</h3>
+          <p>Join FinFreedom <USAFlag width={16} height={12} /> and start your journey to financial freedom</p>
         </div>
 
         {error && <div className="error-message">{error}</div>}
