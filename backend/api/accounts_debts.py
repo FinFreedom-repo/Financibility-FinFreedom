@@ -59,7 +59,11 @@ def account_detail(request, pk):
 def debt_list(request):
     """Get all debts for the user or create a new debt"""
     if request.method == 'GET':
-        debts = Debt.objects.filter(user=request.user)
+        # Only return the latest record for each debt name (DB-level filtering)
+        latest_ids = Debt.objects.filter(user=request.user).values('name').annotate(
+            latest_id=Max('id')
+        ).values_list('latest_id', flat=True)
+        debts = Debt.objects.filter(id__in=latest_ids)
         serializer = DebtSerializer(debts, many=True)
         return Response(serializer.data)
     

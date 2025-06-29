@@ -84,12 +84,17 @@ const DebtPlanning = () => {
     try {
       setDebtsLoading(true);
       const debts = await accountsDebtsService.getDebts();
+      // Only include latest record for each debt name, balance > 0, and not mortgage
+      const filteredDebts = debts.filter(
+        debt => debt.balance > 0 && debt.debt_type !== 'mortgage'
+      );
       // Transform debts to match the format expected by the debt planner
-      const transformedDebts = debts.map(debt => ({
+      const transformedDebts = filteredDebts.map(debt => ({
         name: debt.name,
         balance: parseFloat(debt.balance),
         rate: parseFloat(debt.interest_rate),
-        min_payment: parseFloat(debt.balance) * (parseFloat(debt.interest_rate) / 100 / 12) // Calculate minimum payment as monthly interest
+        min_payment: parseFloat(debt.balance) * (parseFloat(debt.interest_rate) / 100 / 12),
+        debt_type: debt.debt_type
       }));
       setOutstandingDebts(transformedDebts);
       setDebtsError(null);
