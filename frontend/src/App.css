@@ -29,7 +29,7 @@ html, body, #root, .App {
 }
 
 .app-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   padding: 1rem 2rem;
@@ -61,7 +61,7 @@ html, body, #root, .App {
   display: flex;
   flex: 1;
   position: relative;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%);
   height: calc(100vh - 80px); /* Subtract header height */
   overflow: hidden;
   max-width: 100vw;
@@ -382,4 +382,8 @@ html, body, #root, .App {
 .nav-menu {
   display: flex;
   align-items: center;
+}
+
+.navigation {
+  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%), repeating-linear-gradient(135deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 12px);
 }

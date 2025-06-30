@@ -1,3 +1,7 @@
+body, .home {
+  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%);
+}
+
 .home {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -103,23 +107,23 @@
   opacity: 0.9;
 }
 
-.cta-button {
-  display: inline-block;
-  padding: 1rem 2rem;
-  background: #4CAF50;
-  color: white;
-  text-decoration: none;
-  border-radius: 30px;
-  font-weight: 600;
-  font-size: 1.1rem;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+.cta-button, .get-started-button {
+  background: linear-gradient(90deg, #ff5858 0%, #6a8dff 100%);
+  color: #fff;
+  border: none;
+  padding: 0.85rem 2.2rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px #ff585866;
 }
 
-.cta-button:hover {
-  background: #45a049;
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+.cta-button:hover, .get-started-button:hover {
+  background: linear-gradient(90deg, #6a8dff 0%, #ff5858 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px #ff585888;
 }
 
 .hero-visual {

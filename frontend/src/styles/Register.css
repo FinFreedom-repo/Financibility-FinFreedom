@@ -1,3 +1,7 @@
+body, .register-container {
+  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%);
+}
+
 .register-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -87,22 +91,23 @@
   color: #999;
 }
 
-.register-button {
-  background: linear-gradient(45deg, #4CAF50, #45a049);
-  color: white;
+.register-form button, .register-button {
+  background: linear-gradient(90deg, #ff5858 0%, #6a8dff 100%);
+  color: #fff;
   border: none;
-  padding: 1rem;
-  border-radius: 10px;
-  font-size: 1.1rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
   font-weight: 600;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 1rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px #ff585866;
 }
 
-.register-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+.register-form button:hover, .register-button:hover {
+  background: linear-gradient(90deg, #6a8dff 0%, #ff5858 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px #ff585888;
 }
 
 .register-button:disabled {

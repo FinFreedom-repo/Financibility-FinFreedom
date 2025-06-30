@@ -12,6 +12,7 @@ const DebtPlanning = () => {
   const [outstandingDebts, setOutstandingDebts] = useState([]);
   const [debtsLoading, setDebtsLoading] = useState(true);
   const [debtsError, setDebtsError] = useState(null);
+  const [projectionMonths, setProjectionMonths] = useState(12);
 
   // Update categories when budgetData changes
   useEffect(() => {
@@ -109,12 +110,10 @@ const DebtPlanning = () => {
   const generateMonths = () => {
     const months = [];
     const currentDate = new Date();
-    
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < projectionMonths; i++) {
       const date = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
       months.push(date.toLocaleString('default', { month: 'short', year: 'numeric' }));
     }
-    
     return months;
   };
 
@@ -325,6 +324,26 @@ const DebtPlanning = () => {
             </div>
           </div>
         )}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <button
+          className="add-months-button"
+          onClick={() => setProjectionMonths(projectionMonths + 6)}
+          style={{
+            background: 'linear-gradient(90deg, #6a8dff 0%, #764ba2 100%)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '0.5rem 1.2rem',
+            fontWeight: 600,
+            fontSize: '1rem',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(106,141,255,0.13)',
+            transition: 'all 0.2s',
+          }}
+        >
+          + 6 Months
+        </button>
       </div>
       {outstandingDebts.length > 0 && renderPayoffTable()}
       <div className="debt-container">

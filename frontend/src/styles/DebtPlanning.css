@@ -43,7 +43,7 @@
   backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2px 12px rgba(76, 119, 175, 0.10);
+  box-shadow: 0 2px 12px rgba(106, 141, 255, 0.10);
 }
 
 .grid-header {
@@ -352,4 +352,23 @@ input:checked + .slider:before {
 .grid-row .grid-cell.monthly-interest {
   color: #233876 !important;
   font-weight: 800;
+}
+
+.add-months-button, .save-button {
+  background: linear-gradient(90deg, #ff5858 0%, #6a8dff 100%);
+  color: #fff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px #ff585866;
+}
+
+.add-months-button:hover, .save-button:hover {
+  background: linear-gradient(90deg, #6a8dff 0%, #ff5858 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px #ff585888;
 } 

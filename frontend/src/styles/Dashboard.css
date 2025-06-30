@@ -1,6 +1,6 @@
 .dashboard {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%);
   color: white;
   padding: 2rem;
 }
@@ -16,11 +16,12 @@
   gap: 2rem;
 }
 
-.baby-steps-section {
-  background: rgba(255, 255, 255, 0.1);
+.baby-steps-section, .dashboard-main > .welcome-section {
+  background: rgba(255,255,255,0.13);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 15px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(106, 141, 255, 0.10);
   padding: 2rem;
   text-align: left;
 }

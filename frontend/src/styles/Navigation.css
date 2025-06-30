@@ -1,6 +1,6 @@
 .navigation {
   width: 280px;
-  background: linear-gradient(135deg, #6a8dff 0%, #764ba2 100%), repeating-linear-gradient(135deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 12px);
+  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%), repeating-linear-gradient(135deg, rgba(255,255,255,0.08) 0 2px, transparent 2px 12px);
   backdrop-filter: blur(18px);
   border-right: none;
   transition: width 0.3s ease;
@@ -112,23 +112,30 @@
 }
 
 .App-menu-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 88, 88, 0.25) !important;
   backdrop-filter: blur(10px);
+  border-left: 3px solid #ff5858 !important;
+  box-shadow: 0 0 8px 2px #ff585844 !important;
+}
+
+.App-menu-item:hover a {
+  color: #fff !important;
+  transform: translateX(5px);
 }
 
 .App-menu-item.active {
-  background: linear-gradient(90deg, rgba(106,141,255,0.38) 0%, rgba(118,75,162,0.38) 100%) !important;
-  border-left: 7px solid #6a8dff !important;
-  box-shadow: 0 0 24px 6px #6a8dffcc, 0 0 0 4px #fff4 inset, 0 2px 12px 0 #764ba2cc !important;
+  background: linear-gradient(90deg, rgba(255,88,88,0.18) 0%, rgba(106,141,255,0.32) 100%) !important;
+  border-left: 7px solid #ff5858 !important;
+  box-shadow: 0 0 16px 2px #ff585866, 0 0 0 4px #fff4 inset, 0 2px 12px 0 #6a8dff33 !important;
   position: relative;
-  filter: drop-shadow(0 0 12px #6a8dffcc);
+  filter: drop-shadow(0 0 8px #ff585888);
   color: #fff !important;
 }
 
 .App-menu-item.active a {
   color: #fff !important;
   font-weight: 700;
-  text-shadow: 0 2px 8px #6a8dff88;
+  text-shadow: 0 2px 8px #ff585888;
 }
 
 .App-menu-item.active::before {
@@ -139,14 +146,9 @@
   bottom: 0;
   width: 7px;
   border-radius: 0 12px 12px 0;
-  background: linear-gradient(180deg, #fff 0%, #6a8dff 100%);
-  box-shadow: 0 0 24px 8px #6a8dffcc;
+  background: linear-gradient(180deg, #ff5858 0%, #fff 100%);
+  box-shadow: 0 0 16px 4px #ff585888;
   z-index: 2;
-}
-
-.App-menu-item a:hover {
-  color: white;
-  transform: translateX(5px);
 }
 
 .menu-icon {
