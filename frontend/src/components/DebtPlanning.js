@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from '../utils/axios';
 import accountsDebtsService from '../services/accountsDebtsService';
 import '../styles/DebtPlanning.css';
+import ReactDOM from 'react-dom';
 
 const DebtPlanning = () => {
   const [budgetData, setBudgetData] = useState(null);
@@ -175,43 +176,198 @@ const DebtPlanning = () => {
     }).format(value || 0);
   };
 
-  const renderGrid = () => {
-    if (!budgetData) return null;
-    const months = generateMonths();
-    // Find the first month where all debts are paid off
-    let debtFreeColIdx = null;
-    if (payoffPlan) {
-      const historicalMonths = months.filter(m => m.type === 'historical');
-      for (let i = 0; i < payoffPlan.plan.length; i++) {
-        if (payoffPlan.plan[i].debts.every(d => d.balance === 0)) {
-          debtFreeColIdx = i + historicalMonths.length;
-          break;
+  const payoffHeaderRefs = useRef([]);
+  const payoffContainerRef = useRef(null);
+  const gridHeaderRefs = useRef([]);
+  const gridContainerRef = useRef(null);
+
+  // Helper to get historical balances for each debt for each historical month
+  const getHistoricalBalance = (debtName, monthIdx, months, outstandingDebts) => {
+    // Try to find a matching debt record for the historical month
+    // This assumes outstandingDebts contains historical records with effective_date
+    const month = months[monthIdx];
+    if (!month || !month.date) return '';
+    // Find the closest record for this debt before or at this month
+    let closest = null;
+    let closestDiff = Infinity;
+    outstandingDebts.forEach(debt => {
+      if (debt.name === debtName && debt.effective_date) {
+        const debtDate = new Date(debt.effective_date);
+        const diff = Math.abs(debtDate - month.date);
+        if (debtDate <= month.date && diff < closestDiff) {
+          closest = debt;
+          closestDiff = diff;
         }
       }
+    });
+    return closest ? `$${parseFloat(closest.balance).toLocaleString()}` : '';
+  };
+
+  const findDebtFreeColIdx = (payoffPlan, months) => {
+    if (!payoffPlan || !payoffPlan.plan || !months) return null;
+    // Find the first payoff plan month where all debts are paid off
+    let debtFreePlanIdx = null;
+    for (let i = 0; i < payoffPlan.plan.length; i++) {
+      if (payoffPlan.plan[i].debts.every(d => d.balance === 0)) {
+        debtFreePlanIdx = i;
+        break;
+      }
     }
+    if (debtFreePlanIdx === null) return null;
+    // Find the date of the first current month in months array
+    const currentMonthObj = months.find(m => m.type === 'current');
+    if (!currentMonthObj) return null;
+    const debtFreeDate = new Date(currentMonthObj.date.getFullYear(), currentMonthObj.date.getMonth() + debtFreePlanIdx, 1);
+    // Find the index in months array where the date matches
+    const idx = months.findIndex(m => m.date.getFullYear() === debtFreeDate.getFullYear() && m.date.getMonth() === debtFreeDate.getMonth());
+    // Debug logging
+    console.log('--- Debt Free Debug ---');
+    console.log('Debt Free Plan Index:', debtFreePlanIdx);
+    console.log('Debt Free Date:', debtFreeDate);
+    console.log('Months Array:', months.map(m => m.date));
+    console.log('Debt Free Col Index:', idx);
+    return idx !== -1 ? idx : null;
+  };
+
+  const renderPayoffTable = () => {
+    if (planLoading) return <div className="loading">Calculating payoff plan...</div>;
+    if (planError) return <div className="error">{planError}</div>;
+    if (!payoffPlan) return null;
+    const months = generateMonths();
+
+    // Use only the correct debt free column index
+    const debtFreeColIdx = findDebtFreeColIdx(payoffPlan, months);
     const debtFreeCols = Array(months.length).fill(false);
     if (debtFreeColIdx !== null) debtFreeCols[debtFreeColIdx] = true;
 
-    // Calculate net savings for each month
+    return (
+      <div className="grid-container payoff-plan-table-container">
+        <div className="grid-header">
+          <div className="grid-cell header-cell category-cell" style={{ minWidth: 180, width: 180, maxWidth: 180, display: 'inline-block' }}>Debt</div>
+          {months.map((month, idx) => (
+            <div
+              key={idx}
+              className={`grid-cell header-cell ${month.type}-month${debtFreeCols[idx] ? ' debt-free-col' : ''}`}
+              style={{ position: 'relative' }}
+            >
+              {debtFreeColIdx === idx && (
+                <div className="debt-free-bubble" style={{ top: '-40px', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+                  Debt Free <span style={{ marginLeft: 6, fontSize: '1.1em' }}>⬇️</span>
+                </div>
+              )}
+              <div>{month.label}</div>
+            </div>
+          ))}
+        </div>
+        <div className="grid-body">
+          {payoffPlan.debts.map((debt, debtIdx) => (
+            <div key={debtIdx} className="grid-row">
+              <div className="grid-cell category-cell" style={{ minWidth: 180, width: 180, maxWidth: 180, display: 'inline-block' }}>{debt.name}</div>
+              {months.map((month, monthIdx) => {
+                const isDebtFreeCol = debtFreeCols[monthIdx];
+                if (month.type === 'historical') {
+                  return (
+                    <div key={monthIdx} className={`grid-cell ${month.type}-month${isDebtFreeCol ? ' debt-free-col' : ''}`}>
+                      {getHistoricalBalance(debt.name, monthIdx, months, outstandingDebts)}
+                    </div>
+                  );
+                } else {
+                  const payoffRow = payoffPlan.plan[monthIdx - months.findIndex(m => m.type === 'current')];
+                  const balance = payoffRow && payoffRow.debts[debtIdx] ? payoffRow.debts[debtIdx].balance : debt.balance;
+                  return (
+                    <div key={monthIdx} className={`grid-cell ${month.type}-month${isDebtFreeCol ? ' debt-free-col' : ''}`} style={{ position: 'relative' }}>
+                      {balance.toLocaleString && `$${balance.toLocaleString()}`}
+                    </div>
+                  );
+                }
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Render payoff summary table
+  const renderPayoffSummaryTable = () => {
+    const summary = getPayoffSummary();
+    if (!summary) return null;
+    return (
+      <div className="payoff-summary-table-container debts-table-style">
+        <div className="payoff-summary-title">Total Payments</div>
+        <table className="payoff-summary-table debts-table-style">
+          <tbody>
+            <tr>
+              <th>Total Months</th>
+              <td>{summary.months}</td>
+            </tr>
+            <tr>
+              <th>Total Principal Paid</th>
+              <td>${summary.totalPrincipal.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
+            </tr>
+            <tr>
+              <th>Total Interest Paid</th>
+              <td>${summary.totalInterest.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
+            </tr>
+            <tr>
+              <th>Total Paid</th>
+              <td><strong>${summary.totalPaid.toLocaleString(undefined, {maximumFractionDigits: 2})}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // Highlight the debt free column in the outstanding debts table
+  const renderOutstandingDebtsTable = () => {
+    // Find the last payoff month for each debt (where balance goes to 0)
+    if (!payoffPlan) return null;
+    const months = generateMonths();
+    const historicalMonths = months.filter(m => m.type === 'historical');
+    const lastPayoffMonthIdx = payoffPlan.debts.map((debt, debtIdx) => {
+      let idx = null;
+      for (let i = payoffPlan.plan.length - 1; i >= 0; i--) {
+        if (payoffPlan.plan[i].debts && payoffPlan.plan[i].debts[debtIdx] && payoffPlan.plan[i].debts[debtIdx].balance === 0) {
+          idx = i;
+        }
+      }
+      return idx !== null ? idx + historicalMonths.length : null;
+    });
+
+    // ... existing code for rendering the outstanding debts table ...
+  };
+
+  const renderGrid = () => {
+    if (!budgetData) return null;
+    const months = generateMonths();
+    // Use only the correct debt free column index
+    const debtFreeColIdx = findDebtFreeColIdx(payoffPlan, months);
+    const debtFreeCols = Array(months.length).fill(false);
+    if (debtFreeColIdx !== null) debtFreeCols[debtFreeColIdx] = true;
+    // Restore netSavings calculation
     const netSavings = months.map(() => {
       const income = incomeCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
       const expenses = expenseCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
       const totalSavings = budgetData.savings ? budgetData.savings.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
       return income - expenses - totalSavings;
     });
-
-    // Group months by type for labeling
-    const historicalMonths = months.filter(m => m.type === 'historical');
-    const currentMonths = months.filter(m => m.type === 'current');
-    const futureMonths = months.filter(m => m.type === 'future');
-
     return (
       <div className="grid-container">
         <div className="grid-header">
           <div className="grid-cell header-cell category-cell">Category</div>
-          {months.map((month, index) => (
-            <div key={index} className={`grid-cell header-cell ${month.type}-month${debtFreeCols[index] ? ' debt-free-col' : ''}`}>
-              {month.label}
+          {months.map((month, idx) => (
+            <div
+              key={idx}
+              className={`grid-cell header-cell ${month.type}-month${debtFreeCols[idx] ? ' debt-free-col' : ''}`}
+              style={{ position: 'relative' }}
+            >
+              {debtFreeColIdx === idx && (
+                <div className="debt-free-bubble" style={{ top: '-40px', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+                  Debt Free <span style={{ marginLeft: 6, fontSize: '1.1em' }}>⬇️</span>
+                </div>
+              )}
+              <div>{month.label}</div>
             </div>
           ))}
         </div>
@@ -220,9 +376,7 @@ const DebtPlanning = () => {
           <div className="grid-row net-savings-row">
             <div className="grid-cell category-cell net-savings-label">Net Savings</div>
             {netSavings.map((value, idx) => (
-              <div key={idx} className={`grid-cell net-savings-cell ${months[idx].type}-month${debtFreeCols[idx] ? ' debt-free-col' : ''}`}>
-                {formatCurrency(value)}
-              </div>
+              <div key={idx} className={`grid-cell net-savings-cell ${months[idx].type}-month${debtFreeCols[idx] ? ' debt-free-col' : ''}`}>{formatCurrency(value)}</div>
             ))}
           </div>
           {/* Savings items rows */}
@@ -279,12 +433,16 @@ const DebtPlanning = () => {
   const [planError, setPlanError] = useState(null);
   const [strategy, setStrategy] = useState('snowball');
 
+  // Always recalculate payoff plan when data is loaded and valid
   useEffect(() => {
-    if (budgetData && outstandingDebts.length > 0) {
+    console.log('Debt payoff effect running', {
+      loading, debtsLoading, budgetData, outstandingDebts, strategy, availableSavings
+    });
+    if (!loading && !debtsLoading && budgetData && outstandingDebts && outstandingDebts.length > 0) {
       setPlanLoading(true);
       axios.post('/api/debt-planner/', {
         debts: outstandingDebts,
-        strategy: strategy,
+        strategy: strategy || 'snowball',
         net_savings: availableSavings > 0 ? availableSavings : 0
       })
         .then(res => {
@@ -296,7 +454,7 @@ const DebtPlanning = () => {
         })
         .finally(() => setPlanLoading(false));
     }
-  }, [budgetData, strategy, outstandingDebts]);
+  }, [budgetData, outstandingDebts, strategy, loading, debtsLoading, availableSavings]);
 
   // Helper to calculate payoff summary
   const getPayoffSummary = () => {
@@ -311,162 +469,6 @@ const DebtPlanning = () => {
       totalPrincipal,
       totalPaid
     };
-  };
-
-  // Render payoff plan table (debts as rows, months as columns, styled like the grid table)
-  const renderPayoffTable = () => {
-    if (planLoading) return <div className="loading">Calculating payoff plan...</div>;
-    if (planError) return <div className="error">{planError}</div>;
-    if (!payoffPlan) return null;
-    const months = generateMonths();
-
-    // Group months by type for labeling
-    const historicalMonths = months.filter(m => m.type === 'historical');
-    const currentMonths = months.filter(m => m.type === 'current');
-    const futureMonths = months.filter(m => m.type === 'future');
-
-    // Find the first month where all debts are paid off (all balances are 0)
-    let debtFreeColIdx = null;
-    for (let i = 0; i < payoffPlan.plan.length; i++) {
-      if (payoffPlan.plan[i].debts.every(d => d.balance === 0)) {
-        debtFreeColIdx = i + historicalMonths.length;
-        break;
-      }
-    }
-    const debtFreeCols = Array(months.length).fill(false);
-    if (debtFreeColIdx !== null) debtFreeCols[debtFreeColIdx] = true;
-
-    // Find the latest balances for each debt as of the current month
-    const latestBalances = payoffPlan.debts.map(debt => debt.balance);
-
-    // Helper to get historical balances for each debt for each historical month
-    // (Assume you have a way to get these from outstandingDebts or another source)
-    const getHistoricalBalance = (debtName, monthIdx) => {
-      // Try to find a matching debt record for the historical month
-      // This assumes outstandingDebts contains historical records with effective_date
-      const month = months[monthIdx];
-      if (!month || !month.date) return '';
-      // Find the closest record for this debt before or at this month
-      let closest = null;
-      let closestDiff = Infinity;
-      outstandingDebts.forEach(debt => {
-        if (debt.name === debtName && debt.effective_date) {
-          const debtDate = new Date(debt.effective_date);
-          const diff = Math.abs(debtDate - month.date);
-          if (debtDate <= month.date && diff < closestDiff) {
-            closest = debt;
-            closestDiff = diff;
-          }
-        }
-      });
-      return closest ? `$${parseFloat(closest.balance).toLocaleString()}` : '';
-    };
-
-    // Find the index of the first current month
-    const firstCurrentIdx = months.findIndex(m => m.type === 'current');
-
-    return (
-      <div className="grid-container payoff-plan-table-container">
-        <div className="grid-header">
-          <div className="grid-cell header-cell category-cell" style={{ minWidth: 180, width: 180, maxWidth: 180, display: 'inline-block' }}>Debt</div>
-          {months.map((month, idx) => (
-            <div key={idx} className={`grid-cell header-cell ${month.type}-month${debtFreeCols[idx] ? ' debt-free-col' : ''}`} style={{ position: 'relative' }}>
-              {debtFreeCols[idx] && (
-                <div className="debt-free-bubble">
-                  Debt Free
-                  <span style={{ marginLeft: 6, fontSize: '1.1em' }}>⬇️</span>
-                </div>
-              )}
-              {month.label}
-            </div>
-          ))}
-        </div>
-        <div className="grid-body">
-          {payoffPlan.debts.map((debt, debtIdx) => (
-            <div key={debtIdx} className="grid-row">
-              <div className="grid-cell category-cell" style={{ minWidth: 180, width: 180, maxWidth: 180, display: 'inline-block' }}>{debt.name}</div>
-              {months.map((month, monthIdx) => {
-                const isDebtFreeCol = debtFreeCols[monthIdx];
-                if (month.type === 'historical') {
-                  return (
-                    <div key={monthIdx} className={`grid-cell ${month.type}-month${isDebtFreeCol ? ' debt-free-col' : ''}`}>
-                      {getHistoricalBalance(debt.name, monthIdx)}
-                    </div>
-                  );
-                } else {
-                  const payoffRow = payoffPlan.plan[monthIdx - historicalMonths.length];
-                  const balance = payoffRow && payoffRow.debts[debtIdx] ? payoffRow.debts[debtIdx].balance : debt.balance;
-                  return (
-                    <div key={monthIdx} className={`grid-cell ${month.type}-month${isDebtFreeCol ? ' debt-free-col' : ''}`} style={{ position: 'relative' }}>
-                      {isDebtFreeCol && (
-                        <div className="debt-free-bubble">
-                          Debt Free
-                          <span style={{ marginLeft: 6, fontSize: '1.1em' }}>⬇️</span>
-                        </div>
-                      )}
-                      ${balance.toLocaleString()}
-                    </div>
-                  );
-                }
-              })}
-            </div>
-          ))}
-        </div>
-        <div className="payoff-summary" style={{marginTop: '1rem', textAlign: 'center'}}>
-          <strong>Total Months:</strong> {payoffPlan.months} &nbsp;|&nbsp; <strong>Total Interest Paid:</strong> ${payoffPlan.total_interest.toLocaleString()}
-        </div>
-      </div>
-    );
-  };
-
-  // Render payoff summary table
-  const renderPayoffSummaryTable = () => {
-    const summary = getPayoffSummary();
-    if (!summary) return null;
-    return (
-      <div className="payoff-summary-table-container debts-table-style">
-        <div className="payoff-summary-title">Total Payments</div>
-        <table className="payoff-summary-table debts-table-style">
-          <tbody>
-            <tr>
-              <th>Total Months</th>
-              <td>{summary.months}</td>
-            </tr>
-            <tr>
-              <th>Total Principal Paid</th>
-              <td>${summary.totalPrincipal.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
-            </tr>
-            <tr>
-              <th>Total Interest Paid</th>
-              <td>${summary.totalInterest.toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
-            </tr>
-            <tr>
-              <th>Total Paid</th>
-              <td><strong>${summary.totalPaid.toLocaleString(undefined, {maximumFractionDigits: 2})}</strong></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
-  // Highlight the debt free column in the outstanding debts table
-  const renderOutstandingDebtsTable = () => {
-    // Find the last payoff month for each debt (where balance goes to 0)
-    if (!payoffPlan) return null;
-    const months = generateMonths();
-    const historicalMonths = months.filter(m => m.type === 'historical');
-    const lastPayoffMonthIdx = payoffPlan.debts.map((debt, debtIdx) => {
-      let idx = null;
-      for (let i = payoffPlan.plan.length - 1; i >= 0; i--) {
-        if (payoffPlan.plan[i].debts && payoffPlan.plan[i].debts[debtIdx] && payoffPlan.plan[i].debts[debtIdx].balance === 0) {
-          idx = i;
-        }
-      }
-      return idx !== null ? idx + historicalMonths.length : null;
-    });
-
-    // ... existing code for rendering the outstanding debts table ...
   };
 
   if (loading) {

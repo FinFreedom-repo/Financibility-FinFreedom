@@ -3,7 +3,7 @@
   padding: 2rem;
   border-radius: 18px;
   box-shadow: none;
-  overflow: hidden;
+  overflow: visible;
   width: 100%;
 }
 
@@ -37,6 +37,7 @@
 .grid-container {
   width: 100%;
   overflow-x: auto;
+  overflow-y: visible;
   border: 1px solid rgba(255,255,255,0.09);
   border-radius: 14px;
   background: rgba(255,255,255,0.13);
@@ -44,6 +45,7 @@
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 12px rgba(106, 141, 255, 0.10);
+  padding-top: 0;
 }
 
 .grid-header {
@@ -54,6 +56,8 @@
   border-bottom: 2px solid #6a8dff;
   width: 100%;
   min-width: max-content;
+  overflow: visible;
+  position: relative;
 }
 
 .grid-body {
@@ -89,11 +93,12 @@
   border-right: none;
 }
 
-.header-cell {
+.grid-cell.header-cell {
   font-weight: 700;
   color: #1a237e;
   text-align: center;
   background: transparent;
+  overflow: visible;
 }
 
 .category-cell {
@@ -303,7 +308,7 @@ input:checked + .slider:before {
 .outstanding-debts-table-container .grid-container {
   border: 1px solid rgba(255,255,255,0.09);
   border-radius: 12px;
-  overflow: hidden;
+  /* overflow: hidden; */
   background: rgba(255,255,255,0.13);
   box-shadow: 0 2px 12px rgba(106,141,255,0.10);
   width: 100%;
@@ -464,7 +469,7 @@ input:checked + .slider:before {
 .payoff-summary-table-container.debts-table-style {
   background: rgba(255,255,255,0.18);
   border-radius: 16px;
-  overflow: hidden;
+  /* overflow: hidden; */
   box-shadow: 0 2px 12px rgba(106, 141, 255, 0.10);
   border: 2px solid #b3cfff;
   margin-top: 0.5rem;
@@ -529,7 +534,7 @@ input:checked + .slider:before {
 
 .debt-free-bubble {
   position: absolute;
-  top: -2.2rem;
+  top: 0.3rem;
   left: 50%;
   transform: translateX(-50%);
   background: #10b981;
@@ -540,7 +545,7 @@ input:checked + .slider:before {
   border-radius: 18px;
   box-shadow: 0 2px 8px #10b98133;
   white-space: nowrap;
-  z-index: 10;
+  z-index: 100;
   display: flex;
   align-items: center;
 }

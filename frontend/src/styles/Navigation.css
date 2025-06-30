@@ -4,7 +4,7 @@
   backdrop-filter: blur(18px);
   border-right: none;
   transition: width 0.3s ease;
-  overflow: hidden;
+  overflow: visible;
   flex-shrink: 0;
   position: relative;
   height: 100vh;
@@ -168,7 +168,7 @@
 .navigation.collapsed .menu-text {
   opacity: 0;
   width: 0;
-  overflow: hidden;
+  /* overflow: hidden; */
 }
 
 .navigation.collapsed .menu-icon {
