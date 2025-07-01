@@ -32,6 +32,7 @@
   flex-direction: column;
   gap: 2rem;
   min-height: 600px;
+  margin-top: 2rem;
 }
 
 .grid-container {
@@ -57,7 +58,7 @@
   width: 100%;
   min-width: max-content;
   overflow: visible;
-  position: relative;
+  padding-top: 0;
 }
 
 .grid-body {
@@ -99,6 +100,7 @@
   text-align: center;
   background: transparent;
   overflow: visible;
+  position: relative;
 }
 
 .category-cell {
@@ -533,33 +535,7 @@ input:checked + .slider:before {
 }
 
 .debt-free-bubble {
-  position: absolute;
-  top: 0.3rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #10b981;
-  color: #fff;
-  font-size: 0.95rem;
-  font-weight: 700;
-  padding: 0.35rem 1.1rem;
-  border-radius: 18px;
-  box-shadow: 0 2px 8px #10b98133;
-  white-space: nowrap;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-}
-
-.debt-free-bubble::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 8px 8px 0 8px;
-  border-style: solid;
-  border-color: #10b981 transparent transparent transparent;
-  display: block;
+  display: none !important;
 }
 
 .debt-free-col {
@@ -574,4 +550,99 @@ input:checked + .slider:before {
 
 .payoff-plan-table-container {
   margin-bottom: 2rem;
+  margin-top: 2rem;
+}
+
+/* Add padding only to payoff plan table's header */
+.payoff-plan-table-container .grid-header {
+  padding-top: 0;
+  background: rgba(255,255,255,0.18);
+}
+
+/* Add wider padding to the expenses table's header (main grid) */
+.debt-container .grid-header {
+  padding-top: 0;
+}
+
+.debt-free-convo-bubble {
+  margin: 0 auto 1.5rem auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 480px;
+  background: linear-gradient(90deg, #a8ffb0 0%, #e0ffe6 100%);
+  color: #087443;
+  font-weight: 900;
+  font-size: 1.15rem;
+  border-radius: 24px;
+  box-shadow: 0 0 12px 2px #10b98133;
+  padding: 1rem 2rem;
+  z-index: 10;
+  position: relative;
+  border: 2px solid #10b981;
+  text-align: center;
+}
+
+.debt-free-highlight {
+  color: #087443;
+  font-weight: 900;
+  background: none;
+}
+
+.debt-free-date {
+  color: #1a237e;
+  font-weight: 900;
+  background: none;
+}
+
+.debt-table-legend {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.2rem;
+  margin: 0 auto 0.5rem auto;
+  font-size: 1rem;
+  font-weight: 600;
+  background: none;
+  color: #1a237e;
+}
+
+.legend-historical .legend-label {
+  color: #787878;
+  background: none;
+  font-weight: 700;
+}
+
+.legend-current .legend-label {
+  color: #1a237e;
+  background: none;
+  font-weight: 900;
+  text-shadow: 0 2px 4px #6a8dff22;
+}
+
+.legend-projected .legend-label {
+  color: #2c3e50;
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 0.1em 0.5em;
+  font-weight: 700;
+  border: none;
+}
+
+.legend-sep {
+  color: #bdbdbd;
+  font-weight: 400;
+  margin: 0 0.5rem;
+}
+
+.legend-margin {
+  margin-left: 0;
+  margin-bottom: 0;
+  justify-content: flex-start;
+  font-size: 1.05rem;
+  padding-left: 0.5rem;
+  min-width: 320px;
+  display: flex;
+  align-items: center;
+  height: 40px;
 } 

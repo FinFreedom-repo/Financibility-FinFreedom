@@ -226,7 +226,7 @@ const DebtPlanning = () => {
     console.log('Debt Free Date:', debtFreeDate);
     console.log('Months Array:', months.map(m => m.date));
     console.log('Debt Free Col Index:', idx);
-    return idx !== -1 ? idx : null;
+    return idx !== -1 ? { idx, debtFreeDate } : null;
   };
 
   const renderPayoffTable = () => {
@@ -234,55 +234,64 @@ const DebtPlanning = () => {
     if (planError) return <div className="error">{planError}</div>;
     if (!payoffPlan) return null;
     const months = generateMonths();
-
-    // Use only the correct debt free column index
-    const debtFreeColIdx = findDebtFreeColIdx(payoffPlan, months);
+    const debtFreeCol = findDebtFreeColIdx(payoffPlan, months);
+    const debtFreeColIdx = debtFreeCol ? debtFreeCol.idx : null;
+    const debtFreeDate = debtFreeCol ? debtFreeCol.debtFreeDate : null;
     const debtFreeCols = Array(months.length).fill(false);
     if (debtFreeColIdx !== null) debtFreeCols[debtFreeColIdx] = true;
 
     return (
-      <div className="grid-container payoff-plan-table-container">
-        <div className="grid-header">
-          <div className="grid-cell header-cell category-cell" style={{ minWidth: 180, width: 180, maxWidth: 180, display: 'inline-block' }}>Debt</div>
-          {months.map((month, idx) => (
-            <div
-              key={idx}
-              className={`grid-cell header-cell ${month.type}-month${debtFreeCols[idx] ? ' debt-free-col' : ''}`}
-              style={{ position: 'relative' }}
-            >
-              {debtFreeColIdx === idx && (
-                <div className="debt-free-bubble" style={{ top: '-40px', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-                  Debt Free <span style={{ marginLeft: 6, fontSize: '1.1em' }}>⬇️</span>
-                </div>
-              )}
-              <div>{month.label}</div>
-            </div>
-          ))}
-        </div>
-        <div className="grid-body">
-          {payoffPlan.debts.map((debt, debtIdx) => (
-            <div key={debtIdx} className="grid-row">
-              <div className="grid-cell category-cell" style={{ minWidth: 180, width: 180, maxWidth: 180, display: 'inline-block' }}>{debt.name}</div>
-              {months.map((month, monthIdx) => {
-                const isDebtFreeCol = debtFreeCols[monthIdx];
-                if (month.type === 'historical') {
-                  return (
-                    <div key={monthIdx} className={`grid-cell ${month.type}-month${isDebtFreeCol ? ' debt-free-col' : ''}`}>
-                      {getHistoricalBalance(debt.name, monthIdx, months, outstandingDebts)}
-                    </div>
-                  );
-                } else {
-                  const payoffRow = payoffPlan.plan[monthIdx - months.findIndex(m => m.type === 'current')];
-                  const balance = payoffRow && payoffRow.debts[debtIdx] ? payoffRow.debts[debtIdx].balance : debt.balance;
-                  return (
-                    <div key={monthIdx} className={`grid-cell ${month.type}-month${isDebtFreeCol ? ' debt-free-col' : ''}`} style={{ position: 'relative' }}>
-                      {balance.toLocaleString && `$${balance.toLocaleString()}`}
-                    </div>
-                  );
-                }
-              })}
-            </div>
-          ))}
+      <div className="payoff-plan-table-container">
+        {debtFreeDate && (
+          <div className="debt-free-convo-bubble">
+            <span style={{whiteSpace: 'pre'}}><span role="img" aria-label="party">🎉</span> You will be debt-free by{' '}<span className="debt-free-date">{debtFreeDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>!</span>
+          </div>
+        )}
+        <div className="grid-container">
+          <div className="debt-table-legend legend-margin">
+            <span className="legend-historical">🕰️ <span className="legend-label">Historical</span></span>
+            <span className="legend-sep">|</span>
+            <span className="legend-current">📅 <span className="legend-label">Current</span></span>
+            <span className="legend-sep">|</span>
+            <span className="legend-projected">🔮 <span className="legend-label">Projected</span></span>
+          </div>
+          <div className="grid-header">
+            <div className="grid-cell header-cell category-cell" style={{ minWidth: 180, width: 180, maxWidth: 180, display: 'inline-block' }}>Debt</div>
+            {months.map((month, idx) => (
+              <div
+                key={idx}
+                className={`grid-cell header-cell ${month.type}-month${debtFreeCols[idx] ? ' debt-free col' : ''}`}
+                style={{ position: 'relative' }}
+              >
+                <div>{month.label}</div>
+              </div>
+            ))}
+          </div>
+          <div className="grid-body">
+            {payoffPlan.debts.map((debt, debtIdx) => (
+              <div key={debtIdx} className="grid-row">
+                <div className="grid-cell category-cell" style={{ minWidth: 180, width: 180, maxWidth: 180, display: 'inline-block' }}>{debt.name}</div>
+                {months.map((month, monthIdx) => {
+                  const isDebtFreeCol = debtFreeCols[monthIdx];
+                  if (month.type === 'historical') {
+                    return (
+                      <div key={monthIdx} className={`grid-cell ${month.type}-month${isDebtFreeCol ? ' debt-free-col' : ''}`}>
+                        {getHistoricalBalance(debt.name, monthIdx, months, outstandingDebts)}
+                      </div>
+                    );
+                  } else {
+                    const payoffRow = payoffPlan.plan[monthIdx - months.findIndex(m => m.type === 'current')];
+                    const balance = payoffRow && payoffRow.debts[debtIdx] ? payoffRow.debts[debtIdx].balance : debt.balance;
+                    return (
+                      <div key={monthIdx} className={`grid-cell ${month.type}-month${isDebtFreeCol ? ' debt-free-col' : ''}`} style={{ position: 'relative' }}>
+                        {balance.toLocaleString && `$${balance.toLocaleString()}`}
+                      </div>
+                    );
+                  }
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -341,11 +350,10 @@ const DebtPlanning = () => {
   const renderGrid = () => {
     if (!budgetData) return null;
     const months = generateMonths();
-    // Use only the correct debt free column index
-    const debtFreeColIdx = findDebtFreeColIdx(payoffPlan, months);
+    const debtFreeCol = findDebtFreeColIdx(payoffPlan, months);
+    const debtFreeColIdx = debtFreeCol ? debtFreeCol.idx : null;
     const debtFreeCols = Array(months.length).fill(false);
     if (debtFreeColIdx !== null) debtFreeCols[debtFreeColIdx] = true;
-    // Restore netSavings calculation
     const netSavings = months.map(() => {
       const income = incomeCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
       const expenses = expenseCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
@@ -354,6 +362,13 @@ const DebtPlanning = () => {
     });
     return (
       <div className="grid-container">
+        <div className="debt-table-legend legend-margin">
+          <span className="legend-historical">🕰️ <span className="legend-label">Historical</span></span>
+          <span className="legend-sep">|</span>
+          <span className="legend-current">📅 <span className="legend-label">Current</span></span>
+          <span className="legend-sep">|</span>
+          <span className="legend-projected">🔮 <span className="legend-label">Projected</span></span>
+        </div>
         <div className="grid-header">
           <div className="grid-cell header-cell category-cell">Category</div>
           {months.map((month, idx) => (
@@ -362,11 +377,6 @@ const DebtPlanning = () => {
               className={`grid-cell header-cell ${month.type}-month${debtFreeCols[idx] ? ' debt-free-col' : ''}`}
               style={{ position: 'relative' }}
             >
-              {debtFreeColIdx === idx && (
-                <div className="debt-free-bubble" style={{ top: '-40px', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
-                  Debt Free <span style={{ marginLeft: 6, fontSize: '1.1em' }}>⬇️</span>
-                </div>
-              )}
               <div>{month.label}</div>
             </div>
           ))}
