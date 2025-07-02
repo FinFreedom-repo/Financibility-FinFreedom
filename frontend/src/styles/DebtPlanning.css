@@ -645,4 +645,164 @@ input:checked + .slider:before {
   display: flex;
   align-items: center;
   height: 40px;
+}
+
+/* --- Refined AG Grid theme for budget/expenses table to match debt payoff table exactly --- */
+.ag-theme-alpine.custom-budget-grid {
+  background: rgba(255,255,255,0.13);
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.09);
+  box-shadow: 0 2px 12px rgba(106, 141, 255, 0.10);
+  padding-top: 0;
+  font-family: inherit;
+  overflow: visible;
+}
+.ag-theme-alpine.custom-budget-grid .ag-root-wrapper {
+  border-radius: 14px;
+  overflow: visible;
+}
+.ag-theme-alpine.custom-budget-grid .ag-header {
+  background: rgba(255,255,255,0.18);
+  border-bottom: 2px solid #6a8dff;
+  min-width: max-content;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border-radius: 14px 14px 0 0;
+}
+.ag-theme-alpine.custom-budget-grid .ag-header-cell-label {
+  color: #1a237e;
+  font-weight: 700;
+  font-size: 1rem;
+  text-align: center;
+  background: transparent;
+  text-shadow: 0 2px 8px rgba(60,60,120,0.18);
+}
+.ag-theme-alpine.custom-budget-grid .ag-header-cell {
+  background: transparent;
+  border-right: 1px solid rgba(255,255,255,0.09);
+  font-weight: 700;
+  color: #1a237e;
+  text-align: center;
+  font-size: 1rem;
+  min-width: 120px;
+  padding: 0.75rem 0.5rem;
+}
+.ag-theme-alpine.custom-budget-grid .ag-header-cell:last-child {
+  border-right: none;
+}
+.ag-theme-alpine.custom-budget-grid .ag-cell,
+.ag-theme-alpine.custom-budget-grid .ag-row,
+.ag-theme-alpine.custom-budget-grid .ag-center-cols-container,
+.ag-theme-alpine.custom-budget-grid .ag-row .ag-cell,
+.ag-theme-alpine.custom-budget-grid .ag-header-cell {
+  color: #2c3e50 !important;
+  background: transparent !important;
+}
+.ag-theme-alpine.custom-budget-grid .ag-cell:last-child {
+  border-right: none;
+}
+.ag-theme-alpine.custom-budget-grid .ag-row .ag-cell {
+  border-bottom: 1px solid #e0e0e0;
+}
+.ag-theme-alpine.custom-budget-grid .ag-row:last-child .ag-cell {
+  border-bottom: none;
+}
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-category-cell {
+  text-align: left;
+  font-weight: 600;
+  color: #1a237e;
+  min-width: 180px;
+  background: transparent;
+}
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-category-cell.income {
+  color: #10b981;
+  font-weight: 800;
+  text-shadow: 0 1px 2px #0e7c5b33;
+}
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-category-cell.expense {
+  color: #e53935;
+  font-weight: 800;
+  text-shadow: 0 1px 2px #b71c1c33;
+}
+/* Month type coloring (reuse your classes if possible) */
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-historical-cell {
+  background: rgba(120, 120, 120, 0.22) !important;
+  border-left: 4px solid #888 !important;
+  color: #1a237e !important;
+  font-style: italic;
+}
+.ag-theme-alpine.custom-budget-grid .ag-header-cell.ag-historical-cell {
+  background: rgba(120, 120, 120, 0.32) !important;
+  border-bottom: 3px solid #888 !important;
+  font-weight: 700;
+  color: #1a237e !important;
+}
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-current-cell {
+  background: rgba(106, 141, 255, 0.25) !important;
+  border-left: 3px solid #6a8dff !important;
+  color: #1a237e !important;
+  font-weight: 700;
+  box-shadow: 0 0 8px 2px #6a8dff44 !important;
+}
+.ag-theme-alpine.custom-budget-grid .ag-header-cell.ag-current-cell {
+  background: rgba(106, 141, 255, 0.35) !important;
+  border-bottom: 2px solid #6a8dff !important;
+  font-weight: 700;
+  color: #1a237e !important;
+  text-shadow: 0 2px 4px #6a8dff88;
+}
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-projected-cell {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-left: 3px solid rgba(255, 255, 255, 0.2) !important;
+  color: #2c3e50 !important;
+}
+.ag-theme-alpine.custom-budget-grid .ag-header-cell.ag-projected-cell {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2) !important;
+  font-weight: 600;
+  color: #2c3e50 !important;
+}
+/* Remove AG Grid focus/selection/hover effects */
+.ag-theme-alpine.custom-budget-grid .ag-cell-focus,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-range-selected,
+.ag-theme-alpine.custom-budget-grid .ag-row-hover,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-range-single-cell {
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #2c3e50 !important;
+}
+.ag-theme-alpine.custom-budget-grid .ag-row-selected {
+  background: transparent !important;
+  color: #2c3e50 !important;
+}
+
+/* Larger, more readable AG Grid rows */
+.ag-theme-alpine.custom-budget-grid .ag-cell,
+.ag-theme-alpine.custom-budget-grid .ag-header-cell {
+  font-size: 1.15rem;
+  padding-top: 1.6rem;
+  padding-bottom: 1.6rem;
+  font-weight: 700;
+}
+.ag-theme-alpine.custom-budget-grid .ag-row {
+  min-height: 64px !important;
+  height: 72px !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-cell.income-category-cell {
+  color: #10b981 !important;
+  font-weight: 800;
+  text-shadow: 0 1px 2px #0e7c5b33;
+}
+.ag-theme-alpine.custom-budget-grid .ag-cell.net-savings-category-cell {
+  color: #1a237e !important;
+  font-weight: 900;
+  text-shadow: 0 1px 2px #6a8dff33;
+}
+.ag-theme-alpine.custom-budget-grid .ag-cell.expense-category-cell {
+  color: #e53935 !important;
+  font-weight: 800;
+  text-shadow: 0 1px 2px #b71c1c33;
 } 

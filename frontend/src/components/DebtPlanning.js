@@ -3,8 +3,15 @@ import axios from '../utils/axios';
 import accountsDebtsService from '../services/accountsDebtsService';
 import '../styles/DebtPlanning.css';
 import ReactDOM from 'react-dom';
+import { AgGridReact } from 'ag-grid-react';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 const DebtPlanning = () => {
+  console.log('DebtPlanning component mounting...');
+  
   const [budgetData, setBudgetData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -16,6 +23,9 @@ const DebtPlanning = () => {
   const [projectionMonths, setProjectionMonths] = useState(12);
   const [historicalMonthsShown, setHistoricalMonthsShown] = useState(3);
   const [maxHistoricalMonths, setMaxHistoricalMonths] = useState(0);
+
+  // Add state for edited budget data
+  const [editedBudgetData, setEditedBudgetData] = useState(null);
 
   // Update categories when budgetData changes
   useEffect(() => {
@@ -347,82 +357,217 @@ const DebtPlanning = () => {
     // ... existing code for rendering the outstanding debts table ...
   };
 
+  // When budgetData loads, initialize editedBudgetData
+  useEffect(() => {
+    if (budgetData) {
+      setEditedBudgetData({
+        ...budgetData,
+        additional_items: budgetData.additional_items ? [...budgetData.additional_items] : [],
+      });
+    }
+  }, [budgetData]);
+
+  // Helper to update income/expense in editedBudgetData
+  const handleBudgetCellChange = (type, idx, value) => {
+    setEditedBudgetData(prev => {
+      if (!prev) return prev;
+      let updated = { ...prev };
+      if (type === 'income') {
+        if (idx === 0) {
+          updated.income = value;
+        } else {
+          updated.additional_items = updated.additional_items.map((item, i) =>
+            item.type === 'income' && i === idx - 1 ? { ...item, amount: value } : item
+          );
+        }
+      } else if (type === 'expense') {
+        if (idx < 11) {
+          // base expenses
+          const keys = ['housing','transportation','food','healthcare','entertainment','shopping','travel','education','utilities','childcare','other'];
+          updated[keys[idx]] = value;
+        } else {
+          updated.additional_items = updated.additional_items.map((item, i) =>
+            item.type === 'expense' && i === idx - 11 ? { ...item, amount: value } : item
+          );
+        }
+      }
+      return updated;
+    });
+  };
+
+  // When editedBudgetData changes, recalc net savings and trigger payoff plan
+  useEffect(() => {
+    if (!editedBudgetData) return;
+    // Recalculate categories
+    // ... (reuse your category logic from useEffect for budgetData)
+    // Optionally, trigger debt payoff plan update here if needed
+  }, [editedBudgetData]);
+
+  // Restore renderGrid with dynamic logic
   const renderGrid = () => {
-    if (!budgetData) return null;
+    if (!editedBudgetData) return null;
     const months = generateMonths();
     const debtFreeCol = findDebtFreeColIdx(payoffPlan, months);
     const debtFreeColIdx = debtFreeCol ? debtFreeCol.idx : null;
     const debtFreeCols = Array(months.length).fill(false);
     if (debtFreeColIdx !== null) debtFreeCols[debtFreeColIdx] = true;
-    const netSavings = months.map(() => {
-      const income = incomeCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
-      const expenses = expenseCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
-      const totalSavings = budgetData.savings ? budgetData.savings.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
-      return income - expenses - totalSavings;
+
+    // Calculate categories from editedBudgetData
+    const baseIncome = [{ name: 'Income', value: editedBudgetData.income, type: 'income' }];
+    const baseExpenses = [
+      { name: 'Housing', value: editedBudgetData.housing, type: 'expense' },
+      { name: 'Transportation', value: editedBudgetData.transportation, type: 'expense' },
+      { name: 'Food', value: editedBudgetData.food, type: 'expense' },
+      { name: 'Healthcare', value: editedBudgetData.healthcare, type: 'expense' },
+      { name: 'Entertainment', value: editedBudgetData.entertainment, type: 'expense' },
+      { name: 'Shopping', value: editedBudgetData.shopping, type: 'expense' },
+      { name: 'Travel', value: editedBudgetData.travel, type: 'expense' },
+      { name: 'Education', value: editedBudgetData.education, type: 'expense' },
+      { name: 'Utilities', value: editedBudgetData.utilities, type: 'expense' },
+      { name: 'Childcare', value: editedBudgetData.childcare, type: 'expense' },
+      { name: 'Other', value: editedBudgetData.other, type: 'expense' }
+    ];
+    let additionalIncome = [];
+    let additionalExpenses = [];
+    if (editedBudgetData.additional_items) {
+      additionalIncome = editedBudgetData.additional_items
+        .filter(item => item.type === 'income')
+        .map(item => ({
+          name: item.name,
+          value: item.amount,
+          type: 'income'
+        }));
+      additionalExpenses = editedBudgetData.additional_items
+        .filter(item => item.type === 'expense')
+        .map(item => ({
+          name: item.name,
+          value: item.amount,
+          type: 'expense'
+        }));
+    }
+    const incomeCategories = [...baseIncome, ...additionalIncome];
+    const expenseCategories = [...baseExpenses, ...additionalExpenses];
+
+    // Build AG Grid columns
+    const columnDefs = [
+      {
+        headerName: 'Category',
+        field: 'category',
+        pinned: 'left',
+        editable: false,
+        cellClass: params => {
+          if (params.value === 'Net Savings') return 'net-savings-category-cell';
+          if (incomeCategories.some(cat => cat.name === params.value)) return 'income-category-cell';
+          if (expenseCategories.some(cat => cat.name === params.value)) return 'expense-category-cell';
+          return 'ag-category-cell';
+        }
+      },
+      ...months.map((month, idx) => ({
+        headerName: month.label,
+        field: `month_${idx}`,
+        editable: month.type === 'current' || month.type === 'future',
+        cellClass: params => {
+          let classes = '';
+          if (month.type === 'historical') classes += ' ag-historical-cell';
+          if (month.type === 'current') classes += ' ag-current-cell';
+          if (month.type === 'future') classes += ' ag-projected-cell';
+          if (debtFreeCols[idx]) classes += ' debt-free-col';
+          return classes;
+        },
+        valueFormatter: params => typeof params.value === 'number' ? params.value.toLocaleString(undefined, { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }) : params.value,
+      }))
+    ];
+
+    // Build AG Grid row data
+    const rowData = [];
+    // Net Savings row (read-only)
+    const incomeTotal = incomeCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
+    const expenseTotal = expenseCategories.reduce((sum, cat) => sum + (cat.value || 0), 0);
+    const totalSavings = editedBudgetData.savings ? editedBudgetData.savings.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
+    const netSavingsValue = incomeTotal - expenseTotal - totalSavings;
+    const netSavingsRow = { category: 'Net Savings' };
+    months.forEach((month, idx) => {
+      netSavingsRow[`month_${idx}`] = netSavingsValue;
     });
+    rowData.push(netSavingsRow);
+    // Income rows
+    incomeCategories.forEach((cat, i) => {
+      const row = { category: cat.name };
+      months.forEach((month, idx) => {
+        row[`month_${idx}`] = cat.value;
+      });
+      rowData.push(row);
+    });
+    // Expense rows
+    expenseCategories.forEach((cat, i) => {
+      const row = { category: cat.name };
+      months.forEach((month, idx) => {
+        row[`month_${idx}`] = cat.value;
+      });
+      rowData.push(row);
+    });
+
+    // Handle cell edit
+    const onCellValueChanged = params => {
+      const { data, colDef, newValue } = params;
+      const colIdx = parseInt(colDef.field.replace('month_', ''));
+      const month = months[colIdx];
+      if (!month || month.type === 'historical') return;
+      // Find and update the correct category in editedBudgetData
+      setEditedBudgetData(prev => {
+        let updated = { ...prev };
+        // Income
+        if (data.category === 'Income') {
+          updated.income = parseFloat(newValue) || 0;
+        } else if (incomeCategories.some(cat => cat.name === data.category)) {
+          updated.additional_items = updated.additional_items.map(item =>
+            item.type === 'income' && item.name === data.category ? { ...item, amount: parseFloat(newValue) || 0 } : item
+          );
+        } else if (expenseCategories.some(cat => cat.name === data.category)) {
+          // Expense
+          const baseExpenseNames = ['Housing','Transportation','Food','Healthcare','Entertainment','Shopping','Travel','Education','Utilities','Childcare','Other'];
+          const baseIdx = baseExpenseNames.indexOf(data.category);
+          if (baseIdx !== -1) {
+            updated[baseExpenseNames[baseIdx].toLowerCase()] = parseFloat(newValue) || 0;
+          } else {
+            updated.additional_items = updated.additional_items.map(item =>
+              item.type === 'expense' && item.name === data.category ? { ...item, amount: parseFloat(newValue) || 0 } : item
+            );
+          }
+        }
+        return updated;
+      });
+    };
+
+    if (!editedBudgetData) {
+      return <div style={{padding: '2rem', color: 'red'}}>No budget data loaded.</div>;
+    }
+    if (!months || months.length === 0) {
+      return <div style={{padding: '2rem', color: 'red'}}>No months generated.</div>;
+    }
+    if (!incomeCategories || incomeCategories.length === 0) {
+      return <div style={{padding: '2rem', color: 'red'}}>No income categories.</div>;
+    }
+    if (!expenseCategories || expenseCategories.length === 0) {
+      return <div style={{padding: '2rem', color: 'red'}}>No expense categories.</div>;
+    }
+    if (!rowData || !columnDefs || rowData.length === 0 || columnDefs.length === 0) {
+      return <div style={{padding: '2rem', color: 'red'}}>No data to display in the table.</div>;
+    }
+
     return (
-      <div className="grid-container">
-        <div className="debt-table-legend legend-margin">
-          <span className="legend-historical">🕰️ <span className="legend-label">Historical</span></span>
-          <span className="legend-sep">|</span>
-          <span className="legend-current">📅 <span className="legend-label">Current</span></span>
-          <span className="legend-sep">|</span>
-          <span className="legend-projected">🔮 <span className="legend-label">Projected</span></span>
-        </div>
-        <div className="grid-header">
-          <div className="grid-cell header-cell category-cell">Category</div>
-          {months.map((month, idx) => (
-            <div
-              key={idx}
-              className={`grid-cell header-cell ${month.type}-month${debtFreeCols[idx] ? ' debt-free-col' : ''}`}
-              style={{ position: 'relative' }}
-            >
-              <div>{month.label}</div>
-            </div>
-          ))}
-        </div>
-        <div className="grid-body">
-          {/* Net Savings row */}
-          <div className="grid-row net-savings-row">
-            <div className="grid-cell category-cell net-savings-label">Net Savings</div>
-            {netSavings.map((value, idx) => (
-              <div key={idx} className={`grid-cell net-savings-cell ${months[idx].type}-month${debtFreeCols[idx] ? ' debt-free-col' : ''}`}>{formatCurrency(value)}</div>
-            ))}
-          </div>
-          {/* Savings items rows */}
-          {budgetData.savings && budgetData.savings.map((savingsItem, savingsIdx) => (
-            <div key={savingsIdx} className="grid-row personal-savings-row">
-              <div className="grid-cell category-cell personal-savings-label">{savingsItem.name}</div>
-              {months.map((month, idx) => (
-                <div key={idx} className={`grid-cell personal-savings-cell ${month.type}-month${debtFreeCols[idx] ? ' debt-free-col' : ''}`}>
-                  {formatCurrency(savingsItem.amount)}
-                </div>
-              ))}
-            </div>
-          ))}
-          {/* Income categories */}
-          {incomeCategories.map((category, rowIndex) => (
-            <div key={rowIndex} className="grid-row">
-              <div className={`grid-cell category-cell ${category.type}`}>{category.name}</div>
-              {months.map((month, colIndex) => (
-                <div key={colIndex} className={`grid-cell ${month.type}-month${debtFreeCols[colIndex] ? ' debt-free-col' : ''}`}>
-                  {formatCurrency(category.value)}
-                </div>
-              ))}
-            </div>
-          ))}
-          {/* Expense categories */}
-          {expenseCategories.map((category, rowIndex) => (
-            <div key={rowIndex} className="grid-row">
-              <div className={`grid-cell category-cell ${category.type}`}>{category.name}</div>
-              {months.map((month, colIndex) => (
-                <div key={colIndex} className={`grid-cell ${month.type}-month${debtFreeCols[colIndex] ? ' debt-free-col' : ''}`}>
-                  {formatCurrency(category.value)}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
+      <div className="ag-theme-alpine custom-budget-grid" style={{ width: '100%', minHeight: 400 }}>
+        <AgGridReact
+          rowData={rowData}
+          columnDefs={columnDefs}
+          domLayout="autoHeight"
+          onCellValueChanged={onCellValueChanged}
+          suppressMovableColumns={true}
+          suppressMenuHide={true}
+          stopEditingWhenCellsLoseFocus={true}
+          singleClickEdit={true}
+          defaultColDef={{ resizable: true }}
+        />
       </div>
     );
   };
@@ -590,10 +735,17 @@ const DebtPlanning = () => {
       </div>
       {outstandingDebts.length > 0 && renderPayoffTable()}
       <div className="debt-container">
+        <div className="debt-table-legend legend-margin">
+          <span className="legend-historical">🕰️ <span className="legend-label">Historical</span></span>
+          <span className="legend-sep">|</span>
+          <span className="legend-current">📅 <span className="legend-label">Current</span></span>
+          <span className="legend-sep">|</span>
+          <span className="legend-projected">🔮 <span className="legend-label">Projected</span></span>
+        </div>
         {renderGrid()}
       </div>
     </div>
   );
 };
 
-export default DebtPlanning; 
+export default DebtPlanning;
