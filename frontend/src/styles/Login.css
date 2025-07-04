@@ -1,5 +1,23 @@
-body, .login-container {
-  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%);
+/* Force blue gradient background for login page */
+:root {
+  --app-background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%);
+}
+
+html, body, #root, .App, .login-container {
+  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%) !important;
+  min-height: 100vh;
+}
+
+/* Additional override for App class */
+.App {
+  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%) !important;
+}
+
+/* Most specific override */
+body .App,
+#root .App,
+.App {
+  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%) !important;
 }
 
 .login-container {
@@ -7,26 +25,36 @@ body, .login-container {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #6a8dff 0%, #e0eafc 100%) !important;
 }
 
-.login-box {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
+.login-form {
+  background: rgba(255, 255, 255, 0.13);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 2.5rem 2rem;
   border-radius: 18px;
-  box-shadow: 0 8px 32px rgba(76, 119, 175, 0.18);
+  box-shadow: 0 8px 32px rgba(106, 141, 255, 0.18);
   width: 100%;
   max-width: 400px;
 }
 
-.login-box h1 {
+.login-title {
   text-align: center;
-  color: #333;
-  margin-bottom: 2rem;
+  color: #1a237e;
+  margin-bottom: 0.5rem;
   font-size: 1.8rem;
   font-weight: 700;
   letter-spacing: 0.5px;
+  text-shadow: 0 2px 8px rgba(60,60,120,0.18);
+}
+
+.login-subtitle {
+  text-align: center;
+  color: #2c3e50;
+  font-size: 1rem;
+  font-style: italic;
+  margin: 0 0 2rem 0;
 }
 
 .form-group {
@@ -36,38 +64,43 @@ body, .login-container {
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
-  color: #555;
+  color: #1a237e;
   font-weight: 500;
 }
 
 .form-group input {
   width: 100%;
   padding: 0.75rem;
-  border: 1.5px solid #ddd;
+  border: 1.5px solid rgba(255,255,255,0.09);
   border-radius: 7px;
   font-size: 1rem;
   transition: border-color 0.3s ease;
-  background: #f7faff;
+  background: rgba(255,255,255,0.13);
+  color: #2c3e50;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.12);
+  border-color: #6a8dff;
+  box-shadow: 0 0 0 2px rgba(106, 141, 255, 0.12);
+}
+
+.form-group input::placeholder {
+  color: #666;
 }
 
 .error-message {
-  color: #dc3545;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 5px;
+  color: #ff6b6b;
+  background: rgba(255,107,107,0.13);
+  border: 1px solid rgba(255,107,107,0.3);
+  border-radius: 8px;
   padding: 0.75rem;
   margin-bottom: 1rem;
   text-align: center;
   font-size: 0.95rem;
 }
 
-.login-box .login-button {
+.login-button {
   width: 100%;
   padding: 1rem 0;
   background: linear-gradient(90deg, #ff5858 0%, #6a8dff 100%);
@@ -83,14 +116,14 @@ body, .login-container {
   letter-spacing: 0.5px;
 }
 
-.login-box .login-button:hover, .login-box .login-button:focus {
+.login-button:hover, .login-button:focus {
   background: linear-gradient(90deg, #6a8dff 0%, #ff5858 100%);
   transform: translateY(-1px);
   box-shadow: 0 4px 16px #ff585888;
   outline: none;
 }
 
-.login-box .login-button:active {
+.login-button:active {
   transform: scale(0.98);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.12);
 }
@@ -98,11 +131,11 @@ body, .login-container {
 .signup-link {
   text-align: center;
   margin-top: 1.5rem;
-  color: #666;
+  color: #2c3e50;
 }
 
 .signup-link a {
-  color: #4a90e2;
+  color: #6a8dff;
   text-decoration: none;
   font-weight: 500;
 }

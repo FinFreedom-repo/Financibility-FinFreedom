@@ -81,10 +81,12 @@ const DebtPlanning = () => {
           row[`month_${idx}`] = editedBudgetData.income || 0;
         } else if (cat.type === 'income') {
           // Additional income: robust, case-insensitive, trim
+          console.log('DEBUG additional income:', { catName: cat.name, additional_items: editedBudgetData.additional_items });
           let item = editedBudgetData.additional_items?.find(i => i.type === 'income' && i.name.trim().toLowerCase() === cat.name.trim().toLowerCase());
           if (!item && editedBudgetData.alternative_sources_of_income) {
             item = editedBudgetData.alternative_sources_of_income.find(i => i.type === 'income' && i.name.trim().toLowerCase() === cat.name.trim().toLowerCase());
           }
+          console.log('DEBUG found item for', cat.name, ':', item);
           row[`month_${idx}`] = item ? item.amount : 0;
         }
       });
@@ -539,6 +541,8 @@ const DebtPlanning = () => {
         field: 'category',
         pinned: 'left',
         editable: false,
+        minWidth: 220,
+        width: 220,
         cellClass: params => {
           if (params.data.category === 'Net Savings') return 'net-savings-category-cell';
           if (incomeCategories.some(cat => cat.name === params.value)) return 'income-category-cell';
@@ -549,7 +553,18 @@ const DebtPlanning = () => {
       ...months.map((month, idx) => ({
         headerName: month.label,
         field: `month_${idx}`,
-        editable: params => params.data.category !== 'Net Savings' && (month.type === 'current' || month.type === 'future'),
+        editable: params => {
+          const isEditable = params.data.category !== 'Net Savings' && (month.type === 'current' || month.type === 'future');
+          if (params.data.category === 'Food') {
+            console.log('DEBUG Food editable check:', {
+              category: params.data.category,
+              monthType: month.type,
+              isEditable,
+              params
+            });
+          }
+          return isEditable;
+        },
         cellClass: params => {
           let classes = '';
           if (month.type === 'historical') classes += ' ag-historical-cell';
@@ -631,6 +646,7 @@ const DebtPlanning = () => {
           stopEditingWhenCellsLoseFocus={true}
           singleClickEdit={true}
           defaultColDef={{ resizable: true }}
+          rowHeight={72}
         />
       </div>
     );
