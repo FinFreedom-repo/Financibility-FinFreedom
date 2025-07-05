@@ -654,6 +654,7 @@ input:checked + .slider:before {
   border: 1px solid rgba(255,255,255,0.09);
   box-shadow: 0 2px 12px rgba(106, 141, 255, 0.10);
   padding-top: 0;
+  margin-top: 0;
   font-family: inherit;
   overflow: visible;
 }
@@ -669,24 +670,31 @@ input:checked + .slider:before {
   top: 0;
   z-index: 2;
   border-radius: 14px 14px 0 0;
+  margin-top: 0;
+  padding-top: 0;
 }
 .ag-theme-alpine.custom-budget-grid .ag-header-cell-label {
   color: #1a237e;
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 1.35rem;
   text-align: center;
   background: transparent;
   text-shadow: 0 2px 8px rgba(60,60,120,0.18);
+  line-height: 1.4;
+  padding-top: 0.1rem;
+  padding-bottom: 0.1em;
+  margin: 0;
 }
 .ag-theme-alpine.custom-budget-grid .ag-header-cell {
+  min-height: 48px;
   background: transparent;
   border-right: 1px solid rgba(255,255,255,0.09);
   font-weight: 700;
   color: #1a237e;
   text-align: center;
   font-size: 1rem;
-  min-width: 120px;
-  padding: 0.75rem 0.5rem;
+  min-width: 180px;
+  padding: 0.5rem 0.5rem;
 }
 .ag-theme-alpine.custom-budget-grid .ag-header-cell:last-child {
   border-right: none;
@@ -779,16 +787,27 @@ input:checked + .slider:before {
 }
 
 /* Larger, more readable AG Grid rows */
-.ag-theme-alpine.custom-budget-grid .ag-cell,
-.ag-theme-alpine.custom-budget-grid .ag-header-cell {
+.ag-theme-alpine.custom-budget-grid .ag-cell {
   font-size: 1.15rem;
   padding-top: 1.6rem;
   padding-bottom: 1.6rem;
   font-weight: 700;
-  min-width: 120px;
+  min-width: 180px;
   padding-left: 1.2rem;
   padding-right: 1.2rem;
 }
+
+/* Header cells with appropriate padding */
+.ag-theme-alpine.custom-budget-grid .ag-header-cell {
+  font-size: 1.15rem;
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+  font-weight: 700;
+  min-width: 180px;
+  padding-left: 1.2rem;
+  padding-right: 1.2rem;
+}
+
 .ag-theme-alpine.custom-budget-grid .ag-row {
   min-height: 64px !important;
   height: 72px !important;

@@ -635,17 +635,59 @@ const DebtPlanning = () => {
     }
 
     return (
-      <div className="ag-theme-alpine custom-budget-grid" style={{ width: '100%', minHeight: 400 }}>
+      <div className="ag-theme-alpine custom-budget-grid" style={{ width: '100%', minWidth: 1200, minHeight: 400 }}>
+        <div className="debt-table-legend legend-margin" style={{ marginTop: 0, marginBottom: 0 }}>
+          <span className="legend-historical">🕰️ <span className="legend-label">Historical</span></span>
+          <span className="legend-sep">|</span>
+          <span className="legend-current">📅 <span className="legend-label">Current</span></span>
+          <span className="legend-sep">|</span>
+          <span className="legend-projected">🔮 <span className="legend-label">Projected</span></span>
+        </div>
         <AgGridReact
           rowData={localGridData}
-          columnDefs={columnDefs}
+          columnDefs={[
+            {
+              headerName: 'Category',
+              field: 'category',
+              pinned: 'left',
+              editable: false,
+              minWidth: 220,
+              width: 220,
+              cellClass: params => {
+                if (params.data.category === 'Net Savings') return 'net-savings-category-cell';
+                if (incomeCategories.some(cat => cat.name === params.value)) return 'income-category-cell';
+                if (expenseCategories.some(cat => cat.name === params.value)) return 'expense-category-cell';
+                return 'ag-category-cell';
+              }
+            },
+            ...generateMonths().map((month, idx) => ({
+              headerName: month.label,
+              field: `month_${idx}`,
+              editable: params => {
+                const isEditable = params.data.category !== 'Net Savings' && (month.type === 'current' || month.type === 'future');
+                return isEditable;
+              },
+              cellClass: params => {
+                let classes = '';
+                if (month.type === 'historical') classes += ' ag-historical-cell';
+                if (month.type === 'current') classes += ' ag-current-cell';
+                if (month.type === 'future') classes += ' ag-projected-cell';
+                return classes;
+              },
+              valueFormatter: params => typeof params.value === 'number' ? params.value.toLocaleString(undefined, { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }) : params.value,
+              minWidth: 180,
+              width: 180,
+            }))
+          ]}
           domLayout="autoHeight"
           onCellValueChanged={onCellValueChanged}
           suppressMovableColumns={true}
           suppressMenuHide={true}
           stopEditingWhenCellsLoseFocus={true}
           singleClickEdit={true}
-          defaultColDef={{ resizable: true }}
+          defaultColDef={{ resizable: false, suppressSizeToFit: true, suppressAutoSize: true }}
+          headerHeight={48}
+          suppressColumnVirtualisation={false}
           rowHeight={72}
         />
       </div>
@@ -761,13 +803,6 @@ const DebtPlanning = () => {
       </div>
       {outstandingDebts.length > 0 && renderPayoffTable()}
       <div className="debt-container">
-        <div className="debt-table-legend legend-margin">
-          <span className="legend-historical">🕰️ <span className="legend-label">Historical</span></span>
-          <span className="legend-sep">|</span>
-          <span className="legend-current">📅 <span className="legend-label">Current</span></span>
-          <span className="legend-sep">|</span>
-          <span className="legend-projected">🔮 <span className="legend-label">Projected</span></span>
-        </div>
         {renderGrid()}
       </div>
     </div>
