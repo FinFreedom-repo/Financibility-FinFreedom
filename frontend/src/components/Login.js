@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import USAFlag from './USAFlag';
 import '../styles/Login.css';
@@ -10,20 +10,28 @@ function Login() {
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
     try {
+      console.log('Login attempt for username:', username);
       const success = await login(username, password);
+      console.log('Login result:', success);
+      
       if (success) {
-        // Redirect to dashboard after successful login
-        navigate('/dashboard');
+        // Redirect to intended destination or dashboard after successful login
+        const from = location.state?.from?.pathname || '/dashboard';
+        console.log('Login successful, redirecting to:', from);
+        navigate(from, { replace: true });
       } else {
+        console.log('Login failed, staying on login page');
         setError('Invalid username or password');
       }
     } catch (err) {
+      console.log('Login error caught:', err);
       setError('An error occurred during login');
       console.error('Login error:', err);
     }

@@ -77,6 +77,11 @@ export const AuthProvider = ({ children }) => {
       return true;
     } catch (error) {
       console.error('Login error:', error);
+      // Clear any existing tokens on login failure
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      delete axios.defaults.headers.common['Authorization'];
+      setUser(null);
       return false;
     }
   };

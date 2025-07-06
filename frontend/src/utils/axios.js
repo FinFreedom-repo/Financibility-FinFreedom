@@ -27,8 +27,12 @@ instance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Don't handle login/register requests in the interceptor
+    const isAuthRequest = originalRequest.url?.includes('/auth/token/') || 
+                         originalRequest.url?.includes('/auth/register/');
+
     // If the error is 401 and we haven't tried to refresh the token yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
       originalRequest._retry = true;
 
       try {
@@ -36,7 +40,7 @@ instance.interceptors.response.use(
         if (!refreshToken) {
           // No refresh token, redirect to login
           localStorage.removeItem('access_token');
-          window.location.href = '/';
+          window.location.href = '/login';
           return Promise.reject(error);
         }
 
@@ -54,16 +58,16 @@ instance.interceptors.response.use(
         // If refresh token fails, clear tokens and redirect to login
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        window.location.href = '/';
+        window.location.href = '/login';
         return Promise.reject(refreshError);
       }
     }
 
-    // For any other error, if it's an unauthorized response, redirect to login
-    if (error.response?.status === 401) {
+    // For any other error, if it's an unauthorized response and not an auth request, redirect to login
+    if (error.response?.status === 401 && !isAuthRequest) {
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');
-      window.location.href = '/';
+      window.location.href = '/login';
     }
 
     return Promise.reject(error);
