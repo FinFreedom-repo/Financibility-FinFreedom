@@ -29,6 +29,7 @@ const DebtPlanning = () => {
 
   // At the top of DebtPlanning component, after editedBudgetData:
   const [localGridData, setLocalGridData] = useState([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // When editedBudgetData changes, re-initialize localGridData
   useEffect(() => {
@@ -481,34 +482,106 @@ const DebtPlanning = () => {
     });
   };
 
+  // Handle saving changes from the grid
+  const handleSaveChanges = () => {
+    if (!localGridData || localGridData.length === 0) return;
+    
+    // For now, we'll update the editedBudgetData with the current month values
+    // This is a simplified approach - in a full implementation, you might want to
+    // store month-specific values in the database
+    const currentMonthIdx = generateMonths().findIndex(m => m.type === 'current');
+    if (currentMonthIdx === -1) return;
+    
+    setEditedBudgetData(prev => {
+      if (!prev) return prev;
+      let updated = { ...prev };
+      
+      // Update base income and expenses with current month values
+      localGridData.forEach(row => {
+        if (row.category === 'Income') {
+          updated.income = parseFloat(row[`month_${currentMonthIdx}`]) || 0;
+        } else if (row.type === 'income' && row.category !== 'Income') {
+          // Update additional income items
+          if (updated.additional_items) {
+            updated.additional_items = updated.additional_items.map(item =>
+              item.type === 'income' && item.name === row.category 
+                ? { ...item, amount: parseFloat(row[`month_${currentMonthIdx}`]) || 0 }
+                : item
+            );
+          }
+        } else if (row.type === 'expense') {
+          const baseExpenseNames = ['Housing','Transportation','Food','Healthcare','Entertainment','Shopping','Travel','Education','Utilities','Childcare','Other'];
+          const baseIdx = baseExpenseNames.indexOf(row.category);
+          if (baseIdx !== -1) {
+            updated[baseExpenseNames[baseIdx].toLowerCase()] = parseFloat(row[`month_${currentMonthIdx}`]) || 0;
+          } else {
+            // Update additional expense items
+            if (updated.additional_items) {
+              updated.additional_items = updated.additional_items.map(item =>
+                item.type === 'expense' && item.name === row.category 
+                  ? { ...item, amount: parseFloat(row[`month_${currentMonthIdx}`]) || 0 }
+                  : item
+              );
+            }
+          }
+        }
+      });
+      
+      return updated;
+    });
+    
+    // Clear unsaved changes flag
+    setHasUnsavedChanges(false);
+    
+    // Show a success message
+    alert('Changes saved! Note: Only current month values have been saved to the budget.');
+  };
+
   // Debt payoff plan state
   const [payoffPlan, setPayoffPlan] = useState(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState(null);
   const [strategy, setStrategy] = useState('snowball');
 
+  // Function to calculate debt payoff plan
+  const calculateDebtPayoffPlan = (budgetData, debts, strategyType) => {
+    if (!budgetData || !debts || debts.length === 0) return;
+    
+    // Calculate available savings from budget data
+    const income = (budgetData.income || 0) + (budgetData.additional_items ? budgetData.additional_items.filter(i => i.type === 'income').reduce((sum, i) => sum + (i.amount || 0), 0) : 0);
+    const expenses = (budgetData.housing || 0) + (budgetData.transportation || 0) + (budgetData.food || 0) + (budgetData.healthcare || 0) + (budgetData.entertainment || 0) + (budgetData.shopping || 0) + (budgetData.travel || 0) + (budgetData.education || 0) + (budgetData.utilities || 0) + (budgetData.childcare || 0) + (budgetData.other || 0) + (budgetData.additional_items ? budgetData.additional_items.filter(i => i.type === 'expense').reduce((sum, i) => sum + (i.amount || 0), 0) : 0);
+    const totalSavings = budgetData.savings ? budgetData.savings.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
+    const availableSavings = income - expenses - totalSavings;
+    
+    console.log('Calculating debt payoff plan with:', {
+      income,
+      expenses,
+      totalSavings,
+      availableSavings,
+      strategy: strategyType
+    });
+    
+    setPlanLoading(true);
+    axios.post('/api/debt-planner/', {
+      debts: debts,
+      strategy: strategyType || 'snowball',
+      net_savings: availableSavings > 0 ? availableSavings : 0
+    })
+      .then(res => {
+        setPayoffPlan(res.data);
+        setPlanError(null);
+      })
+      .catch(err => {
+        console.error('Debt payoff calculation error:', err);
+        setPlanError('Failed to calculate debt payoff plan.');
+      })
+      .finally(() => setPlanLoading(false));
+  };
+
   // Always recalculate payoff plan when editedBudgetData is loaded and valid
   useEffect(() => {
     if (!loading && !debtsLoading && editedBudgetData && outstandingDebts && outstandingDebts.length > 0) {
-      // Calculate available savings from editedBudgetData
-      const income = (editedBudgetData.income || 0) + (editedBudgetData.additional_items ? editedBudgetData.additional_items.filter(i => i.type === 'income').reduce((sum, i) => sum + (i.amount || 0), 0) : 0);
-      const expenses = (editedBudgetData.housing || 0) + (editedBudgetData.transportation || 0) + (editedBudgetData.food || 0) + (editedBudgetData.healthcare || 0) + (editedBudgetData.entertainment || 0) + (editedBudgetData.shopping || 0) + (editedBudgetData.travel || 0) + (editedBudgetData.education || 0) + (editedBudgetData.utilities || 0) + (editedBudgetData.childcare || 0) + (editedBudgetData.other || 0) + (editedBudgetData.additional_items ? editedBudgetData.additional_items.filter(i => i.type === 'expense').reduce((sum, i) => sum + (i.amount || 0), 0) : 0);
-      const totalSavings = editedBudgetData.savings ? editedBudgetData.savings.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
-      const availableSavings = income - expenses - totalSavings;
-      setPlanLoading(true);
-      axios.post('/api/debt-planner/', {
-        debts: outstandingDebts,
-        strategy: strategy || 'snowball',
-        net_savings: availableSavings > 0 ? availableSavings : 0
-      })
-        .then(res => {
-          setPayoffPlan(res.data);
-          setPlanError(null);
-        })
-        .catch(err => {
-          setPlanError('Failed to calculate debt payoff plan.');
-        })
-        .finally(() => setPlanLoading(false));
+      calculateDebtPayoffPlan(editedBudgetData, outstandingDebts, strategy);
     }
   }, [editedBudgetData, outstandingDebts, strategy, loading, debtsLoading]);
 
@@ -582,7 +655,10 @@ const DebtPlanning = () => {
       const colIdx = parseInt(colDef.field.replace('month_', ''));
       if (data.category === 'Net Savings') return;
       if (!months[colIdx] || months[colIdx].type === 'historical') return;
-      // Update localGridData for this cell only
+      
+      console.log('Cell edited:', { category: data.category, month: colIdx, newValue, monthType: months[colIdx].type });
+      
+      // Update localGridData for this cell only and recalculate net savings
       setLocalGridData(prev => {
         const updated = prev.map(row => {
           if (row.category === data.category) {
@@ -590,47 +666,94 @@ const DebtPlanning = () => {
           }
           return row;
         });
-        return updated;
-      });
-      // Also update editedBudgetData for the current month/category only
-      setEditedBudgetData(prev => {
-        let updated = { ...prev };
-        // Income
-        if (incomeCategories.some(cat => cat.name === data.category)) {
-          if (data.category === 'Income') {
-            updated.income = parseFloat(newValue) || 0;
-          } else if (updated.additional_items) {
-            updated.additional_items = updated.additional_items.map(item =>
-              item.type === 'income' && item.name === data.category ? { ...item, amount: parseFloat(newValue) || 0 } : item
-            );
-          }
-        } else if (expenseCategories.some(cat => cat.name === data.category)) {
-          const baseExpenseNames = ['Housing','Transportation','Food','Healthcare','Entertainment','Shopping','Travel','Education','Utilities','Childcare','Other'];
-          const baseIdx = baseExpenseNames.indexOf(data.category);
-          if (baseIdx !== -1) {
-            updated[baseExpenseNames[baseIdx].toLowerCase()] = parseFloat(newValue) || 0;
-          } else if (updated.additional_items) {
-            updated.additional_items = updated.additional_items.map(item =>
-              item.type === 'expense' && item.name === data.category ? { ...item, amount: parseFloat(newValue) || 0 } : item
-            );
-          }
+        // Recalculate net savings after updating the cell
+        const recalculated = recalculateNetSavings(updated);
+        
+        // Calculate current month budget data and update debt payoff plan
+        const currentMonthIdx = months.findIndex(m => m.type === 'current');
+        if (currentMonthIdx !== -1) {
+          const currentBudgetData = calculateCurrentMonthBudget(recalculated, currentMonthIdx);
+          calculateDebtPayoffPlan(currentBudgetData, outstandingDebts, strategy);
         }
-        return updated;
+        
+        return recalculated;
       });
+      
+      // Mark that there are unsaved changes
+      setHasUnsavedChanges(true);
+      
+      // Calculate current month budget data from grid and update debt payoff plan
+      const currentMonthIdx = months.findIndex(m => m.type === 'current');
+      if (currentMonthIdx !== -1) {
+        // We need to calculate the budget data from the updated grid data
+        // This will be done in the setLocalGridData callback
+      }
     };
 
-    // Recalculate Net Savings row for each month using current localGridData values
-    if (localGridData && localGridData.length > 0) {
-      const netRow = localGridData[0];
+    // Function to calculate current month budget data from grid data
+    const calculateCurrentMonthBudget = (gridData, currentMonthIdx) => {
+      if (!gridData || currentMonthIdx === -1) return editedBudgetData;
+      
+      const currentBudget = { ...editedBudgetData };
+      
+      gridData.forEach(row => {
+        const monthValue = parseFloat(row[`month_${currentMonthIdx}`]) || 0;
+        
+        if (row.category === 'Income') {
+          currentBudget.income = monthValue;
+        } else if (row.type === 'income' && row.category !== 'Income') {
+          // Update additional income items
+          if (currentBudget.additional_items) {
+            currentBudget.additional_items = currentBudget.additional_items.map(item =>
+              item.type === 'income' && item.name === row.category 
+                ? { ...item, amount: monthValue }
+                : item
+            );
+          }
+        } else if (row.type === 'expense') {
+          const baseExpenseNames = ['Housing','Transportation','Food','Healthcare','Entertainment','Shopping','Travel','Education','Utilities','Childcare','Other'];
+          const baseIdx = baseExpenseNames.indexOf(row.category);
+          if (baseIdx !== -1) {
+            currentBudget[baseExpenseNames[baseIdx].toLowerCase()] = monthValue;
+          } else {
+            // Update additional expense items
+            if (currentBudget.additional_items) {
+              currentBudget.additional_items = currentBudget.additional_items.map(item =>
+                item.type === 'expense' && item.name === row.category 
+                  ? { ...item, amount: monthValue }
+                  : item
+              );
+            }
+          }
+        }
+      });
+      
+      return currentBudget;
+    };
+
+    // Function to recalculate net savings for all months
+    const recalculateNetSavings = (gridData) => {
+      if (!gridData || gridData.length === 0) return gridData;
+      
+      const netRow = gridData[0]; // Net Savings is always the first row
       for (let idx = 0; idx < months.length; idx++) {
         let income = 0;
         let expenses = 0;
-        for (let i = 1; i < localGridData.length; i++) {
-          const row = localGridData[i];
+        for (let i = 1; i < gridData.length; i++) {
+          const row = gridData[i];
           if (row.type === 'income') income += parseFloat(row[`month_${idx}`]) || 0;
           if (row.type === 'expense') expenses += parseFloat(row[`month_${idx}`]) || 0;
         }
         netRow[`month_${idx}`] = income - expenses;
+      }
+      return gridData;
+    };
+
+    // Initialize net savings calculation on first render
+    if (localGridData && localGridData.length > 0) {
+      const updatedData = recalculateNetSavings([...localGridData]);
+      if (JSON.stringify(updatedData) !== JSON.stringify(localGridData)) {
+        setLocalGridData(updatedData);
       }
     }
 
@@ -642,6 +765,10 @@ const DebtPlanning = () => {
           <span className="legend-current">📅 <span className="legend-label">Current</span></span>
           <span className="legend-sep">|</span>
           <span className="legend-projected">🔮 <span className="legend-label">Projected</span></span>
+        </div>
+        <div style={{ marginBottom: '1rem', fontSize: '0.9rem', color: '#666', fontStyle: 'italic' }}>
+          💡 <strong>Editing Tip:</strong> You can edit individual cells for current and future months. Changes only affect that specific month and category. 
+          Click "Save Changes" to update your budget with the current month's values.
         </div>
         <AgGridReact
           rowData={localGridData}
@@ -726,6 +853,20 @@ const DebtPlanning = () => {
           </div>
           <div className={`slider ${strategy}`}></div>
         </div>
+        <button 
+          className="save-button" 
+          onClick={handleSaveChanges}
+          style={{ 
+            marginLeft: '1rem',
+            opacity: hasUnsavedChanges ? 1 : 0.6,
+            background: hasUnsavedChanges 
+              ? 'linear-gradient(90deg, #ff5858 0%, #6a8dff 100%)' 
+              : 'linear-gradient(90deg, #ccc 0%, #999 100%)'
+          }}
+          disabled={!hasUnsavedChanges}
+        >
+          {hasUnsavedChanges ? 'Save Changes*' : 'No Changes'}
+        </button>
       </div>
       <div className="outstanding-debts-and-summary" style={{ display: 'flex', alignItems: 'flex-start', gap: '2rem' }}>
         <div className="outstanding-debts-table-container">
