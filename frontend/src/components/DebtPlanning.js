@@ -31,87 +31,134 @@ const DebtPlanning = () => {
   const [localGridData, setLocalGridData] = useState([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  // Function to recalculate net savings for all months
+  const recalculateNetSavings = (gridData) => {
+    if (!gridData || gridData.length === 0) return gridData;
+    
+    const netRow = gridData[0]; // Net Savings is always the first row
+    const months = generateMonths();
+    const currentMonthIdx = months.findIndex(m => m.type === 'current');
+    
+    for (let idx = 0; idx < months.length; idx++) {
+      let income = 0;
+      let expenses = 0;
+      let hasExpenses = false;
+      
+      for (let i = 1; i < gridData.length; i++) {
+        const row = gridData[i];
+        if (row.type === 'income') {
+          const monthIncome = parseFloat(row[`month_${idx}`]) || 0;
+          income += monthIncome;
+        }
+        if (row.type === 'expense') {
+          const monthExpense = parseFloat(row[`month_${idx}`]) || 0;
+          expenses += monthExpense;
+          if (monthExpense > 0) hasExpenses = true;
+        }
+      }
+      
+      // If no expenses for this month, use current month's expenses as fallback
+      if (!hasExpenses && currentMonthIdx !== -1 && idx !== currentMonthIdx) {
+        let fallbackExpenses = 0;
+        for (let i = 1; i < gridData.length; i++) {
+          const row = gridData[i];
+          if (row.type === 'expense') {
+            const currentMonthExpense = parseFloat(row[`month_${currentMonthIdx}`]) || 0;
+            fallbackExpenses += currentMonthExpense;
+          }
+        }
+        expenses = fallbackExpenses;
+      }
+      
+      const netSavings = income - expenses;
+      netRow[`month_${idx}`] = netSavings;
+    }
+    
+    return gridData;
+  };
+
   // When editedBudgetData changes, re-initialize localGridData
   useEffect(() => {
     if (!editedBudgetData) return;
     const months = generateMonths();
-    const baseIncome = [{ name: 'Income', type: 'income' }];
-    const baseExpenses = [
-      { name: 'Housing', type: 'expense' },
-      { name: 'Transportation', type: 'expense' },
-      { name: 'Food', type: 'expense' },
-      { name: 'Healthcare', type: 'expense' },
-      { name: 'Entertainment', type: 'expense' },
-      { name: 'Shopping', type: 'expense' },
-      { name: 'Travel', type: 'expense' },
-      { name: 'Education', type: 'expense' },
-      { name: 'Utilities', type: 'expense' },
-      { name: 'Childcare', type: 'expense' },
-      { name: 'Other', type: 'expense' }
-    ];
-    let additionalIncome = [];
-    let additionalExpenses = [];
-    if (editedBudgetData.additional_items) {
-      additionalIncome = editedBudgetData.additional_items
-        .filter(item => item.type === 'income')
-        .map(item => ({ name: item.name, type: 'income' }));
-      additionalExpenses = editedBudgetData.additional_items
-        .filter(item => item.type === 'expense')
-        .map(item => ({ name: item.name, type: 'expense' }));
-    }
-    const incomeCategories = [...baseIncome, ...additionalIncome];
-    const expenseCategories = [...baseExpenses, ...additionalExpenses];
+    
+    console.log('=== GRID INITIALIZATION DEBUG ===');
+    console.log('editedBudgetData:', editedBudgetData);
+    
     const data = [];
+    
     // Net Savings row
     const netSavingsRow = { category: 'Net Savings', type: 'net', editable: false };
     months.forEach((month, idx) => {
-      let income = 0;
-      let expenses = 0;
-      if (idx === 0) {
-        income = incomeCategories.reduce((sum, cat) => sum + (editedBudgetData[cat.name.toLowerCase()] || 0), 0) + (editedBudgetData.additional_items ? editedBudgetData.additional_items.filter(i => i.type === 'income').reduce((sum, i) => sum + (i.amount || 0), 0) : 0);
-        expenses = expenseCategories.reduce((sum, cat) => sum + (editedBudgetData[cat.name.toLowerCase()] || 0), 0) + (editedBudgetData.additional_items ? editedBudgetData.additional_items.filter(i => i.type === 'expense').reduce((sum, i) => sum + (i.amount || 0), 0) : 0);
-      }
-      netSavingsRow[`month_${idx}`] = income - expenses;
+      netSavingsRow[`month_${idx}`] = 0; // Will be calculated later
     });
     data.push(netSavingsRow);
-    // Income rows
-    incomeCategories.forEach(cat => {
-      const row = { category: cat.name, type: 'income', editable: true };
+    
+    // Income row
+    const incomeRow = { category: 'Income', type: 'income', editable: true };
+    months.forEach((month, idx) => {
+      incomeRow[`month_${idx}`] = editedBudgetData.income || 0;
+    });
+    data.push(incomeRow);
+    
+    // Base expense rows
+    const baseExpenses = [
+      { name: 'Housing', field: 'housing' },
+      { name: 'Transportation', field: 'transportation' },
+      { name: 'Food', field: 'food' },
+      { name: 'Healthcare', field: 'healthcare' },
+      { name: 'Entertainment', field: 'entertainment' },
+      { name: 'Shopping', field: 'shopping' },
+      { name: 'Travel', field: 'travel' },
+      { name: 'Education', field: 'education' },
+      { name: 'Utilities', field: 'utilities' },
+      { name: 'Childcare', field: 'childcare' },
+      { name: 'Other', field: 'other' }
+    ];
+    
+    baseExpenses.forEach(expense => {
+      const row = { category: expense.name, type: 'expense', editable: true };
       months.forEach((month, idx) => {
-        if (cat.name === 'Income') {
-          row[`month_${idx}`] = editedBudgetData.income || 0;
-        } else if (cat.type === 'income') {
-          // Additional income: robust, case-insensitive, trim
-          console.log('DEBUG additional income:', { catName: cat.name, additional_items: editedBudgetData.additional_items });
-          let item = editedBudgetData.additional_items?.find(i => i.type === 'income' && i.name.trim().toLowerCase() === cat.name.trim().toLowerCase());
-          if (!item && editedBudgetData.alternative_sources_of_income) {
-            item = editedBudgetData.alternative_sources_of_income.find(i => i.type === 'income' && i.name.trim().toLowerCase() === cat.name.trim().toLowerCase());
-          }
-          console.log('DEBUG found item for', cat.name, ':', item);
-          row[`month_${idx}`] = item ? item.amount : 0;
-        }
+        row[`month_${idx}`] = editedBudgetData[expense.field] || 0;
       });
       data.push(row);
     });
-    // Expense rows
-    expenseCategories.forEach(cat => {
-      const row = { category: cat.name, type: 'expense', editable: true };
-      months.forEach((month, idx) => {
-        const baseExpenseNames = ['Housing','Transportation','Food','Healthcare','Entertainment','Shopping','Travel','Education','Utilities','Childcare','Other'];
-        if (baseExpenseNames.map(n => n.toLowerCase()).includes(cat.name.trim().toLowerCase())) {
-          row[`month_${idx}`] = editedBudgetData[cat.name.toLowerCase()] || 0;
-        } else {
-          // Additional expense: robust, case-insensitive, trim
-          let item = editedBudgetData.additional_items?.find(i => i.type === 'expense' && i.name.trim().toLowerCase() === cat.name.trim().toLowerCase());
-          if (!item && editedBudgetData.alternative_sources_of_income) {
-            item = editedBudgetData.alternative_sources_of_income.find(i => i.type === 'expense' && i.name.trim().toLowerCase() === cat.name.trim().toLowerCase());
-          }
-          row[`month_${idx}`] = item ? item.amount : 0;
-        }
-      });
-      data.push(row);
-    });
-    setLocalGridData(data);
+    
+    // Additional income items
+    if (editedBudgetData.additional_items) {
+      editedBudgetData.additional_items
+        .filter(item => item.type === 'income')
+        .forEach(item => {
+          const row = { category: item.name, type: 'income', editable: true };
+          months.forEach((month, idx) => {
+            row[`month_${idx}`] = item.amount || 0;
+          });
+          data.push(row);
+        });
+    }
+    
+    // Additional expense items
+    if (editedBudgetData.additional_items) {
+      editedBudgetData.additional_items
+        .filter(item => item.type === 'expense')
+        .forEach(item => {
+          const row = { category: item.name, type: 'expense', editable: true };
+          months.forEach((month, idx) => {
+            row[`month_${idx}`] = item.amount || 0;
+          });
+          data.push(row);
+        });
+    }
+    
+    console.log('Grid data before net savings calculation:', data);
+    
+    // Calculate net savings
+    const recalculatedData = recalculateNetSavings(data);
+    
+    console.log('Final grid data:', recalculatedData);
+    console.log('=== END GRID INITIALIZATION DEBUG ===');
+    
+    setLocalGridData(recalculatedData);
   }, [editedBudgetData]);
 
   // Update categories when budgetData changes
@@ -184,11 +231,16 @@ const DebtPlanning = () => {
   const loadDebts = async () => {
     try {
       setDebtsLoading(true);
+      console.log('Loading debts...');
       const debts = await accountsDebtsService.getDebts();
+      console.log('Raw debts from service:', debts);
+      
       // Only include latest record for each debt name, balance > 0, and not mortgage
       const filteredDebts = debts.filter(
         debt => debt.balance > 0 && debt.debt_type !== 'mortgage'
       );
+      console.log('Filtered debts:', filteredDebts);
+      
       // Transform debts to match the format expected by the debt planner
       const transformedDebts = filteredDebts.map(debt => ({
         name: debt.name,
@@ -197,6 +249,7 @@ const DebtPlanning = () => {
         min_payment: parseFloat(debt.balance) * (parseFloat(debt.interest_rate) / 100 / 12),
         debt_type: debt.debt_type
       }));
+      console.log('Transformed debts:', transformedDebts);
       setOutstandingDebts(transformedDebts);
       setDebtsError(null);
     } catch (err) {
@@ -547,27 +600,52 @@ const DebtPlanning = () => {
   const calculateDebtPayoffPlan = (budgetData, debts, strategyType) => {
     if (!budgetData || !debts || debts.length === 0) return;
     
-    // Calculate available savings from budget data
-    const income = (budgetData.income || 0) + (budgetData.additional_items ? budgetData.additional_items.filter(i => i.type === 'income').reduce((sum, i) => sum + (i.amount || 0), 0) : 0);
-    const expenses = (budgetData.housing || 0) + (budgetData.transportation || 0) + (budgetData.food || 0) + (budgetData.healthcare || 0) + (budgetData.entertainment || 0) + (budgetData.shopping || 0) + (budgetData.travel || 0) + (budgetData.education || 0) + (budgetData.utilities || 0) + (budgetData.childcare || 0) + (budgetData.other || 0) + (budgetData.additional_items ? budgetData.additional_items.filter(i => i.type === 'expense').reduce((sum, i) => sum + (i.amount || 0), 0) : 0);
-    const totalSavings = budgetData.savings ? budgetData.savings.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
-    const availableSavings = income - expenses - totalSavings;
+    // Generate monthly budget data from the grid
+    const months = generateMonths();
+    const monthlyBudgetData = [];
     
-    console.log('Calculating debt payoff plan with:', {
-      income,
-      expenses,
-      totalSavings,
-      availableSavings,
-      strategy: strategyType
-    });
+    console.log('=== DEBT PAYOFF DEBUG ===');
+    console.log('localGridData:', localGridData);
+    console.log('months:', months);
+    
+    // Get net savings directly from the grid data for each month
+    for (let monthIdx = 0; monthIdx < months.length; monthIdx++) {
+      let netSavings = 0;
+      
+      // Get net savings directly from the "Net Savings" row in the grid
+      if (localGridData && localGridData.length > 0) {
+        const netSavingsRow = localGridData.find(row => row.category === 'Net Savings');
+        if (netSavingsRow) {
+          netSavings = parseFloat(netSavingsRow[`month_${monthIdx}`]) || 0;
+          console.log(`Month ${monthIdx} (${months[monthIdx].label}): Net Savings = $${netSavings}`);
+        } else {
+          console.log('ERROR: Could not find Net Savings row in localGridData');
+        }
+      } else {
+        console.log('WARNING: localGridData is empty, using fallback calculation');
+        // Fallback: calculate from budget data if grid not available
+        const income = (budgetData.income || 0) + (budgetData.additional_items ? budgetData.additional_items.filter(i => i.type === 'income').reduce((sum, i) => sum + (i.amount || 0), 0) : 0);
+        const expenses = (budgetData.housing || 0) + (budgetData.transportation || 0) + (budgetData.food || 0) + (budgetData.healthcare || 0) + (budgetData.entertainment || 0) + (budgetData.shopping || 0) + (budgetData.travel || 0) + (budgetData.education || 0) + (budgetData.utilities || 0) + (budgetData.childcare || 0) + (budgetData.other || 0) + (budgetData.additional_items ? budgetData.additional_items.filter(i => i.type === 'expense').reduce((sum, i) => sum + (i.amount || 0), 0) : 0);
+        netSavings = income - expenses;
+      }
+      
+      monthlyBudgetData.push({
+        month: monthIdx + 1,
+        net_savings: netSavings > 0 ? netSavings : 0
+      });
+    }
+    
+    console.log('Final monthlyBudgetData sent to backend:', monthlyBudgetData);
+    console.log('=== END DEBT PAYOFF DEBUG ===');
     
     setPlanLoading(true);
     axios.post('/api/debt-planner/', {
       debts: debts,
       strategy: strategyType || 'snowball',
-      net_savings: availableSavings > 0 ? availableSavings : 0
+      monthly_budget_data: monthlyBudgetData
     })
       .then(res => {
+        console.log('Backend response:', res.data);
         setPayoffPlan(res.data);
         setPlanError(null);
       })
@@ -583,7 +661,7 @@ const DebtPlanning = () => {
     if (!loading && !debtsLoading && editedBudgetData && outstandingDebts && outstandingDebts.length > 0) {
       calculateDebtPayoffPlan(editedBudgetData, outstandingDebts, strategy);
     }
-  }, [editedBudgetData, outstandingDebts, strategy, loading, debtsLoading]);
+  }, [editedBudgetData, outstandingDebts, strategy, loading, debtsLoading, localGridData]);
 
   // Helper to calculate payoff summary
   const getPayoffSummary = () => {
@@ -669,85 +747,21 @@ const DebtPlanning = () => {
         // Recalculate net savings after updating the cell
         const recalculated = recalculateNetSavings(updated);
         
-        // Calculate current month budget data and update debt payoff plan
-        const currentMonthIdx = months.findIndex(m => m.type === 'current');
-        if (currentMonthIdx !== -1) {
-          const currentBudgetData = calculateCurrentMonthBudget(recalculated, currentMonthIdx);
-          calculateDebtPayoffPlan(currentBudgetData, outstandingDebts, strategy);
-        }
+        // Update debt payoff plan with the new monthly budget data
+        setTimeout(() => {
+          calculateDebtPayoffPlan(editedBudgetData, outstandingDebts, strategy);
+        }, 100);
         
         return recalculated;
       });
       
       // Mark that there are unsaved changes
       setHasUnsavedChanges(true);
-      
-      // Calculate current month budget data from grid and update debt payoff plan
-      const currentMonthIdx = months.findIndex(m => m.type === 'current');
-      if (currentMonthIdx !== -1) {
-        // We need to calculate the budget data from the updated grid data
-        // This will be done in the setLocalGridData callback
-      }
     };
 
-    // Function to calculate current month budget data from grid data
-    const calculateCurrentMonthBudget = (gridData, currentMonthIdx) => {
-      if (!gridData || currentMonthIdx === -1) return editedBudgetData;
-      
-      const currentBudget = { ...editedBudgetData };
-      
-      gridData.forEach(row => {
-        const monthValue = parseFloat(row[`month_${currentMonthIdx}`]) || 0;
-        
-        if (row.category === 'Income') {
-          currentBudget.income = monthValue;
-        } else if (row.type === 'income' && row.category !== 'Income') {
-          // Update additional income items
-          if (currentBudget.additional_items) {
-            currentBudget.additional_items = currentBudget.additional_items.map(item =>
-              item.type === 'income' && item.name === row.category 
-                ? { ...item, amount: monthValue }
-                : item
-            );
-          }
-        } else if (row.type === 'expense') {
-          const baseExpenseNames = ['Housing','Transportation','Food','Healthcare','Entertainment','Shopping','Travel','Education','Utilities','Childcare','Other'];
-          const baseIdx = baseExpenseNames.indexOf(row.category);
-          if (baseIdx !== -1) {
-            currentBudget[baseExpenseNames[baseIdx].toLowerCase()] = monthValue;
-          } else {
-            // Update additional expense items
-            if (currentBudget.additional_items) {
-              currentBudget.additional_items = currentBudget.additional_items.map(item =>
-                item.type === 'expense' && item.name === row.category 
-                  ? { ...item, amount: monthValue }
-                  : item
-              );
-            }
-          }
-        }
-      });
-      
-      return currentBudget;
-    };
 
-    // Function to recalculate net savings for all months
-    const recalculateNetSavings = (gridData) => {
-      if (!gridData || gridData.length === 0) return gridData;
-      
-      const netRow = gridData[0]; // Net Savings is always the first row
-      for (let idx = 0; idx < months.length; idx++) {
-        let income = 0;
-        let expenses = 0;
-        for (let i = 1; i < gridData.length; i++) {
-          const row = gridData[i];
-          if (row.type === 'income') income += parseFloat(row[`month_${idx}`]) || 0;
-          if (row.type === 'expense') expenses += parseFloat(row[`month_${idx}`]) || 0;
-        }
-        netRow[`month_${idx}`] = income - expenses;
-      }
-      return gridData;
-    };
+
+
 
     // Initialize net savings calculation on first render
     if (localGridData && localGridData.length > 0) {
@@ -758,7 +772,7 @@ const DebtPlanning = () => {
     }
 
     return (
-      <div className="ag-theme-alpine custom-budget-grid" style={{ width: '100%', minWidth: 1200, minHeight: 400 }}>
+      <div className="ag-theme-alpine custom-budget-grid" style={{ width: '100%', minWidth: 1200, minHeight: 400, overflow: 'auto' }}>
         <div className="debt-table-legend legend-margin" style={{ marginTop: 0, marginBottom: 0 }}>
           <span className="legend-historical">🕰️ <span className="legend-label">Historical</span></span>
           <span className="legend-sep">|</span>

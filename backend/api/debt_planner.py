@@ -14,10 +14,10 @@ class DebtPlannerView(APIView):
         data = request.data
         debts = data.get('debts', [])
         strategy = data.get('strategy', 'snowball')
-        net_savings = float(data.get('net_savings', 0))
+        monthly_budget_data = data.get('monthly_budget_data', [])  # New: monthly budget data
 
         logger.info(f"Starting debt planner with strategy: {strategy}")
-        logger.info(f"Net savings available: ${net_savings:.2f}")
+        logger.info(f"Monthly budget data provided: {len(monthly_budget_data)} months")
         logger.info("Initial debts:")
         for d in debts:
             logger.info(f"- {d['name']}: ${d['balance']:.2f} at {d['rate']*100}%")
@@ -66,6 +66,23 @@ class DebtPlannerView(APIView):
         while any(d['balance'] > 0.01 for d in debts) and month < max_months:
             month += 1
             month_plan = {'month': month, 'debts': []}
+            
+            # Calculate net savings for this month
+            net_savings = 0
+            if month <= len(monthly_budget_data):
+                month_budget = monthly_budget_data[month - 1]  # month is 1-indexed, array is 0-indexed
+                net_savings = float(month_budget.get('net_savings', 0))
+                logger.info(f"Month {month} net savings: ${net_savings:.2f}")
+            else:
+                # If we don't have budget data for this month, use the last available month
+                if monthly_budget_data:
+                    last_month_budget = monthly_budget_data[-1]
+                    net_savings = float(last_month_budget.get('net_savings', 0))
+                    logger.info(f"Month {month} using last available net savings: ${net_savings:.2f}")
+                else:
+                    net_savings = 0
+                    logger.info(f"Month {month} no budget data available, net savings: $0.00")
+            
             available_extra = net_savings
             month_interest = 0
 

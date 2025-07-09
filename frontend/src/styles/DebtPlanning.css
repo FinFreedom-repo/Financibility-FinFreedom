@@ -657,6 +657,8 @@ input:checked + .slider:before {
   margin-top: 0;
   font-family: inherit;
   overflow: visible;
+  width: 100%;
+  min-width: 1200px;
 }
 .ag-theme-alpine.custom-budget-grid .ag-root-wrapper {
   border-radius: 14px;
