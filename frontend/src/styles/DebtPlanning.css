@@ -830,3 +830,28 @@ input:checked + .slider:before {
   font-weight: 800;
   text-shadow: 0 1px 2px #b71c1c33;
 } 
+
+/* --- AG Grid month column highlight and font unification --- */
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-historical-cell,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-current-cell,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-projected-cell,
+.ag-theme-alpine.custom-budget-grid .ag-header-cell {
+  min-width: 120px !important;
+  width: 120px !important;
+  max-width: 120px !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  font-family: inherit !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-header-cell-label {
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  font-family: inherit !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-cell {
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  font-family: inherit !important;
+} 

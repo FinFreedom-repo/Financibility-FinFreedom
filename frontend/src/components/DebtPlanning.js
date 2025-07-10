@@ -788,12 +788,13 @@ const DebtPlanning = () => {
           rowData={localGridData}
           columnDefs={[
             {
-              headerName: 'Category',
+              headerName: 'Expense', // Changed from 'Category' to 'Expense'
               field: 'category',
               pinned: 'left',
               editable: false,
-              minWidth: 220,
-              width: 220,
+              minWidth: 180,
+              width: 180,
+              maxWidth: 180,
               cellClass: params => {
                 if (params.data.category === 'Net Savings') return 'net-savings-category-cell';
                 if (incomeCategories.some(cat => cat.name === params.value)) return 'income-category-cell';
@@ -816,8 +817,9 @@ const DebtPlanning = () => {
                 return classes;
               },
               valueFormatter: params => typeof params.value === 'number' ? params.value.toLocaleString(undefined, { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }) : params.value,
-              minWidth: 180,
-              width: 180,
+              minWidth: 120,
+              width: 120,
+              maxWidth: 120,
             }))
           ]}
           domLayout="autoHeight"
@@ -826,7 +828,7 @@ const DebtPlanning = () => {
           suppressMenuHide={true}
           stopEditingWhenCellsLoseFocus={true}
           singleClickEdit={true}
-          defaultColDef={{ resizable: false, suppressSizeToFit: true, suppressAutoSize: true }}
+          defaultColDef={{ resizable: false, suppressSizeToFit: true, suppressAutoSize: true, minWidth: 120, width: 120, maxWidth: 120 }}
           headerHeight={48}
           suppressColumnVirtualisation={false}
           rowHeight={72}
