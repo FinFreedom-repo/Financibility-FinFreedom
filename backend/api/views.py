@@ -162,6 +162,27 @@ class AccountViewSet(viewsets.ModelViewSet):
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
 
+    def destroy(self, request, *args, **kwargs):
+        """Add a new record with zero balance to mark account as closed"""
+        account = self.get_object()
+        account_name = account.name
+        user = request.user
+        
+        # Create a new record with zero balance (account closed)
+        Account.objects.create(
+            user=user,
+            name=account_name,
+            account_type=account.account_type,
+            balance=0.00,  # Zero balance = account closed
+            interest_rate=account.interest_rate,
+            effective_date=account.effective_date  # Use same effective date as current record
+        )
+        
+        return Response(
+            {'message': f'Account "{account_name}" has been marked as closed'},
+            status=status.HTTP_200_OK
+        )
+
 class TransactionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = TransactionSerializer
@@ -605,3 +626,24 @@ class DebtViewSet(viewsets.ModelViewSet):
 
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """Add a new record with zero balance to mark debt as paid off"""
+        debt = self.get_object()
+        debt_name = debt.name
+        user = request.user
+        
+        # Create a new record with zero balance (paid off)
+        Debt.objects.create(
+            user=user,
+            name=debt_name,
+            debt_type=debt.debt_type,
+            balance=0.00,  # Zero balance = paid off
+            interest_rate=debt.interest_rate,
+            effective_date=debt.effective_date  # Use same effective date as current record
+        )
+        
+        return Response(
+            {'message': f'Debt "{debt_name}" has been marked as paid off'},
+            status=status.HTTP_200_OK
+        )

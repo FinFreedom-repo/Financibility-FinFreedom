@@ -55,6 +55,15 @@ function AccountsAndDebts() {
   const [historyType, setHistoryType] = useState(''); // 'account' or 'debt'
   const [historyName, setHistoryName] = useState('');
 
+  // Add state for collapsible sections
+  const [accountsOpen, setAccountsOpen] = useState(true);
+  const [debtsOpen, setDebtsOpen] = useState(true);
+  const [paidOffOpen, setPaidOffOpen] = useState(false);
+
+  // Filter debts into active and paid-off
+  const activeDebts = debts.filter(debt => debt.balance > 0);
+  const paidOffDebts = debts.filter(debt => debt.balance === 0);
+
   // Load data on component mount
   useEffect(() => {
     loadAccountsDebts();
@@ -305,290 +314,334 @@ function AccountsAndDebts() {
         </div>
         
         <div className="accounts-section">
-          <div className="section-header">
+          <div className="section-header" style={{cursor: 'pointer'}} onClick={() => setAccountsOpen(!accountsOpen)}>
             <h2>Your Accounts</h2>
             <button 
               className="add-button"
-              onClick={() => setShowAccountForm(!showAccountForm)}
+              onClick={e => { e.stopPropagation(); setShowAccountForm(!showAccountForm); }}
             >
               {showAccountForm ? 'Cancel' : 'Add Account'}
             </button>
+            <span style={{marginLeft: '1rem'}}>{accountsOpen ? '▼' : '►'}</span>
           </div>
-          
-          {showAccountForm && (
-            <form className="form-card" onSubmit={handleAccountSubmit}>
-              <h3>{editingAccount ? 'Edit Account' : 'Add New Account'}</h3>
-              <div className="form-group">
-                <label>Account Name:</label>
-                <input
-                  type="text"
-                  value={accountForm.name}
-                  onChange={(e) => setAccountForm({...accountForm, name: e.target.value})}
-                  placeholder="e.g., Chase Checking"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Account Type:</label>
-                <select
-                  value={accountForm.accountType}
-                  onChange={(e) => handleAccountTypeChange(e.target.value)}
-                >
-                  <option value="checking">Checking</option>
-                  <option value="savings">Savings</option>
-                  <option value="investment">Investment</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Current Balance:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={accountForm.balance}
-                  onChange={(e) => setAccountForm({...accountForm, balance: e.target.value})}
-                  placeholder="0.00"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Interest Rate (%):</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={accountForm.interestRate}
-                  onChange={(e) => setAccountForm({...accountForm, interestRate: e.target.value})}
-                  placeholder="0.00"
-                  required
-                />
-                <small className="form-hint">
-                  Suggested: {defaultAccountRates[accountForm.accountType]}% for {accountForm.accountType} accounts
-                </small>
-              </div>
-              <div className="form-group">
-                <label>Effective Date:</label>
-                <input
-                  type="date"
-                  value={accountForm.effectiveDate}
-                  onChange={(e) => setAccountForm({...accountForm, effectiveDate: e.target.value})}
-                  required
-                />
-                <small className="form-hint">
-                  Date this balance is effective for (defaults to today)
-                </small>
-              </div>
-              <div className="form-actions">
-                <button type="submit" className="submit-button">
-                  {editingAccount ? 'Update Account' : 'Add Account'}
-                </button>
-                <button 
-                  type="button" 
-                  className="cancel-button"
-                  onClick={() => {
-                    setShowAccountForm(false);
-                    setEditingAccount(null);
-                    setAccountForm({
-                      name: '',
-                      balance: '',
-                      accountType: 'checking',
-                      interestRate: '0.01',
-                      effectiveDate: new Date().toISOString().split('T')[0]
-                    });
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-          
-          {accounts.length === 0 ? (
-            <div className="empty-state">
-              <p>No accounts added yet. Click "Add Account" to get started.</p>
-            </div>
-          ) : (
-            <div className="items-list">
-              {accounts.map(account => (
-                <div key={account.id} className="item-card">
-                  <div className="item-info">
-                    <h4>{account.name}</h4>
-                    <p className="item-type">{account.accountType}</p>
-                    <p className="item-balance positive">${account.balance.toLocaleString()}</p>
-                    <p className="item-details">
-                      {account.interestRate}% APY
-                    </p>
-                  </div>
-                  <div className="item-actions">
-                    <button 
-                      className="edit-button"
-                      onClick={() => {
-                        setEditingAccount(account);
-                        setShowAccountForm(true);
-                      }}
-                    >
-                      Update
-                    </button>
-                    <button 
-                      className="history-button"
-                      onClick={() => viewHistory('account', account.name)}
-                    >
-                      View History
-                    </button>
-                    <button 
-                      className="delete-button"
-                      onClick={() => deleteAccount(account.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
+          {accountsOpen && (
+            <>
+            {showAccountForm && (
+              <form className="form-card" onSubmit={handleAccountSubmit}>
+                <h3>{editingAccount ? 'Edit Account' : 'Add New Account'}</h3>
+                <div className="form-group">
+                  <label>Account Name:</label>
+                  <input
+                    type="text"
+                    value={accountForm.name}
+                    onChange={(e) => setAccountForm({...accountForm, name: e.target.value})}
+                    placeholder="e.g., Chase Checking"
+                    required
+                  />
                 </div>
-              ))}
-            </div>
+                <div className="form-group">
+                  <label>Account Type:</label>
+                  <select
+                    value={accountForm.accountType}
+                    onChange={(e) => handleAccountTypeChange(e.target.value)}
+                  >
+                    <option value="checking">Checking</option>
+                    <option value="savings">Savings</option>
+                    <option value="investment">Investment</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Current Balance:</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={accountForm.balance}
+                    onChange={(e) => setAccountForm({...accountForm, balance: e.target.value})}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Interest Rate (%):</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={accountForm.interestRate}
+                    onChange={(e) => setAccountForm({...accountForm, interestRate: e.target.value})}
+                    placeholder="0.00"
+                    required
+                  />
+                  <small className="form-hint">
+                    Suggested: {defaultAccountRates[accountForm.accountType]}% for {accountForm.accountType} accounts
+                  </small>
+                </div>
+                <div className="form-group">
+                  <label>Effective Date:</label>
+                  <input
+                    type="date"
+                    value={accountForm.effectiveDate}
+                    onChange={(e) => setAccountForm({...accountForm, effectiveDate: e.target.value})}
+                    required
+                  />
+                  <small className="form-hint">
+                    Date this balance is effective for (defaults to today)
+                  </small>
+                </div>
+                <div className="form-actions">
+                  <button type="submit" className="submit-button">
+                    {editingAccount ? 'Update Account' : 'Add Account'}
+                  </button>
+                  <button 
+                    type="button" 
+                    className="cancel-button"
+                    onClick={() => {
+                      setShowAccountForm(false);
+                      setEditingAccount(null);
+                      setAccountForm({
+                        name: '',
+                        balance: '',
+                        accountType: 'checking',
+                        interestRate: '0.01',
+                        effectiveDate: new Date().toISOString().split('T')[0]
+                      });
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+            {accounts.length === 0 ? (
+              <div className="empty-state">
+                <p>No accounts added yet. Click "Add Account" to get started.</p>
+              </div>
+            ) : (
+              <div className="items-list">
+                {accounts.map(account => (
+                  <div key={account.id} className="item-card">
+                    <div className="item-info">
+                      <h4>{account.name}</h4>
+                      <p className="item-type">{account.accountType}</p>
+                      <p className="item-balance positive">${account.balance.toLocaleString()}</p>
+                      <p className="item-details">
+                        {account.interestRate}% APY
+                      </p>
+                    </div>
+                    <div className="item-actions">
+                      <button 
+                        className="edit-button"
+                        onClick={() => {
+                          setEditingAccount(account);
+                          setShowAccountForm(true);
+                        }}
+                      >
+                        Update
+                      </button>
+                      <button 
+                        className="history-button"
+                        onClick={() => viewHistory('account', account.name)}
+                      >
+                        View History
+                      </button>
+                      <button 
+                        className="delete-button"
+                        onClick={() => deleteAccount(account.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            </>
           )}
         </div>
 
         <div className="debts-section">
-          <div className="section-header">
+          <div className="section-header" style={{cursor: 'pointer'}} onClick={() => setDebtsOpen(!debtsOpen)}>
             <h2>Your Debts</h2>
             <button 
               className="add-button"
-              onClick={() => setShowDebtForm(!showDebtForm)}
+              onClick={e => { e.stopPropagation(); setShowDebtForm(!showDebtForm); }}
             >
               {showDebtForm ? 'Cancel' : 'Add Debt'}
             </button>
+            <span style={{marginLeft: '1rem'}}>{debtsOpen ? '▼' : '►'}</span>
           </div>
-          
-          {showDebtForm && (
-            <form className="form-card" onSubmit={handleDebtSubmit}>
-              <h3>{editingDebt ? 'Edit Debt' : 'Add New Debt'}</h3>
-              <div className="form-group">
-                <label>Debt Name:</label>
-                <input
-                  type="text"
-                  value={debtForm.name}
-                  onChange={(e) => setDebtForm({...debtForm, name: e.target.value})}
-                  placeholder="e.g., Chase Credit Card"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Debt Type:</label>
-                <select
-                  value={debtForm.debtType}
-                  onChange={(e) => handleDebtTypeChange(e.target.value)}
-                >
-                  <option value="credit-card">Credit Card</option>
-                  <option value="personal-loan">Personal Loan</option>
-                  <option value="student-loan">Student Loan</option>
-                  <option value="auto-loan">Auto Loan</option>
-                  <option value="mortgage">Mortgage</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Current Balance:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={debtForm.balance}
-                  onChange={(e) => setDebtForm({...debtForm, balance: e.target.value})}
-                  placeholder="0.00"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Interest Rate (%):</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={debtForm.interestRate}
-                  onChange={(e) => setDebtForm({...debtForm, interestRate: e.target.value})}
-                  placeholder="0.00"
-                  required
-                />
-                <small className="form-hint">
-                  Suggested: {defaultDebtRates[debtForm.debtType]}% for {debtForm.debtType.replace('-', ' ')}s
-                </small>
-              </div>
-              <div className="form-group">
-                <label>Effective Date:</label>
-                <input
-                  type="date"
-                  value={debtForm.effectiveDate}
-                  onChange={(e) => setDebtForm({...debtForm, effectiveDate: e.target.value})}
-                  required
-                />
-                <small className="form-hint">
-                  Date this balance is effective for (defaults to today)
-                </small>
-              </div>
-              <div className="form-actions">
-                <button type="submit" className="submit-button">
-                  {editingDebt ? 'Update Debt' : 'Add Debt'}
-                </button>
-                <button 
-                  type="button" 
-                  className="cancel-button"
-                  onClick={() => {
-                    setShowDebtForm(false);
-                    setEditingDebt(null);
-                    setDebtForm({
-                      name: '',
-                      balance: '',
-                      debtType: 'credit-card',
-                      interestRate: '24.99',
-                      effectiveDate: new Date().toISOString().split('T')[0]
-                    });
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-          
-          {debts.length === 0 ? (
-            <div className="empty-state">
-              <p>No debts added yet. Click "Add Debt" to get started.</p>
-            </div>
-          ) : (
-            <div className="items-list">
-              {debts.map(debt => (
-                <div key={debt.id} className="item-card">
-                  <div className="item-info">
-                    <h4>{debt.name}</h4>
-                    <p className="item-type">{debt.debtType.replace('-', ' ')}</p>
-                    <p className="item-balance negative">${debt.balance.toLocaleString()}</p>
-                    <p className="item-details">
-                      {debt.interestRate}% APR
-                    </p>
-                  </div>
-                  <div className="item-actions">
-                    <button 
-                      className="edit-button"
-                      onClick={() => {
-                        setEditingDebt(debt);
-                        setShowDebtForm(true);
-                      }}
-                    >
-                      Update
-                    </button>
-                    <button 
-                      className="history-button"
-                      onClick={() => viewHistory('debt', debt.name)}
-                    >
-                      View History
-                    </button>
-                    <button 
-                      className="delete-button"
-                      onClick={() => deleteDebt(debt.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
+          {debtsOpen && (
+            <>
+            {showDebtForm && (
+              <form className="form-card" onSubmit={handleDebtSubmit}>
+                <h3>{editingDebt ? 'Edit Debt' : 'Add New Debt'}</h3>
+                <div className="form-group">
+                  <label>Debt Name:</label>
+                  <input
+                    type="text"
+                    value={debtForm.name}
+                    onChange={(e) => setDebtForm({...debtForm, name: e.target.value})}
+                    placeholder="e.g., Chase Credit Card"
+                    required
+                  />
                 </div>
-              ))}
-            </div>
+                <div className="form-group">
+                  <label>Debt Type:</label>
+                  <select
+                    value={debtForm.debtType}
+                    onChange={(e) => handleDebtTypeChange(e.target.value)}
+                  >
+                    <option value="credit-card">Credit Card</option>
+                    <option value="personal-loan">Personal Loan</option>
+                    <option value="student-loan">Student Loan</option>
+                    <option value="auto-loan">Auto Loan</option>
+                    <option value="mortgage">Mortgage</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Current Balance:</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={debtForm.balance}
+                    onChange={(e) => setDebtForm({...debtForm, balance: e.target.value})}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Interest Rate (%):</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={debtForm.interestRate}
+                    onChange={(e) => setDebtForm({...debtForm, interestRate: e.target.value})}
+                    placeholder="0.00"
+                    required
+                  />
+                  <small className="form-hint">
+                    Suggested: {defaultDebtRates[debtForm.debtType]}% for {debtForm.debtType.replace('-', ' ')}s
+                  </small>
+                </div>
+                <div className="form-group">
+                  <label>Effective Date:</label>
+                  <input
+                    type="date"
+                    value={debtForm.effectiveDate}
+                    onChange={(e) => setDebtForm({...debtForm, effectiveDate: e.target.value})}
+                    required
+                  />
+                  <small className="form-hint">
+                    Date this balance is effective for (defaults to today)
+                  </small>
+                </div>
+                <div className="form-actions">
+                  <button type="submit" className="submit-button">
+                    {editingDebt ? 'Update Debt' : 'Add Debt'}
+                  </button>
+                  <button 
+                    type="button" 
+                    className="cancel-button"
+                    onClick={() => {
+                      setShowDebtForm(false);
+                      setEditingDebt(null);
+                      setDebtForm({
+                        name: '',
+                        balance: '',
+                        debtType: 'credit-card',
+                        interestRate: '24.99',
+                        effectiveDate: new Date().toISOString().split('T')[0]
+                      });
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+            {activeDebts.length === 0 ? (
+              <div className="empty-state">
+                <p>No debts added yet. Click "Add Debt" to get started.</p>
+              </div>
+            ) : (
+              <div className="items-list">
+                {activeDebts.map(debt => (
+                  <div key={debt.id} className="item-card">
+                    <div className="item-info">
+                      <h4>{debt.name}</h4>
+                      <p className="item-type">{debt.debtType.replace('-', ' ')}</p>
+                      <p className="item-balance negative">${debt.balance.toLocaleString()}</p>
+                      <p className="item-details">
+                        {debt.interestRate}% APR
+                      </p>
+                    </div>
+                    <div className="item-actions">
+                      <button 
+                        className="edit-button"
+                        onClick={() => {
+                          setEditingDebt(debt);
+                          setShowDebtForm(true);
+                        }}
+                      >
+                        Update
+                      </button>
+                      <button 
+                        className="history-button"
+                        onClick={() => viewHistory('debt', debt.name)}
+                      >
+                        View History
+                      </button>
+                      <button 
+                        className="delete-button"
+                        onClick={() => deleteDebt(debt.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            </>
+          )}
+        </div>
+
+        {/* Paid Off Debts Section */}
+        <div className="debts-section">
+          <div className="section-header" style={{cursor: 'pointer'}} onClick={() => setPaidOffOpen(!paidOffOpen)}>
+            <h2>Paid Off Debts</h2>
+            <span style={{marginLeft: '1rem'}}>{paidOffOpen ? '▼' : '►'}</span>
+          </div>
+          {paidOffOpen && (
+            paidOffDebts.length === 0 ? (
+              <div className="empty-state">
+                <p>No debts have been paid off yet.</p>
+              </div>
+            ) : (
+              <div className="items-list">
+                {paidOffDebts.map(debt => (
+                  <div key={debt.id} className="item-card">
+                    <div className="item-info">
+                      <h4>{debt.name}</h4>
+                      <p className="item-type">{debt.debtType.replace('-', ' ')}</p>
+                      <p className="item-balance positive">$0.00</p>
+                      <p className="item-details">
+                        {debt.interestRate}% APR
+                      </p>
+                    </div>
+                    <div className="item-actions">
+                      <button 
+                        className="history-button"
+                        onClick={() => viewHistory('debt', debt.name)}
+                      >
+                        View History
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           )}
         </div>
       </div>

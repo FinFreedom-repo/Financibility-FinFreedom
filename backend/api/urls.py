@@ -12,20 +12,21 @@ from .views import (
     register_user,
     AccountAuditViewSet,
     TransactionAuditViewSet,
-    DebtAuditViewSet
+    DebtAuditViewSet,
+    DebtViewSet
 )
 from .expense_analyzer import ExpenseAnalyzerView, ExpenseChatView
 from budget.views import BudgetViewSet
 from .debt_planner import DebtPlannerView
 from .dashboard import DashboardView
 from .accounts_debts import (
-    account_list, account_detail, debt_list, debt_detail,
     bulk_save_accounts_debts, get_accounts_debts_summary
 )
 
 print("Registering viewsets...")
 router = DefaultRouter()
 router.register(r'accounts', AccountViewSet, basename='account')
+router.register(r'debts', DebtViewSet, basename='debt')
 router.register(r'transactions', TransactionViewSet, basename='transaction')
 router.register(r'categories', CategoryViewSet, basename='category')
 router.register(r'profile', UserProfileViewSet, basename='profile')
@@ -48,11 +49,7 @@ urlpatterns = [
     path('auth/register/', register_user, name='register'),
     path('financial-steps/calculate/', calculate_financial_steps, name='calculate-financial-steps'),
     
-    # Accounts and Debts endpoints
-    path('accounts/', account_list, name='account_list'),
-    path('accounts/<int:pk>/', account_detail, name='account_detail'),
-    path('debts/', debt_list, name='debt_list'),
-    path('debts/<int:pk>/', debt_detail, name='debt_detail'),
+    # Accounts and Debts endpoints (summary and bulk operations only)
     path('accounts-debts/bulk-save/', bulk_save_accounts_debts, name='bulk_save_accounts_debts'),
     path('accounts-debts/summary/', get_accounts_debts_summary, name='get_accounts_debts_summary'),
 ]
