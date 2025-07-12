@@ -40,6 +40,16 @@ function AccountsAndDebts() {
     effectiveDate: new Date().toISOString().split('T')[0] // Default to today
   });
   
+  // State for restore account functionality
+  const [showRestoreAccount, setShowRestoreAccount] = useState(false);
+  const [restoreAccountForm, setRestoreAccountForm] = useState({
+    name: '',
+    balance: '',
+    accountType: 'checking',
+    interestRate: '0.01',
+    effectiveDate: new Date().toISOString().split('T')[0]
+  });
+  
   // Form states for debts
   const [debtForm, setDebtForm] = useState({
     name: '',
@@ -60,7 +70,9 @@ function AccountsAndDebts() {
   const [debtsOpen, setDebtsOpen] = useState(true);
   const [paidOffOpen, setPaidOffOpen] = useState(false);
 
-  // Filter debts into active and paid-off
+  // Filter accounts and debts into active and paid-off
+  const activeAccounts = accounts.filter(account => account.balance > 0);
+  const closedAccounts = accounts.filter(account => account.balance === 0);
   const activeDebts = debts.filter(debt => debt.balance > 0);
   const paidOffDebts = debts.filter(debt => debt.balance === 0);
 
@@ -125,12 +137,20 @@ function AccountsAndDebts() {
     }
   };
 
-  const handleAccountTypeChange = (accountType) => {
-    setAccountForm({
-      ...accountForm,
-      accountType,
-      interestRate: defaultAccountRates[accountType].toString()
-    });
+  const handleAccountTypeChange = (accountType, formType = 'account') => {
+    if (formType === 'restore') {
+      setRestoreAccountForm({
+        ...restoreAccountForm,
+        accountType,
+        interestRate: defaultAccountRates[accountType].toString()
+      });
+    } else {
+      setAccountForm({
+        ...accountForm,
+        accountType,
+        interestRate: defaultAccountRates[accountType].toString()
+      });
+    }
   };
 
   const handleDebtTypeChange = (debtType) => {
@@ -164,6 +184,7 @@ function AccountsAndDebts() {
         effectiveDate: new Date().toISOString().split('T')[0]
       });
       setShowAccountForm(false);
+      setShowRestoreAccount(false);
       setEditingAccount(null);
       
       // Reload data
@@ -175,6 +196,44 @@ function AccountsAndDebts() {
       console.error('Error adding account:', error);
       console.error('Error response:', error.response?.data);
       setSaveMessage('Error adding account. Please try again.');
+      setTimeout(() => setSaveMessage(''), 3000);
+    }
+  };
+
+  const handleRestoreAccount = async (e) => {
+    e.preventDefault();
+    try {
+      const accountData = {
+        name: restoreAccountForm.name,
+        account_type: restoreAccountForm.accountType,
+        balance: parseFloat(restoreAccountForm.balance) || 0,
+        interest_rate: parseFloat(restoreAccountForm.interestRate) || 0,
+        effective_date: restoreAccountForm.effectiveDate || new Date().toISOString().split('T')[0]
+      };
+      
+      console.log('Restoring account data:', accountData);
+      await accountsDebtsService.createAccount(accountData);
+      
+      // Reset form and editing state
+      setRestoreAccountForm({ 
+        name: '', 
+        balance: '', 
+        accountType: 'checking',
+        interestRate: '0.01',
+        effectiveDate: new Date().toISOString().split('T')[0]
+      });
+      setShowAccountForm(false);
+      setShowRestoreAccount(false);
+      
+      // Reload data
+      await loadAccountsDebts();
+      
+      setSaveMessage('Account restored successfully!');
+      setTimeout(() => setSaveMessage(''), 3000);
+    } catch (error) {
+      console.error('Error restoring account:', error);
+      console.error('Error response:', error.response?.data);
+      setSaveMessage('Error restoring account. Please try again.');
       setTimeout(() => setSaveMessage(''), 3000);
     }
   };
@@ -316,109 +375,221 @@ function AccountsAndDebts() {
         <div className="accounts-section">
           <div className="section-header" style={{cursor: 'pointer'}} onClick={() => setAccountsOpen(!accountsOpen)}>
             <h2>Your Accounts</h2>
-            <button 
-              className="add-button"
-              onClick={e => { e.stopPropagation(); setShowAccountForm(!showAccountForm); }}
-            >
-              {showAccountForm ? 'Cancel' : 'Add Account'}
-            </button>
+            <div style={{display: 'flex', gap: '0.5rem'}}>
+              <button 
+                className="add-button"
+                onClick={e => { e.stopPropagation(); setShowAccountForm(!showAccountForm); setShowRestoreAccount(false); }}
+              >
+                {showAccountForm ? 'Cancel' : 'Add Account'}
+              </button>
+              {closedAccounts.length > 0 && (
+                <button 
+                  className="add-button"
+                  onClick={e => { e.stopPropagation(); setShowRestoreAccount(!showRestoreAccount); setShowAccountForm(false); }}
+                >
+                  {showRestoreAccount ? 'Cancel' : 'Restore Account'}
+                </button>
+              )}
+            </div>
             <span style={{marginLeft: '1rem'}}>{accountsOpen ? '▼' : '►'}</span>
           </div>
-          {accountsOpen && (
-            <>
-            {showAccountForm && (
-              <form className="form-card" onSubmit={handleAccountSubmit}>
-                <h3>{editingAccount ? 'Edit Account' : 'Add New Account'}</h3>
-                <div className="form-group">
-                  <label>Account Name:</label>
-                  <input
-                    type="text"
-                    value={accountForm.name}
-                    onChange={(e) => setAccountForm({...accountForm, name: e.target.value})}
-                    placeholder="e.g., Chase Checking"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Account Type:</label>
-                  <select
-                    value={accountForm.accountType}
-                    onChange={(e) => handleAccountTypeChange(e.target.value)}
-                  >
-                    <option value="checking">Checking</option>
-                    <option value="savings">Savings</option>
-                    <option value="investment">Investment</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Current Balance:</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={accountForm.balance}
-                    onChange={(e) => setAccountForm({...accountForm, balance: e.target.value})}
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Interest Rate (%):</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={accountForm.interestRate}
-                    onChange={(e) => setAccountForm({...accountForm, interestRate: e.target.value})}
-                    placeholder="0.00"
-                    required
-                  />
-                  <small className="form-hint">
-                    Suggested: {defaultAccountRates[accountForm.accountType]}% for {accountForm.accountType} accounts
-                  </small>
-                </div>
-                <div className="form-group">
-                  <label>Effective Date:</label>
-                  <input
-                    type="date"
-                    value={accountForm.effectiveDate}
-                    onChange={(e) => setAccountForm({...accountForm, effectiveDate: e.target.value})}
-                    required
-                  />
-                  <small className="form-hint">
-                    Date this balance is effective for (defaults to today)
-                  </small>
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="submit-button">
-                    {editingAccount ? 'Update Account' : 'Add Account'}
-                  </button>
-                  <button 
-                    type="button" 
-                    className="cancel-button"
-                    onClick={() => {
-                      setShowAccountForm(false);
-                      setEditingAccount(null);
-                      setAccountForm({
-                        name: '',
-                        balance: '',
-                        accountType: 'checking',
-                        interestRate: '0.01',
-                        effectiveDate: new Date().toISOString().split('T')[0]
-                      });
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
-            {accounts.length === 0 ? (
+                      {accountsOpen && (
+              <>
+              {showAccountForm && (
+                <form className="form-card" onSubmit={handleAccountSubmit}>
+                  <h3>{editingAccount ? 'Edit Account' : 'Add New Account'}</h3>
+                  <div className="form-group">
+                    <label>Account Name:</label>
+                    <input
+                      type="text"
+                      value={accountForm.name}
+                      onChange={(e) => setAccountForm({...accountForm, name: e.target.value})}
+                      placeholder="e.g., Chase Checking"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Account Type:</label>
+                    <select
+                      value={accountForm.accountType}
+                      onChange={(e) => handleAccountTypeChange(e.target.value)}
+                    >
+                      <option value="checking">Checking</option>
+                      <option value="savings">Savings</option>
+                      <option value="investment">Investment</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Current Balance:</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={accountForm.balance}
+                      onChange={(e) => setAccountForm({...accountForm, balance: e.target.value})}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Interest Rate (%):</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={accountForm.interestRate}
+                      onChange={(e) => setAccountForm({...accountForm, interestRate: e.target.value})}
+                      placeholder="0.00"
+                      required
+                    />
+                    <small className="form-hint">
+                      Suggested: {defaultAccountRates[accountForm.accountType]}% for {accountForm.accountType} accounts
+                    </small>
+                  </div>
+                  <div className="form-group">
+                    <label>Effective Date:</label>
+                    <input
+                      type="date"
+                      value={accountForm.effectiveDate}
+                      onChange={(e) => setAccountForm({...accountForm, effectiveDate: e.target.value})}
+                      required
+                    />
+                    <small className="form-hint">
+                      Date this balance is effective for (defaults to today)
+                    </small>
+                  </div>
+                  <div className="form-actions">
+                    <button type="submit" className="submit-button">
+                      {editingAccount ? 'Update Account' : 'Add Account'}
+                    </button>
+                    <button 
+                      type="button" 
+                      className="cancel-button"
+                      onClick={() => {
+                        setShowAccountForm(false);
+                        setEditingAccount(null);
+                        setAccountForm({
+                          name: '',
+                          balance: '',
+                          accountType: 'checking',
+                          interestRate: '0.01',
+                          effectiveDate: new Date().toISOString().split('T')[0]
+                        });
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+              
+              {showRestoreAccount && (
+                <form className="form-card" onSubmit={handleRestoreAccount}>
+                  <h3>Restore Closed Account</h3>
+                  <div className="form-group">
+                    <label>Select Account to Restore:</label>
+                    <select
+                      value={restoreAccountForm.name}
+                      onChange={(e) => {
+                        const selectedAccount = closedAccounts.find(acc => acc.name === e.target.value);
+                        if (selectedAccount) {
+                          setRestoreAccountForm({
+                            name: selectedAccount.name,
+                            balance: '',
+                            accountType: selectedAccount.accountType,
+                            interestRate: selectedAccount.interestRate.toString(),
+                            effectiveDate: new Date().toISOString().split('T')[0]
+                          });
+                        }
+                      }}
+                      required
+                    >
+                      <option value="">Select a closed account...</option>
+                      {closedAccounts.map(account => (
+                        <option key={account.id} value={account.name}>
+                          {account.name} ({account.accountType})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>New Balance:</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={restoreAccountForm.balance}
+                      onChange={(e) => setRestoreAccountForm({...restoreAccountForm, balance: e.target.value})}
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Account Type:</label>
+                    <select
+                      value={restoreAccountForm.accountType}
+                      onChange={(e) => handleAccountTypeChange(e.target.value, 'restore')}
+                    >
+                      <option value="checking">Checking</option>
+                      <option value="savings">Savings</option>
+                      <option value="investment">Investment</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Interest Rate (%):</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={restoreAccountForm.interestRate}
+                      onChange={(e) => setRestoreAccountForm({...restoreAccountForm, interestRate: e.target.value})}
+                      placeholder="0.00"
+                      required
+                    />
+                    <small className="form-hint">
+                      Suggested: {defaultAccountRates[restoreAccountForm.accountType]}% for {restoreAccountForm.accountType} accounts
+                    </small>
+                  </div>
+                  <div className="form-group">
+                    <label>Effective Date:</label>
+                    <input
+                      type="date"
+                      value={restoreAccountForm.effectiveDate}
+                      onChange={(e) => setRestoreAccountForm({...restoreAccountForm, effectiveDate: e.target.value})}
+                      required
+                    />
+                    <small className="form-hint">
+                      Date this balance is effective for (defaults to today)
+                    </small>
+                  </div>
+                  <div className="form-actions">
+                    <button type="submit" className="submit-button">
+                      Restore Account
+                    </button>
+                    <button 
+                      type="button" 
+                      className="cancel-button"
+                      onClick={() => {
+                        setShowRestoreAccount(false);
+                        setRestoreAccountForm({
+                          name: '',
+                          balance: '',
+                          accountType: 'checking',
+                          interestRate: '0.01',
+                          effectiveDate: new Date().toISOString().split('T')[0]
+                        });
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+            {activeAccounts.length === 0 ? (
               <div className="empty-state">
                 <p>No accounts added yet. Click "Add Account" to get started.</p>
               </div>
             ) : (
               <div className="items-list">
-                {accounts.map(account => (
+                {activeAccounts.map(account => (
                   <div key={account.id} className="item-card">
                     <div className="item-info">
                       <h4>{account.name}</h4>
