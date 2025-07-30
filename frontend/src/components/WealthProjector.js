@@ -1,44 +1,70 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  TextField,
+  Button,
+  Slider,
+  Divider,
+  Alert,
+  Snackbar,
+  Fade,
+  useTheme,
+  useMediaQuery,
+  Stack,
+  Paper,
+  Avatar,
+  Tooltip,
+  Switch,
+  FormControlLabel,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Chip,
+  InputAdornment,
+  CircularProgress
+} from '@mui/material';
+import {
+  TrendingUp as TrendingUpIcon,
+  AccountBalance as AccountBalanceIcon,
+  Timeline as TimelineIcon,
+  AttachMoney as MoneyIcon,
+  Calculate as CalculateIcon,
+  Settings as SettingsIcon,
+  ExpandMore as ExpandMoreIcon,
+  Info as InfoIcon,
+  Assessment as AssessmentIcon,
+  Savings as SavingsIcon,
+  ShowChart as ShowChartIcon
+} from '@mui/icons-material';
 import axios from '../utils/axios';
 import accountsDebtsService from '../services/accountsDebtsService';
-import '../styles/WealthProjector.css';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-} from 'chart.js';
-import { Line } from 'react-chartjs-2';
-
-// Register ChartJS components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-  Filler
-);
+import { useTheme as useCustomTheme } from '../contexts/ThemeContext';
+import Chart from './common/Chart';
+import Loading from './common/Loading';
+import { Button as CustomButton } from './common/Button';
+import CustomCard from './common/Card';
+import Input from './common/Input';
 
 function WealthProjector({ onNavigateToAccount }) {
+  const { isDarkMode } = useCustomTheme();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
   const [formData, setFormData] = useState({
-    age: '25',
-    startWealth: '0',
-    debt: '0',
-    debtInterest: '6',
-    assetInterest: '10.5',
-    inflation: '2.5',
-    taxRate: '25',
-    annualContributions: '1000',
-    checkingInterest: '4',
-    maxAge: '85'
+    age: 25,
+    startWealth: 0,
+    debt: 0,
+    debtInterest: 6,
+    assetInterest: 10.5,
+    inflation: 2.5,
+    taxRate: 25,
+    annualContributions: 1000,
+    checkingInterest: 4,
+    maxAge: 85
   });
 
   const [showChart, setShowChart] = useState(false);
@@ -48,253 +74,131 @@ function WealthProjector({ onNavigateToAccount }) {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [budgetData, setBudgetData] = useState(null);
-  const [dataLoading, setDataLoading] = useState(true);
-  const [netSavingsData, setNetSavingsData] = useState(null);
+  const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
+  const [showErrorSnackbar, setShowErrorSnackbar] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [useRealData, setUseRealData] = useState(false);
+  const [expandedAccordion, setExpandedAccordion] = useState(false);
 
-  // Load all user data on component mount
   useEffect(() => {
-    loadAllUserData();
+    loadUserData();
   }, []);
 
-  // Refresh data when component becomes visible again (e.g., after profile update)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && dataLoaded) {
-        console.log('Component became visible, refreshing data...');
-        loadAllUserData();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [dataLoaded]);
-
-  // Log form data changes for debugging
-  useEffect(() => {
-    if (dataLoaded) {
-      console.log('Form data updated:', formData);
-    }
-  }, [formData, dataLoaded]);
-
-  // Monitor formData changes specifically
-  useEffect(() => {
-    console.log('formData state changed:', formData);
-  }, [formData]);
-
-  const loadAllUserData = async () => {
+  const loadUserData = async () => {
     try {
-      setDataLoading(true);
-      console.log('Loading user data...');
+      setIsLoading(true);
       
-      // Load user profile data
-      const profileResponse = await axios.get('/api/profile/me/');
-      console.log('Profile data loaded:', profileResponse.data);
-      setUserProfile(profileResponse.data);
+      // Load user profile
+      const profileResponse = await axios.get('/api/user-profile/');
+      if (profileResponse.data) {
+        setUserProfile(profileResponse.data);
+        if (profileResponse.data.age) {
+          setFormData(prev => ({ ...prev, age: profileResponse.data.age }));
+        }
+      }
 
       // Load budget data
       const budgetResponse = await axios.get('/api/budgets/');
-      const budget = budgetResponse.data[0];
-      console.log('Budget data loaded:', budget);
-      setBudgetData(budget);
-
-      // Load net savings calculation from backend
-      const netSavingsResponse = await axios.get('/api/net-savings/');
-      const netSavingsData = netSavingsResponse.data;
-      console.log('Net savings data loaded:', netSavingsData);
-
-      // Load accounts and debts data
-      const accountsDebtsData = await accountsDebtsService.getAccountsDebtsSummary();
-      console.log('Accounts and debts data loaded:', accountsDebtsData);
-      
-      // Calculate totals and weighted averages
-      const totalAssets = (accountsDebtsData.accounts || []).reduce((sum, account) => sum + parseFloat(account.balance), 0);
-      const totalDebts = (accountsDebtsData.debts || []).reduce((sum, debt) => sum + parseFloat(debt.balance), 0);
-      
-      console.log('Calculated totals - Assets:', totalAssets, 'Debts:', totalDebts);
-      console.log('Accounts array:', accountsDebtsData.accounts);
-      console.log('Debts array:', accountsDebtsData.debts);
-      
-      // Calculate weighted average asset interest rate (excluding checking accounts)
-      let weightedAssetInterest = 0;
-      let totalInvestmentAssets = 0;
-      if (totalAssets > 0) {
-        // Filter out checking accounts for the main asset interest calculation
-        const investmentAccounts = (accountsDebtsData.accounts || []).filter(acc => acc.account_type !== 'checking');
-        totalInvestmentAssets = investmentAccounts.reduce((sum, account) => sum + parseFloat(account.balance), 0);
-        
-        if (totalInvestmentAssets > 0) {
-          const assetInterestSum = investmentAccounts.reduce((sum, account) => {
-            return sum + (parseFloat(account.balance) * parseFloat(account.interest_rate));
-          }, 0);
-          weightedAssetInterest = assetInterestSum / totalInvestmentAssets;
-        }
+      if (budgetResponse.data && budgetResponse.data.length > 0) {
+        setBudgetData(budgetResponse.data[0]);
       }
-      
-      // Calculate weighted average debt interest rate
-      let weightedDebtInterest = 0;
-      if (totalDebts > 0) {
-        const debtInterestSum = (accountsDebtsData.debts || []).reduce((sum, debt) => {
-          return sum + (parseFloat(debt.balance) * parseFloat(debt.interest_rate));
-        }, 0);
-        weightedDebtInterest = debtInterestSum / totalDebts;
+
+      // Load accounts data
+      const accountsResponse = await accountsDebtsService.getAccounts();
+      if (accountsResponse && Array.isArray(accountsResponse)) {
+        const totalAssets = accountsResponse.reduce((sum, account) => 
+          sum + parseFloat(account.balance || 0), 0
+        );
+        setFormData(prev => ({ ...prev, startWealth: totalAssets }));
       }
-      
-      // Calculate net worth
-      const netWorth = totalAssets - totalDebts;
-      
-      // Prepare new form data
-      const newFormData = {
-        age: profileResponse.data.age ? profileResponse.data.age.toString() : '25',
-        startWealth: totalAssets.toString(),
-        debt: totalDebts.toString(),
-        debtInterest: weightedDebtInterest.toFixed(2),
-        assetInterest: '10.5', // Historical market average
-        annualContributions: netSavingsData.annual_contributions.toString(), // From backend calculation
-        inflation: '2.5',
-        taxRate: '25',
-        maxAge: '85',
-        // Use checking account rate if available, otherwise default
-        checkingInterest: (accountsDebtsData.accounts || []).find(acc => acc.account_type === 'checking')?.interest_rate || '4'
-      };
-      
-      console.log('Setting form data with:', newFormData);
-      console.log('User profile data:', profileResponse.data);
-      console.log('Age from profile:', profileResponse.data.age);
-      console.log('Net worth calculation:', { totalAssets, totalDebts, netWorth });
-      console.log('Net savings breakdown:', netSavingsData.breakdown);
-      
-      // Update form data with all calculated values
-      setFormData(newFormData);
-      
+
+      // Load debts data
+      const debtsResponse = await accountsDebtsService.getDebts();
+      if (debtsResponse && Array.isArray(debtsResponse)) {
+        const totalDebts = debtsResponse.reduce((sum, debt) => 
+          sum + parseFloat(debt.balance || 0), 0
+        );
+        setFormData(prev => ({ ...prev, debt: totalDebts }));
+      }
+
       setDataLoaded(true);
-      setDataLoading(false);
-      setNetSavingsData(netSavingsData);
-      console.log('Data loading completed successfully');
     } catch (error) {
       console.error('Error loading user data:', error);
-      console.error('Error details:', error.response?.data || error.message);
-      setDataLoaded(true); // Still mark as loaded so user can proceed
-      setDataLoading(false);
-    }
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prevState => ({
-      ...prevState,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const response = await axios.post('/api/project-wealth/', formData);
-      setProjectionData(response.data);
-      setShowChart(true);
-    } catch (err) {
-      setError('Failed to calculate projection. Please try again.');
-      setShowChart(false);
+      setErrorMessage('Failed to load user data');
+      setShowErrorSnackbar(true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const formatCurrency = (value) => {
+  const calculateProjection = async () => {
+    try {
+      setIsLoading(true);
+      const response = await axios.post('/api/wealth-projection/', formData);
+      setProjectionData(response.data);
+      setShowChart(true);
+      setSuccessMessage('Projection calculated successfully!');
+      setShowSuccessSnackbar(true);
+    } catch (error) {
+      console.error('Error calculating projection:', error);
+      setErrorMessage('Failed to calculate projection');
+      setShowErrorSnackbar(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
-  const getChartData = () => {
+  const formatAge = (age) => {
+    return `${age} years old`;
+  };
+
+  const chartData = useMemo(() => {
     if (!projectionData) return null;
 
-    const ages = projectionData.projections.map(p => p.age);
-    const wealth = projectionData.projections.map(p => p.wealth);
-    const debt = projectionData.projections.map(p => p.debt);
-    const adjustedNetWorth = projectionData.projections.map(p => p.adjusted_net_worth);
-    const checkingWealth = projectionData.projections.map(p => p.checking_wealth);
-    const adjustedCheckingWealth = projectionData.projections.map(p => p.adjusted_checking_wealth);
+    const labels = projectionData.map(item => item.age);
+    const datasets = [
+      {
+        label: 'Net Worth',
+        data: projectionData.map(item => item.net_worth),
+        borderColor: theme.palette.primary.main,
+        backgroundColor: theme.palette.primary.main + '20',
+        fill: true,
+        tension: 0.4
+      },
+      {
+        label: 'Assets',
+        data: projectionData.map(item => item.assets),
+        borderColor: theme.palette.success.main,
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.4
+      },
+      {
+        label: 'Debt',
+        data: projectionData.map(item => item.debt),
+        borderColor: theme.palette.error.main,
+        backgroundColor: 'transparent',
+        fill: false,
+        tension: 0.4
+      }
+    ];
 
-    return {
-      labels: ages,
-      datasets: [
-        {
-          label: 'Net Worth',
-          data: wealth,
-          borderColor: '#1a237e',
-          backgroundColor: 'rgba(26, 35, 126, 0.1)',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#1a237e',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2
-        },
-        {
-          label: 'Checking Account',
-          data: checkingWealth,
-          borderColor: '#2196f3',
-          backgroundColor: 'rgba(33, 150, 243, 0.1)',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#2196f3',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2
-        },
-        {
-          label: 'Checking Account (Infl. Adj.)',
-          data: adjustedCheckingWealth,
-          borderColor: '#00bcd4',
-          backgroundColor: 'rgba(0, 188, 212, 0.1)',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#00bcd4',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2
-        },
-        {
-          label: 'Net Worth (Infl. Adj.)',
-          data: adjustedNetWorth,
-          borderColor: '#ff9800',
-          backgroundColor: 'rgba(255, 152, 0, 0.1)',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#ff9800',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2
-        },
-        {
-          label: 'Debt',
-          data: debt,
-          borderColor: '#f44336',
-          backgroundColor: 'rgba(244, 67, 54, 0.1)',
-          fill: true,
-          tension: 0.4,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#f44336',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2
-        }
-      ]
-    };
-  };
+    return { labels, datasets };
+  }, [projectionData, theme]);
 
   const chartOptions = {
     responsive: true,
@@ -303,314 +207,446 @@ function WealthProjector({ onNavigateToAccount }) {
       mode: 'index',
       intersect: false,
     },
-    plugins: {
-      legend: {
-        position: 'top',
-        labels: {
-          color: '#1a237e',
-          font: {
-            size: 14,
-            weight: 'bold'
-          }
-        }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(26, 35, 126, 0.9)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        padding: 12,
-        callbacks: {
-          title: function(context) {
-            return `Age: ${context[0].label}`;
-          },
-          label: function(context) {
-            let label = context.dataset.label || '';
-            if (label) {
-              label += ': ';
-            }
-            if (context.parsed.y !== null) {
-              label += formatCurrency(context.parsed.y);
-            }
-            return label;
-          }
-        }
-      }
-    },
     scales: {
       x: {
-        grid: {
-          color: 'rgba(0, 0, 0, 0.1)',
-        },
-        ticks: {
-          color: '#666',
-          font: {
-            size: 12
-          }
-        },
+        display: true,
         title: {
           display: true,
           text: 'Age',
-          color: '#666',
-          font: {
-            size: 14,
-            weight: 'bold'
-          }
-        },
-        min: parseInt(formData.age),
-        max: parseInt(formData.maxAge)
-      },
-      y: {
-        grid: {
-          color: 'rgba(0, 0, 0, 0.1)',
+          color: theme.palette.text.primary
         },
         ticks: {
-          color: '#666',
-          font: {
-            size: 12
-          },
+          color: theme.palette.text.secondary
+        },
+        grid: {
+          color: theme.palette.divider
+        }
+      },
+      y: {
+        display: true,
+        title: {
+          display: true,
+          text: 'Amount ($)',
+          color: theme.palette.text.primary
+        },
+        ticks: {
+          color: theme.palette.text.secondary,
           callback: function(value) {
             return formatCurrency(value);
           }
         },
-        title: {
-          display: true,
-          text: 'Amount ($)',
-          color: '#666',
-          font: {
-            size: 14,
-            weight: 'bold'
+        grid: {
+          color: theme.palette.divider
+        }
+      }
+    },
+    plugins: {
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.dataset.label}: ${formatCurrency(context.parsed.y)}`;
           }
+        }
+      },
+      legend: {
+        labels: {
+          color: theme.palette.text.primary
         }
       }
     }
   };
 
+  const getKeyMetrics = () => {
+    if (!projectionData) return null;
+
+    const finalData = projectionData[projectionData.length - 1];
+    const retirementAge = 65;
+    const retirementData = projectionData.find(item => item.age >= retirementAge);
+    
+    return {
+      finalNetWorth: finalData.net_worth,
+      retirementNetWorth: retirementData ? retirementData.net_worth : 0,
+      debtFreeAge: projectionData.find(item => item.debt <= 0)?.age || 'Never',
+      millionaireAge: projectionData.find(item => item.net_worth >= 1000000)?.age || 'Never'
+    };
+  };
+
+  const keyMetrics = getKeyMetrics();
+
+  if (isLoading && !dataLoaded) {
+    return <Loading.PageLoader />;
+  }
+
   return (
-    <div className="wealth-projector">
-      <div className="wealth-header">
-        <h2>Wealth Projector</h2>
-        <p className="default-values-note">Default values are automatically loaded from your profile, accounts, debts, and budget</p>
-        {dataLoading ? (
-          <div className="data-loading-indicator">
-            <div className="loading-spinner"></div>
-            <span className="loading-text">Loading your financial data...</span>
-          </div>
-        ) : dataLoaded && (
-          <div className="data-loaded-indicator">
-            <div className="data-summary">
-              <span className="indicator-text">✓ Data loaded:</span>
-              <ul className="data-details">
-                {userProfile?.age ? (
-                  <li>Age: {userProfile.age}</li>
-                ) : (
-                  <li>Age: Not set in profile (using default: 25)</li>
-                )}
-                {budgetData && <li>Budget: Income ${netSavingsData?.breakdown?.total_income?.toLocaleString() || 0}, Net Savings ${(parseFloat(formData.annualContributions) / 12).toLocaleString()}/month</li>}
-                <li>Net Worth: ${parseFloat(formData.startWealth).toLocaleString()}</li>
-                <li>Debts: ${parseFloat(formData.debt).toLocaleString()} at {formData.debtInterest}% avg</li>
-                <li>Annual Contributions: ${parseFloat(formData.annualContributions).toLocaleString()}</li>
-              </ul>
-            </div>
-            <button 
-              className="refresh-data-button"
-              onClick={loadAllUserData}
-              disabled={isLoading}
-            >
-              Refresh Data
-            </button>
-          </div>
-        )}
-      </div>
-      <div className="wealth-projector-container">
-        <div className="wealth-form-container">
-          <form onSubmit={handleSubmit} className="wealth-form">
-            <div className="form-group">
-              <label htmlFor="age">Current Age</label>
-              <input
-                type="number"
-                id="age"
-                name="age"
-                value={formData.age}
-                onChange={handleChange}
-                placeholder="Enter your age"
-                required
-              />
-              {userProfile?.age ? (
-                <small className="data-source">From your profile</small>
-              ) : (
-                <div className="age-warning">
-                  <small className="data-source-warning">⚠️ Age not set in profile - please update your profile or enter manually</small>
-                  {onNavigateToAccount && (
-                    <button 
-                      type="button" 
-                      className="update-profile-button"
-                      onClick={onNavigateToAccount}
+    <Box sx={{ p: 3 }}>
+      <Fade in={true}>
+        <Box>
+          <Typography variant="h4" gutterBottom sx={{ 
+            fontWeight: 'bold', 
+            color: theme.palette.text.primary,
+            mb: 3
+          }}>
+            Wealth Projector
+          </Typography>
+
+          <Grid container spacing={3}>
+            {/* Input Panel */}
+            <Grid item xs={12} lg={4}>
+              <CustomCard elevation={2}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                    <CalculateIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
+                    <Typography variant="h6">
+                      Projection Parameters
+                    </Typography>
+                  </Box>
+
+                  <Stack spacing={3}>
+                    {/* Basic Info */}
+                    <Box>
+                      <Typography variant="subtitle1" gutterBottom>
+                        Personal Information
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                          <TextField
+                            label="Current Age"
+                            type="number"
+                            value={formData.age}
+                            onChange={(e) => handleInputChange('age', parseInt(e.target.value))}
+                            fullWidth
+                            size="small"
+                            InputProps={{
+                              endAdornment: <InputAdornment position="end">years</InputAdornment>
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12}>
+                          <TextField
+                            label="Maximum Age"
+                            type="number"
+                            value={formData.maxAge}
+                            onChange={(e) => handleInputChange('maxAge', parseInt(e.target.value))}
+                            fullWidth
+                            size="small"
+                            InputProps={{
+                              endAdornment: <InputAdornment position="end">years</InputAdornment>
+                            }}
+                          />
+                        </Grid>
+                      </Grid>
+                    </Box>
+
+                    <Divider />
+
+                    {/* Financial Position */}
+                    <Box>
+                      <Typography variant="subtitle1" gutterBottom>
+                        Current Financial Position
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                          <TextField
+                            label="Starting Wealth"
+                            type="number"
+                            value={formData.startWealth}
+                            onChange={(e) => handleInputChange('startWealth', parseFloat(e.target.value))}
+                            fullWidth
+                            size="small"
+                            InputProps={{
+                              startAdornment: <InputAdornment position="start">$</InputAdornment>
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12}>
+                          <TextField
+                            label="Current Debt"
+                            type="number"
+                            value={formData.debt}
+                            onChange={(e) => handleInputChange('debt', parseFloat(e.target.value))}
+                            fullWidth
+                            size="small"
+                            InputProps={{
+                              startAdornment: <InputAdornment position="start">$</InputAdornment>
+                            }}
+                          />
+                        </Grid>
+                        <Grid item xs={12}>
+                          <TextField
+                            label="Annual Contributions"
+                            type="number"
+                            value={formData.annualContributions}
+                            onChange={(e) => handleInputChange('annualContributions', parseFloat(e.target.value))}
+                            fullWidth
+                            size="small"
+                            InputProps={{
+                              startAdornment: <InputAdornment position="start">$</InputAdornment>
+                            }}
+                          />
+                        </Grid>
+                      </Grid>
+                    </Box>
+
+                    <Divider />
+
+                    {/* Interest Rates */}
+                    <Accordion 
+                      expanded={expandedAccordion} 
+                      onChange={() => setExpandedAccordion(!expandedAccordion)}
                     >
-                      Update Profile
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+                      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <SettingsIcon sx={{ mr: 1 }} />
+                          <Typography variant="subtitle1">Advanced Settings</Typography>
+                        </Box>
+                      </AccordionSummary>
+                      <AccordionDetails>
+                        <Stack spacing={2}>
+                          <TextField
+                            label="Asset Interest Rate"
+                            type="number"
+                            value={formData.assetInterest}
+                            onChange={(e) => handleInputChange('assetInterest', parseFloat(e.target.value))}
+                            fullWidth
+                            size="small"
+                            InputProps={{
+                              endAdornment: <InputAdornment position="end">%</InputAdornment>
+                            }}
+                          />
+                          <TextField
+                            label="Debt Interest Rate"
+                            type="number"
+                            value={formData.debtInterest}
+                            onChange={(e) => handleInputChange('debtInterest', parseFloat(e.target.value))}
+                            fullWidth
+                            size="small"
+                            InputProps={{
+                              endAdornment: <InputAdornment position="end">%</InputAdornment>
+                            }}
+                          />
+                          <TextField
+                            label="Inflation Rate"
+                            type="number"
+                            value={formData.inflation}
+                            onChange={(e) => handleInputChange('inflation', parseFloat(e.target.value))}
+                            fullWidth
+                            size="small"
+                            InputProps={{
+                              endAdornment: <InputAdornment position="end">%</InputAdornment>
+                            }}
+                          />
+                          <TextField
+                            label="Tax Rate"
+                            type="number"
+                            value={formData.taxRate}
+                            onChange={(e) => handleInputChange('taxRate', parseFloat(e.target.value))}
+                            fullWidth
+                            size="small"
+                            InputProps={{
+                              endAdornment: <InputAdornment position="end">%</InputAdornment>
+                            }}
+                          />
+                          <TextField
+                            label="Checking Interest Rate"
+                            type="number"
+                            value={formData.checkingInterest}
+                            onChange={(e) => handleInputChange('checkingInterest', parseFloat(e.target.value))}
+                            fullWidth
+                            size="small"
+                            InputProps={{
+                              endAdornment: <InputAdornment position="end">%</InputAdornment>
+                            }}
+                          />
+                        </Stack>
+                      </AccordionDetails>
+                    </Accordion>
 
-            <div className="form-group">
-              <label htmlFor="maxAge">Max Age</label>
-              <input
-                type="number"
-                id="maxAge"
-                name="maxAge"
-                value={formData.maxAge}
-                onChange={handleChange}
-                placeholder="Enter max age"
-                min={parseInt(formData.age) + 1}
-                max="120"
-                required
-              />
-            </div>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                      <CustomButton
+                        variant="contained"
+                        color="primary"
+                        onClick={calculateProjection}
+                        startIcon={isLoading ? <CircularProgress size={20} /> : <ShowChartIcon />}
+                        disabled={isLoading}
+                        size="large"
+                      >
+                        {isLoading ? 'Calculating...' : 'Calculate Projection'}
+                      </CustomButton>
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </CustomCard>
+            </Grid>
 
-            <div className="form-group">
-              <label htmlFor="startWealth">Net Worth</label>
-              <input
-                type="number"
-                id="startWealth"
-                name="startWealth"
-                value={formData.startWealth}
-                onChange={handleChange}
-                placeholder="Enter starting amount"
-                required
-              />
-              <small className="data-source">Calculated from your accounts</small>
-            </div>
+            {/* Results Panel */}
+            <Grid item xs={12} lg={8}>
+              <Stack spacing={3}>
+                {/* Key Metrics */}
+                {keyMetrics && (
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <CustomCard elevation={2}>
+                        <CardContent>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <Avatar sx={{ bgcolor: theme.palette.primary.main, mr: 2, width: 32, height: 32 }}>
+                              <TrendingUpIcon />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                                {formatCurrency(keyMetrics.finalNetWorth)}
+                              </Typography>
+                              <Typography variant="caption" color="textSecondary">
+                                Final Net Worth
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </CustomCard>
+                    </Grid>
+                    
+                    <Grid item xs={12} sm={6} md={3}>
+                      <CustomCard elevation={2}>
+                        <CardContent>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <Avatar sx={{ bgcolor: theme.palette.success.main, mr: 2, width: 32, height: 32 }}>
+                              <SavingsIcon />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                                {formatCurrency(keyMetrics.retirementNetWorth)}
+                              </Typography>
+                              <Typography variant="caption" color="textSecondary">
+                                At Retirement (65)
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </CustomCard>
+                    </Grid>
+                    
+                    <Grid item xs={12} sm={6} md={3}>
+                      <CustomCard elevation={2}>
+                        <CardContent>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <Avatar sx={{ bgcolor: theme.palette.info.main, mr: 2, width: 32, height: 32 }}>
+                              <AccountBalanceIcon />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                                {keyMetrics.debtFreeAge === 'Never' ? 'Never' : formatAge(keyMetrics.debtFreeAge)}
+                              </Typography>
+                              <Typography variant="caption" color="textSecondary">
+                                Debt Free Age
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </CustomCard>
+                    </Grid>
+                    
+                    <Grid item xs={12} sm={6} md={3}>
+                      <CustomCard elevation={2}>
+                        <CardContent>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                            <Avatar sx={{ bgcolor: theme.palette.warning.main, mr: 2, width: 32, height: 32 }}>
+                              <MoneyIcon />
+                            </Avatar>
+                            <Box>
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                                {keyMetrics.millionaireAge === 'Never' ? 'Never' : formatAge(keyMetrics.millionaireAge)}
+                              </Typography>
+                              <Typography variant="caption" color="textSecondary">
+                                Millionaire Age
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </CustomCard>
+                    </Grid>
+                  </Grid>
+                )}
 
-            <div className="form-group">
-              <label htmlFor="debt">Total Debt</label>
-              <input
-                type="number"
-                id="debt"
-                name="debt"
-                value={formData.debt}
-                onChange={handleChange}
-                placeholder="Enter total debt"
-                required
-              />
-              <small className="data-source">From your debt accounts</small>
-            </div>
+                {/* Chart */}
+                {showChart && chartData && (
+                  <CustomCard elevation={2}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <TimelineIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
+                        <Typography variant="h6">
+                          Wealth Projection Over Time
+                        </Typography>
+                      </Box>
+                      <Chart
+                        type="line"
+                        data={chartData}
+                        options={chartOptions}
+                        height={400}
+                      />
+                    </CardContent>
+                  </CustomCard>
+                )}
 
-            <div className="form-group">
-              <label htmlFor="debtInterest">Debt Interest Rate (Avg)</label>
-              <input
-                type="number"
-                id="debtInterest"
-                name="debtInterest"
-                value={formData.debtInterest}
-                onChange={handleChange}
-                placeholder="Enter interest rate"
-                step="0.01"
-                required
-              />
-              <small className="data-source">Weighted average from your debts</small>
-            </div>
+                {/* Instructions */}
+                {!showChart && (
+                  <CustomCard elevation={2}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <InfoIcon sx={{ mr: 1, color: theme.palette.info.main }} />
+                        <Typography variant="h6">
+                          How to Use the Wealth Projector
+                        </Typography>
+                      </Box>
+                      <Typography variant="body1" paragraph>
+                        The Wealth Projector helps you visualize your financial future by modeling how your wealth will grow over time based on your current financial situation and assumptions about returns, inflation, and contributions.
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        1. Enter your current age and financial position<br/>
+                        2. Adjust the interest rates and other parameters in Advanced Settings<br/>
+                        3. Click "Calculate Projection" to see your wealth growth chart<br/>
+                        4. Use the insights to make informed financial decisions
+                      </Typography>
+                    </CardContent>
+                  </CustomCard>
+                )}
+              </Stack>
+            </Grid>
+          </Grid>
+        </Box>
+      </Fade>
 
-            <div className="form-group">
-              <label htmlFor="assetInterest">Investment Interest Rate (Historical Market Average)</label>
-              <input
-                type="number"
-                id="assetInterest"
-                name="assetInterest"
-                value={formData.assetInterest}
-                onChange={handleChange}
-                placeholder="Enter interest rate"
-                step="0.01"
-                required
-              />
-              <small className="data-source">Historical S&P 500 average return (10.5%)</small>
-            </div>
+      {/* Success Snackbar */}
+      <Snackbar
+        open={showSuccessSnackbar}
+        autoHideDuration={6000}
+        onClose={() => setShowSuccessSnackbar(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setShowSuccessSnackbar(false)} 
+          severity="success" 
+          sx={{ width: '100%' }}
+        >
+          {successMessage}
+        </Alert>
+      </Snackbar>
 
-            <div className="form-group">
-              <label htmlFor="inflation">Expected Inflation Rate (%)</label>
-              <input
-                type="number"
-                id="inflation"
-                name="inflation"
-                value={formData.inflation}
-                onChange={handleChange}
-                placeholder="Enter inflation rate"
-                step="0.01"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="taxRate">Tax Rate (%)</label>
-              <input
-                type="number"
-                id="taxRate"
-                name="taxRate"
-                value={formData.taxRate}
-                onChange={handleChange}
-                placeholder="Enter tax rate"
-                step="0.01"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="annualContributions">Annual Contributions</label>
-              <input
-                type="number"
-                id="annualContributions"
-                name="annualContributions"
-                value={formData.annualContributions}
-                onChange={handleChange}
-                placeholder="Enter annual amount"
-                required
-              />
-              <small className="data-source">Based on your budget net savings (monthly × 12)</small>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="checkingInterest">Checking Account Interest Rate (%)</label>
-              <input
-                type="number"
-                id="checkingInterest"
-                name="checkingInterest"
-                value={formData.checkingInterest}
-                onChange={handleChange}
-                placeholder="Enter interest rate"
-                step="0.01"
-                required
-              />
-              <small className="data-source">From your checking account (used for checking account projections)</small>
-            </div>
-
-            <button 
-              type="submit" 
-              className="simulate-button"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Calculating...' : 'Simulate'}
-            </button>
-            {error && <p className="error-message">{error}</p>}
-          </form>
-        </div>
-        <div className="wealth-chart-container">
-          {isLoading ? (
-            <div className="chart-placeholder">
-              Calculating your wealth projection...
-            </div>
-          ) : showChart && projectionData ? (
-            <div style={{ width: '100%', height: '100%', minHeight: '500px' }}>
-              <Line options={chartOptions} data={getChartData()} />
-            </div>
-          ) : (
-            <div className="chart-placeholder">
-              Enter your financial data and click Simulate to see the projection
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+      {/* Error Snackbar */}
+      <Snackbar
+        open={showErrorSnackbar}
+        autoHideDuration={6000}
+        onClose={() => setShowErrorSnackbar(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setShowErrorSnackbar(false)} 
+          severity="error" 
+          sx={{ width: '100%' }}
+        >
+          {errorMessage}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 }
 
-export default WealthProjector; 
+export default WealthProjector;

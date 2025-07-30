@@ -1,48 +1,100 @@
 import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  Alert,
+  LinearProgress,
+  Chip,
+  Avatar,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  ListItemSecondaryAction,
+  IconButton,
+  alpha,
+  Tabs,                                                                           
+  Tab,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  AccountBalance as AccountBalanceIcon,
+  CreditCard as CreditCardIcon,
+  Savings as SavingsIcon,
+  TrendingUp as TrendingUpIcon,
+  School as SchoolIcon,
+  Home as HomeIcon,
+  Receipt as ReceiptIcon,
+  PersonalVideo as PersonalVideoIcon,
+  DirectionsCar as CarIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+} from '@mui/icons-material';
 import accountsDebtsService from '../services/accountsDebtsService';
-import '../styles/AccountsAndDebts.css';
+import Card from './common/Card';
+import { Button } from './common/Button';
+
+function TabPanel({ children, value, index, ...other }) {
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  );
+}
 
 function AccountsAndDebts() {
   const [accounts, setAccounts] = useState([]);
   const [debts, setDebts] = useState([]);
-  const [showAccountForm, setShowAccountForm] = useState(false);
-  const [showDebtForm, setShowDebtForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saveMessage, setSaveMessage] = useState('');
+  const [tabValue, setTabValue] = useState(0);
   
-  // Editing states
+  // Dialog states
+  const [accountDialogOpen, setAccountDialogOpen] = useState(false);
+  const [debtDialogOpen, setDebtDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState(null);
   const [editingDebt, setEditingDebt] = useState(null);
   
-  // Default interest rates based on market averages
+  // Delete confirmation dialog states
+  const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false);
+  const [deleteDebtDialogOpen, setDeleteDebtDialogOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState(null);
+  const [debtToDelete, setDebtToDelete] = useState(null);
+  
+  // Default interest rates
   const defaultAccountRates = {
-    checking: 0.01, // 0.01% - typical checking account rate
-    savings: 4.25,  // 4.25% - high-yield savings average
-    investment: 7.0, // 7.0% - average market return
-    other: 0.0      // 0% - no interest
+    checking: 0.01,
+    savings: 4.25,
+    investment: 7.0,
+    other: 0.0
   };
 
   const defaultDebtRates = {
-    'credit-card': 24.99,    // 24.99% - average credit card rate
-    'personal-loan': 12.0,   // 12.0% - average personal loan rate
-    'student-loan': 5.5,     // 5.5% - average student loan rate
-    'auto-loan': 7.5,        // 7.5% - average auto loan rate
-    'mortgage': 6.5,         // 6.5% - average mortgage rate
-    'other': 15.0            // 15.0% - other debt average
+    'credit-card': 24.99,
+    'personal-loan': 12.0,
+    'student-loan': 5.5,
+    'auto-loan': 7.5,
+    'mortgage': 6.5,
+    'other': 15.0
   };
   
-  // Form states for accounts
+  // Form states
   const [accountForm, setAccountForm] = useState({
-    name: '',
-    balance: '',
-    accountType: 'checking',
-    interestRate: '0.01',
-    effectiveDate: new Date().toISOString().split('T')[0] // Default to today
-  });
-  
-  // State for restore account functionality
-  const [showRestoreAccount, setShowRestoreAccount] = useState(false);
-  const [restoreAccountForm, setRestoreAccountForm] = useState({
     name: '',
     balance: '',
     accountType: 'checking',
@@ -50,816 +102,739 @@ function AccountsAndDebts() {
     effectiveDate: new Date().toISOString().split('T')[0]
   });
   
-  // Form states for debts
   const [debtForm, setDebtForm] = useState({
     name: '',
     balance: '',
     debtType: 'credit-card',
     interestRate: '24.99',
-    effectiveDate: new Date().toISOString().split('T')[0] // Default to today
+    effectiveDate: new Date().toISOString().split('T')[0]
   });
 
-  // History viewing states
-  const [showHistory, setShowHistory] = useState(false);
-  const [historyData, setHistoryData] = useState([]);
-  const [historyType, setHistoryType] = useState(''); // 'account' or 'debt'
-  const [historyName, setHistoryName] = useState('');
+  const accountTypes = [
+    { value: 'checking', label: 'Checking Account', icon: <AccountBalanceIcon />, color: '#1976d2' },
+    { value: 'savings', label: 'Savings Account', icon: <SavingsIcon />, color: '#2e7d32' },
+    { value: 'investment', label: 'Investment Account', icon: <TrendingUpIcon />, color: '#7b1fa2' },
+    { value: 'other', label: 'Other', icon: <ReceiptIcon />, color: '#ed6c02' }
+  ];
 
-  // Add state for collapsible sections
-  const [accountsOpen, setAccountsOpen] = useState(true);
-  const [debtsOpen, setDebtsOpen] = useState(true);
-  const [paidOffOpen, setPaidOffOpen] = useState(false);
+  const debtTypes = [
+    { value: 'credit-card', label: 'Credit Card', icon: <CreditCardIcon />, color: '#d32f2f' },
+    { value: 'personal-loan', label: 'Personal Loan', icon: <PersonalVideoIcon />, color: '#f57c00' },
+    { value: 'student-loan', label: 'Student Loan', icon: <SchoolIcon />, color: '#1976d2' },
+    { value: 'auto-loan', label: 'Auto Loan', icon: <CarIcon />, color: '#388e3c' },
+    { value: 'mortgage', label: 'Mortgage', icon: <HomeIcon />, color: '#7b1fa2' },
+    { value: 'other', label: 'Other', icon: <ReceiptIcon />, color: '#616161' }
+  ];
 
-  // Filter accounts and debts into active and paid-off
-  const activeAccounts = accounts.filter(account => account.balance > 0);
-  const closedAccounts = accounts.filter(account => account.balance === 0);
-  const activeDebts = debts.filter(debt => debt.balance > 0);
-  const paidOffDebts = debts.filter(debt => debt.balance === 0);
-
-  // Load data on component mount
   useEffect(() => {
-    loadAccountsDebts();
+    fetchAccountsAndDebts();
   }, []);
 
-  // Populate form when editing
-  useEffect(() => {
-    if (editingAccount) {
-      setAccountForm({
-        name: editingAccount.name,
-        balance: editingAccount.balance.toString(),
-        accountType: editingAccount.accountType,
-        interestRate: editingAccount.interestRate.toString(),
-        effectiveDate: new Date().toISOString().split('T')[0]
-      });
-    }
-  }, [editingAccount]);
-
-  useEffect(() => {
-    if (editingDebt) {
-      setDebtForm({
-        name: editingDebt.name,
-        balance: editingDebt.balance.toString(),
-        debtType: editingDebt.debtType,
-        interestRate: editingDebt.interestRate.toString(),
-        effectiveDate: new Date().toISOString().split('T')[0]
-      });
-    }
-  }, [editingDebt]);
-
-  const loadAccountsDebts = async () => {
+  const fetchAccountsAndDebts = async () => {
     try {
       setLoading(true);
-      const data = await accountsDebtsService.getAccountsDebtsSummary();
-      
-      // Map backend data to frontend format
-      const mappedAccounts = (data.accounts || []).map(account => ({
-        id: account.id,
-        name: account.name,
-        accountType: account.account_type,
-        balance: parseFloat(account.balance),
-        interestRate: parseFloat(account.interest_rate)
-      }));
-      
-      const mappedDebts = (data.debts || []).map(debt => ({
-        id: debt.id,
-        name: debt.name,
-        debtType: debt.debt_type,
-        balance: parseFloat(debt.balance),
-        interestRate: parseFloat(debt.interest_rate)
-      }));
-      
-      setAccounts(mappedAccounts);
-      setDebts(mappedDebts);
+      const [accountsRes, debtsRes] = await Promise.all([
+        accountsDebtsService.getAccounts(),
+        accountsDebtsService.getDebts()
+      ]);
+      setAccounts(accountsRes || []);
+      setDebts(debtsRes || []);
     } catch (error) {
-      console.error('Error loading accounts and debts:', error);
+      console.error('Error fetching data:', error);
+      setSaveMessage('Error loading data. Please try again.');
+      setAccounts([]);
+      setDebts([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAccountTypeChange = (accountType, formType = 'account') => {
-    if (formType === 'restore') {
-      setRestoreAccountForm({
-        ...restoreAccountForm,
-        accountType,
-        interestRate: defaultAccountRates[accountType].toString()
-      });
-    } else {
-      setAccountForm({
-        ...accountForm,
-        accountType,
-        interestRate: defaultAccountRates[accountType].toString()
-      });
-    }
-  };
-
-  const handleDebtTypeChange = (debtType) => {
-    setDebtForm({
-      ...debtForm,
-      debtType,
-      interestRate: defaultDebtRates[debtType].toString()
-    });
-  };
-
   const handleAccountSubmit = async (e) => {
     e.preventDefault();
     try {
-      const accountData = {
-        name: accountForm.name,
-        account_type: accountForm.accountType,
-        balance: parseFloat(accountForm.balance) || 0,
-        interest_rate: parseFloat(accountForm.interestRate) || 0,
-        effective_date: accountForm.effectiveDate || new Date().toISOString().split('T')[0]
+      const data = {
+        ...accountForm,
+        balance: parseFloat(accountForm.balance),
+        interest_rate: parseFloat(accountForm.interestRate),
+        effective_date: accountForm.effectiveDate
       };
-      
-      console.log('Sending account data:', accountData);
-      await accountsDebtsService.createAccount(accountData);
-      
-      // Reset form and editing state
-      setAccountForm({ 
-        name: '', 
-        balance: '', 
-        accountType: 'checking',
-        interestRate: '0.01',
-        effectiveDate: new Date().toISOString().split('T')[0]
-      });
-      setShowAccountForm(false);
-      setShowRestoreAccount(false);
-      setEditingAccount(null);
-      
-      // Reload data
-      await loadAccountsDebts();
-      
-      setSaveMessage(editingAccount ? 'Account updated successfully!' : 'Account added successfully!');
-      setTimeout(() => setSaveMessage(''), 3000);
-    } catch (error) {
-      console.error('Error adding account:', error);
-      console.error('Error response:', error.response?.data);
-      setSaveMessage('Error adding account. Please try again.');
-      setTimeout(() => setSaveMessage(''), 3000);
-    }
-  };
 
-  const handleRestoreAccount = async (e) => {
-    e.preventDefault();
-    try {
-      const accountData = {
-        name: restoreAccountForm.name,
-        account_type: restoreAccountForm.accountType,
-        balance: parseFloat(restoreAccountForm.balance) || 0,
-        interest_rate: parseFloat(restoreAccountForm.interestRate) || 0,
-        effective_date: restoreAccountForm.effectiveDate || new Date().toISOString().split('T')[0]
-      };
-      
-      console.log('Restoring account data:', accountData);
-      await accountsDebtsService.createAccount(accountData);
-      
-      // Reset form and editing state
-      setRestoreAccountForm({ 
-        name: '', 
-        balance: '', 
-        accountType: 'checking',
-        interestRate: '0.01',
-        effectiveDate: new Date().toISOString().split('T')[0]
-      });
-      setShowAccountForm(false);
-      setShowRestoreAccount(false);
-      
-      // Reload data
-      await loadAccountsDebts();
-      
-      setSaveMessage('Account restored successfully!');
+      if (editingAccount) {
+        await accountsDebtsService.updateAccount(editingAccount.id, data);
+        setSaveMessage('Account updated successfully!');
+      } else {
+        await accountsDebtsService.createAccount(data);
+        setSaveMessage('Account added successfully!');
+      }
+
+      setAccountDialogOpen(false);
+      setEditingAccount(null);
+      resetAccountForm();
+      fetchAccountsAndDebts();
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
-      console.error('Error restoring account:', error);
-      console.error('Error response:', error.response?.data);
-      setSaveMessage('Error restoring account. Please try again.');
-      setTimeout(() => setSaveMessage(''), 3000);
+      console.error('Error saving account:', error);
+      setSaveMessage('Error saving account. Please try again.');
     }
   };
 
   const handleDebtSubmit = async (e) => {
     e.preventDefault();
     try {
-      const debtData = {
-        name: debtForm.name,
-        debt_type: debtForm.debtType,
-        balance: parseFloat(debtForm.balance) || 0,
-        interest_rate: parseFloat(debtForm.interestRate) || 0,
-        effective_date: debtForm.effectiveDate || new Date().toISOString().split('T')[0]
+      const data = {
+        ...debtForm,
+        balance: parseFloat(debtForm.balance),
+        interest_rate: parseFloat(debtForm.interestRate),
+        effective_date: debtForm.effectiveDate
       };
-      
-      console.log('Sending debt data:', debtData);
-      await accountsDebtsService.createDebt(debtData);
-      
-      // Reset form and editing state
-      setDebtForm({ 
-        name: '', 
-        balance: '', 
-        debtType: 'credit-card',
-        interestRate: '24.99',
-        effectiveDate: new Date().toISOString().split('T')[0]
-      });
-      setShowDebtForm(false);
+
+      if (editingDebt) {
+        await accountsDebtsService.updateDebt(editingDebt.id, data);
+        setSaveMessage('Debt updated successfully!');
+      } else {
+        await accountsDebtsService.createDebt(data);
+        setSaveMessage('Debt added successfully!');
+      }
+
+      setDebtDialogOpen(false);
       setEditingDebt(null);
-      
-      // Reload data
-      await loadAccountsDebts();
-      
-      setSaveMessage(editingDebt ? 'Debt updated successfully!' : 'Debt added successfully!');
+      resetDebtForm();
+      fetchAccountsAndDebts();
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
-      console.error('Error adding debt:', error);
-      console.error('Error response:', error.response?.data);
-      setSaveMessage('Error adding debt. Please try again.');
-      setTimeout(() => setSaveMessage(''), 3000);
+      console.error('Error saving debt:', error);
+      setSaveMessage('Error saving debt. Please try again.');
     }
   };
 
-  const deleteAccount = async (id) => {
-    try {
-      await accountsDebtsService.deleteAccount(id);
-      await loadAccountsDebts();
-      setSaveMessage('Account deleted successfully!');
-      setTimeout(() => setSaveMessage(''), 3000);
-    } catch (error) {
-      console.error('Error deleting account:', error);
-      setSaveMessage('Error deleting account. Please try again.');
-      setTimeout(() => setSaveMessage(''), 3000);
+  const handleDeleteAccount = (account) => {
+    setAccountToDelete(account);
+    setDeleteAccountDialogOpen(true);
+  };
+
+  const confirmDeleteAccount = async () => {
+    if (accountToDelete) {
+      try {
+        await accountsDebtsService.deleteAccount(accountToDelete.id);
+        setSaveMessage('Account deleted successfully!');
+        fetchAccountsAndDebts();
+        setTimeout(() => setSaveMessage(''), 3000);
+      } catch (error) {
+        console.error('Error deleting account:', error);
+        setSaveMessage('Error deleting account. Please try again.');
+      }
     }
+    setDeleteAccountDialogOpen(false);
+    setAccountToDelete(null);
   };
 
-  const deleteDebt = async (id) => {
-    try {
-      await accountsDebtsService.deleteDebt(id);
-      await loadAccountsDebts();
-      setSaveMessage('Debt deleted successfully!');
-      setTimeout(() => setSaveMessage(''), 3000);
-    } catch (error) {
-      console.error('Error deleting debt:', error);
-      setSaveMessage('Error deleting debt. Please try again.');
-      setTimeout(() => setSaveMessage(''), 3000);
+  const cancelDeleteAccount = () => {
+    setDeleteAccountDialogOpen(false);
+    setAccountToDelete(null);
+  };
+
+  const handleDeleteDebt = (debt) => {
+    setDebtToDelete(debt);
+    setDeleteDebtDialogOpen(true);
+  };
+
+  const confirmDeleteDebt = async () => {
+    if (debtToDelete) {
+      try {
+        await accountsDebtsService.deleteDebt(debtToDelete.id);
+        setSaveMessage('Debt deleted successfully!');
+        fetchAccountsAndDebts();
+        setTimeout(() => setSaveMessage(''), 3000);
+      } catch (error) {
+        console.error('Error deleting debt:', error);
+        setSaveMessage('Error deleting debt. Please try again.');
+      }
     }
+    setDeleteDebtDialogOpen(false);
+    setDebtToDelete(null);
   };
 
-  const viewHistory = async (type, name) => {
-    try {
-      setHistoryType(type);
-      setHistoryName(name);
-      
-      // Fetch history from backend
-      const response = await accountsDebtsService.getHistory(type, name);
-      setHistoryData(response);
-      setShowHistory(true);
-    } catch (error) {
-      console.error('Error fetching history:', error);
-      setSaveMessage('Error loading history. Please try again.');
-      setTimeout(() => setSaveMessage(''), 3000);
+  const cancelDeleteDebt = () => {
+    setDeleteDebtDialogOpen(false);
+    setDebtToDelete(null);
+  };
+
+  const resetAccountForm = () => {
+    setAccountForm({
+      name: '',
+      balance: '',
+      accountType: 'checking',
+      interestRate: '0.01',
+      effectiveDate: new Date().toISOString().split('T')[0]
+    });
+  };
+
+  const resetDebtForm = () => {
+    setDebtForm({
+      name: '',
+      balance: '',
+      debtType: 'credit-card',
+      interestRate: '24.99',
+      effectiveDate: new Date().toISOString().split('T')[0]
+    });
+  };
+
+  const openAccountDialog = (account = null) => {
+    if (account) {
+      setEditingAccount(account);
+      setAccountForm({
+        name: account.name,
+        balance: account.balance.toString(),
+        accountType: account.account_type,
+        interestRate: account.interest_rate.toString(),
+        effectiveDate: account.effective_date
+      });
+    } else {
+      setEditingAccount(null);
+      resetAccountForm();
     }
+    setAccountDialogOpen(true);
   };
 
-  const closeHistory = () => {
-    setShowHistory(false);
-    setHistoryData([]);
-    setHistoryType('');
-    setHistoryName('');
+  const openDebtDialog = (debt = null) => {
+    if (debt) {
+      setEditingDebt(debt);
+      setDebtForm({
+        name: debt.name,
+        balance: debt.balance.toString(),
+        debtType: debt.debt_type,
+        interestRate: debt.interest_rate.toString(),
+        effectiveDate: debt.effective_date
+      });
+    } else {
+      setEditingDebt(null);
+      resetDebtForm();
+    }
+    setDebtDialogOpen(true);
   };
 
-  const totalAccountBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
-  const totalDebtBalance = debts.reduce((sum, debt) => sum + debt.balance, 0);
+  const getTypeIcon = (type, isDebt = false) => {
+    const types = isDebt ? debtTypes : accountTypes;
+    const typeInfo = types.find(t => t.value === type);
+    return typeInfo ? typeInfo.icon : <ReceiptIcon />;
+  };
+
+  const getTypeColor = (type, isDebt = false) => {
+    const types = isDebt ? debtTypes : accountTypes;
+    const typeInfo = types.find(t => t.value === type);
+    return typeInfo ? typeInfo.color : '#616161';
+  };
+
+  const getTypeLabel = (type, isDebt = false) => {
+    const types = isDebt ? debtTypes : accountTypes;
+    const typeInfo = types.find(t => t.value === type);
+    return typeInfo ? typeInfo.label : type;
+  };
+
+  const totalAccountBalance = accounts?.reduce((sum, account) => sum + parseFloat(account.balance || 0), 0) || 0;
+  const totalDebtBalance = debts?.reduce((sum, debt) => sum + parseFloat(debt.balance || 0), 0) || 0;
+  const netWorth = totalAccountBalance - totalDebtBalance;
 
   if (loading) {
     return (
-      <div className="accounts-and-debts">
-        <div className="accounts-and-debts-content">
-          <div className="loading-message">Loading accounts and debts...</div>
-        </div>
-      </div>
+      <Box sx={{ p: 3 }}>
+        <Card>
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Typography variant="h6" gutterBottom>
+              Loading accounts and debts...
+            </Typography>
+            <LinearProgress sx={{ mt: 2 }} />
+          </Box>
+        </Card>
+      </Box>
     );
   }
 
   return (
-    <div className="accounts-and-debts">
-      <div className="accounts-and-debts-content">
-        <div className="page-header">
-          <h1>Accounts and Debts</h1>
-          {saveMessage && (
-            <span className={`save-message ${saveMessage.includes('Error') ? 'error' : 'success'}`}>
-              {saveMessage}
-            </span>
-          )}
-        </div>
-        
-        <p className="welcome-message">
-          Manage your financial accounts and track your debt progress. Add your accounts, 
-          monitor balances, and track your debt payoff journey.
-        </p>
-        
-        <div className="summary-cards">
-          <div className="summary-card">
-            <h3>Total Account Balance</h3>
-            <p className="balance-amount positive">${totalAccountBalance.toLocaleString()}</p>
-          </div>
-          <div className="summary-card">
-            <h3>Total Debt Balance</h3>
-            <p className="balance-amount negative">${totalDebtBalance.toLocaleString()}</p>
-          </div>
-          <div className="summary-card">
-            <h3>Net Worth</h3>
-            <p className={`balance-amount ${totalAccountBalance - totalDebtBalance >= 0 ? 'positive' : 'negative'}`}>
-              ${(totalAccountBalance - totalDebtBalance).toLocaleString()}
-            </p>
-          </div>
-        </div>
-        
-        <div className="accounts-section">
-          <div className="section-header" style={{cursor: 'pointer'}} onClick={() => setAccountsOpen(!accountsOpen)}>
-            <h2>Your Accounts</h2>
-            <div style={{display: 'flex', gap: '0.5rem'}}>
-              <button 
-                className="add-button"
-                onClick={e => { e.stopPropagation(); setShowAccountForm(!showAccountForm); setShowRestoreAccount(false); }}
-              >
-                {showAccountForm ? 'Cancel' : 'Add Account'}
-              </button>
-              {closedAccounts.length > 0 && (
-                <button 
-                  className="add-button"
-                  onClick={e => { e.stopPropagation(); setShowRestoreAccount(!showRestoreAccount); setShowAccountForm(false); }}
-                >
-                  {showRestoreAccount ? 'Cancel' : 'Restore Account'}
-                </button>
-              )}
-            </div>
-            <span style={{marginLeft: '1rem'}}>{accountsOpen ? '▼' : '►'}</span>
-          </div>
-                      {accountsOpen && (
-              <>
-              {showAccountForm && (
-                <form className="form-card" onSubmit={handleAccountSubmit}>
-                  <h3>{editingAccount ? 'Edit Account' : 'Add New Account'}</h3>
-                  <div className="form-group">
-                    <label>Account Name:</label>
-                    <input
-                      type="text"
-                      value={accountForm.name}
-                      onChange={(e) => setAccountForm({...accountForm, name: e.target.value})}
-                      placeholder="e.g., Chase Checking"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Account Type:</label>
-                    <select
-                      value={accountForm.accountType}
-                      onChange={(e) => handleAccountTypeChange(e.target.value)}
-                    >
-                      <option value="checking">Checking</option>
-                      <option value="savings">Savings</option>
-                      <option value="investment">Investment</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Current Balance:</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={accountForm.balance}
-                      onChange={(e) => setAccountForm({...accountForm, balance: e.target.value})}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Interest Rate (%):</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={accountForm.interestRate}
-                      onChange={(e) => setAccountForm({...accountForm, interestRate: e.target.value})}
-                      placeholder="0.00"
-                      required
-                    />
-                    <small className="form-hint">
-                      Suggested: {defaultAccountRates[accountForm.accountType]}% for {accountForm.accountType} accounts
-                    </small>
-                  </div>
-                  <div className="form-group">
-                    <label>Effective Date:</label>
-                    <input
-                      type="date"
-                      value={accountForm.effectiveDate}
-                      onChange={(e) => setAccountForm({...accountForm, effectiveDate: e.target.value})}
-                      required
-                    />
-                    <small className="form-hint">
-                      Date this balance is effective for (defaults to today)
-                    </small>
-                  </div>
-                  <div className="form-actions">
-                    <button type="submit" className="submit-button">
-                      {editingAccount ? 'Update Account' : 'Add Account'}
-                    </button>
-                    <button 
-                      type="button" 
-                      className="cancel-button"
-                      onClick={() => {
-                        setShowAccountForm(false);
-                        setEditingAccount(null);
-                        setAccountForm({
-                          name: '',
-                          balance: '',
-                          accountType: 'checking',
-                          interestRate: '0.01',
-                          effectiveDate: new Date().toISOString().split('T')[0]
-                        });
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
-              
-              {showRestoreAccount && (
-                <form className="form-card" onSubmit={handleRestoreAccount}>
-                  <h3>Restore Closed Account</h3>
-                  <div className="form-group">
-                    <label>Select Account to Restore:</label>
-                    <select
-                      value={restoreAccountForm.name}
-                      onChange={(e) => {
-                        const selectedAccount = closedAccounts.find(acc => acc.name === e.target.value);
-                        if (selectedAccount) {
-                          setRestoreAccountForm({
-                            name: selectedAccount.name,
-                            balance: '',
-                            accountType: selectedAccount.accountType,
-                            interestRate: selectedAccount.interestRate.toString(),
-                            effectiveDate: new Date().toISOString().split('T')[0]
-                          });
-                        }
-                      }}
-                      required
-                    >
-                      <option value="">Select a closed account...</option>
-                      {closedAccounts.map(account => (
-                        <option key={account.id} value={account.name}>
-                          {account.name} ({account.accountType})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>New Balance:</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={restoreAccountForm.balance}
-                      onChange={(e) => setRestoreAccountForm({...restoreAccountForm, balance: e.target.value})}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Account Type:</label>
-                    <select
-                      value={restoreAccountForm.accountType}
-                      onChange={(e) => handleAccountTypeChange(e.target.value, 'restore')}
-                    >
-                      <option value="checking">Checking</option>
-                      <option value="savings">Savings</option>
-                      <option value="investment">Investment</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Interest Rate (%):</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={restoreAccountForm.interestRate}
-                      onChange={(e) => setRestoreAccountForm({...restoreAccountForm, interestRate: e.target.value})}
-                      placeholder="0.00"
-                      required
-                    />
-                    <small className="form-hint">
-                      Suggested: {defaultAccountRates[restoreAccountForm.accountType]}% for {restoreAccountForm.accountType} accounts
-                    </small>
-                  </div>
-                  <div className="form-group">
-                    <label>Effective Date:</label>
-                    <input
-                      type="date"
-                      value={restoreAccountForm.effectiveDate}
-                      onChange={(e) => setRestoreAccountForm({...restoreAccountForm, effectiveDate: e.target.value})}
-                      required
-                    />
-                    <small className="form-hint">
-                      Date this balance is effective for (defaults to today)
-                    </small>
-                  </div>
-                  <div className="form-actions">
-                    <button type="submit" className="submit-button">
-                      Restore Account
-                    </button>
-                    <button 
-                      type="button" 
-                      className="cancel-button"
-                      onClick={() => {
-                        setShowRestoreAccount(false);
-                        setRestoreAccountForm({
-                          name: '',
-                          balance: '',
-                          accountType: 'checking',
-                          interestRate: '0.01',
-                          effectiveDate: new Date().toISOString().split('T')[0]
-                        });
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              )}
-            {activeAccounts.length === 0 ? (
-              <div className="empty-state">
-                <p>No accounts added yet. Click "Add Account" to get started.</p>
-              </div>
-            ) : (
-              <div className="items-list">
-                {activeAccounts.map(account => (
-                  <div key={account.id} className="item-card">
-                    <div className="item-info">
-                      <h4>{account.name}</h4>
-                      <p className="item-type">{account.accountType}</p>
-                      <p className="item-balance positive">${account.balance.toLocaleString()}</p>
-                      <p className="item-details">
-                        {account.interestRate}% APY
-                      </p>
-                    </div>
-                    <div className="item-actions">
-                      <button 
-                        className="edit-button"
-                        onClick={() => {
-                          setEditingAccount(account);
-                          setShowAccountForm(true);
-                        }}
-                      >
-                        Update
-                      </button>
-                      <button 
-                        className="history-button"
-                        onClick={() => viewHistory('account', account.name)}
-                      >
-                        View History
-                      </button>
-                      <button 
-                        className="delete-button"
-                        onClick={() => deleteAccount(account.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            </>
-          )}
-        </div>
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
+        Accounts and Debts
+      </Typography>
 
-        <div className="debts-section">
-          <div className="section-header" style={{cursor: 'pointer'}} onClick={() => setDebtsOpen(!debtsOpen)}>
-            <h2>Your Debts</h2>
-            <button 
-              className="add-button"
-              onClick={e => { e.stopPropagation(); setShowDebtForm(!showDebtForm); }}
-            >
-              {showDebtForm ? 'Cancel' : 'Add Debt'}
-            </button>
-            <span style={{marginLeft: '1rem'}}>{debtsOpen ? '▼' : '►'}</span>
-          </div>
-          {debtsOpen && (
-            <>
-            {showDebtForm && (
-              <form className="form-card" onSubmit={handleDebtSubmit}>
-                <h3>{editingDebt ? 'Edit Debt' : 'Add New Debt'}</h3>
-                <div className="form-group">
-                  <label>Debt Name:</label>
-                  <input
-                    type="text"
-                    value={debtForm.name}
-                    onChange={(e) => setDebtForm({...debtForm, name: e.target.value})}
-                    placeholder="e.g., Chase Credit Card"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Debt Type:</label>
-                  <select
-                    value={debtForm.debtType}
-                    onChange={(e) => handleDebtTypeChange(e.target.value)}
-                  >
-                    <option value="credit-card">Credit Card</option>
-                    <option value="personal-loan">Personal Loan</option>
-                    <option value="student-loan">Student Loan</option>
-                    <option value="auto-loan">Auto Loan</option>
-                    <option value="mortgage">Mortgage</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Current Balance:</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={debtForm.balance}
-                    onChange={(e) => setDebtForm({...debtForm, balance: e.target.value})}
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Interest Rate (%):</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={debtForm.interestRate}
-                    onChange={(e) => setDebtForm({...debtForm, interestRate: e.target.value})}
-                    placeholder="0.00"
-                    required
-                  />
-                  <small className="form-hint">
-                    Suggested: {defaultDebtRates[debtForm.debtType]}% for {debtForm.debtType.replace('-', ' ')}s
-                  </small>
-                </div>
-                <div className="form-group">
-                  <label>Effective Date:</label>
-                  <input
-                    type="date"
-                    value={debtForm.effectiveDate}
-                    onChange={(e) => setDebtForm({...debtForm, effectiveDate: e.target.value})}
-                    required
-                  />
-                  <small className="form-hint">
-                    Date this balance is effective for (defaults to today)
-                  </small>
-                </div>
-                <div className="form-actions">
-                  <button type="submit" className="submit-button">
-                    {editingDebt ? 'Update Debt' : 'Add Debt'}
-                  </button>
-                  <button 
-                    type="button" 
-                    className="cancel-button"
-                    onClick={() => {
-                      setShowDebtForm(false);
-                      setEditingDebt(null);
-                      setDebtForm({
-                        name: '',
-                        balance: '',
-                        debtType: 'credit-card',
-                        interestRate: '24.99',
-                        effectiveDate: new Date().toISOString().split('T')[0]
-                      });
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
-            {activeDebts.length === 0 ? (
-              <div className="empty-state">
-                <p>No debts added yet. Click "Add Debt" to get started.</p>
-              </div>
-            ) : (
-              <div className="items-list">
-                {activeDebts.map(debt => (
-                  <div key={debt.id} className="item-card">
-                    <div className="item-info">
-                      <h4>{debt.name}</h4>
-                      <p className="item-type">{debt.debtType.replace('-', ' ')}</p>
-                      <p className="item-balance negative">${debt.balance.toLocaleString()}</p>
-                      <p className="item-details">
-                        {debt.interestRate}% APR
-                      </p>
-                    </div>
-                    <div className="item-actions">
-                      <button 
-                        className="edit-button"
-                        onClick={() => {
-                          setEditingDebt(debt);
-                          setShowDebtForm(true);
-                        }}
-                      >
-                        Update
-                      </button>
-                      <button 
-                        className="history-button"
-                        onClick={() => viewHistory('debt', debt.name)}
-                      >
-                        View History
-                      </button>
-                      <button 
-                        className="delete-button"
-                        onClick={() => deleteDebt(debt.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            </>
-          )}
-        </div>
-
-        {/* Paid Off Debts Section */}
-        <div className="debts-section">
-          <div className="section-header" style={{cursor: 'pointer'}} onClick={() => setPaidOffOpen(!paidOffOpen)}>
-            <h2>Paid Off Debts</h2>
-            <span style={{marginLeft: '1rem'}}>{paidOffOpen ? '▼' : '►'}</span>
-          </div>
-          {paidOffOpen && (
-            paidOffDebts.length === 0 ? (
-              <div className="empty-state">
-                <p>No debts have been paid off yet.</p>
-              </div>
-            ) : (
-              <div className="items-list">
-                {paidOffDebts.map(debt => (
-                  <div key={debt.id} className="item-card">
-                    <div className="item-info">
-                      <h4>{debt.name}</h4>
-                      <p className="item-type">{debt.debtType.replace('-', ' ')}</p>
-                      <p className="item-balance positive">$0.00</p>
-                      <p className="item-details">
-                        {debt.interestRate}% APR
-                      </p>
-                    </div>
-                    <div className="item-actions">
-                      <button 
-                        className="history-button"
-                        onClick={() => viewHistory('debt', debt.name)}
-                      >
-                        View History
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          )}
-        </div>
-      </div>
-
-      {/* History Modal */}
-      {showHistory && (
-        <div className="history-modal-overlay" onClick={closeHistory}>
-          <div className="history-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="history-modal-header">
-              <h3>{historyType === 'account' ? 'Account' : 'Debt'} History: {historyName}</h3>
-              <button className="close-button" onClick={closeHistory}>×</button>
-            </div>
-            <div className="history-modal-content">
-              {historyData.length === 0 ? (
-                <p>No history found for this {historyType}.</p>
-              ) : (
-                <div className="history-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Effective Date</th>
-                        <th>Balance</th>
-                        <th>Interest Rate</th>
-                        <th>Updated At</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {historyData.map((item, index) => (
-                        <tr key={index}>
-                          <td>{new Date(item.effective_date).toLocaleDateString()}</td>
-                          <td className={historyType === 'account' ? 'positive' : 'negative'}>
-                            ${parseFloat(item.balance).toLocaleString()}
-                          </td>
-                          <td>{item.interest_rate}%</td>
-                          <td>{new Date(item.created_at).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {saveMessage && (
+        <Alert 
+          severity={saveMessage.includes('Error') ? 'error' : 'success'} 
+          sx={{ mb: 3 }}
+          onClose={() => setSaveMessage('')}
+        >
+          {saveMessage}
+        </Alert>
       )}
-    </div>
+
+      <Typography variant="body1" paragraph sx={{ mb: 3, color: 'text.secondary' }}>
+        Manage your financial accounts and track your debt progress. Add your accounts, 
+        monitor balances, and track your debt payoff journey.
+      </Typography>
+
+      {/* Summary Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ textAlign: 'center', p: 3 }}>
+            <Avatar sx={{ 
+              bgcolor: alpha('#2e7d32', 0.1), 
+              color: '#2e7d32',
+              width: 60, 
+              height: 60, 
+              mx: 'auto', 
+              mb: 2 
+            }}>
+              <AccountBalanceIcon sx={{ fontSize: 30 }} />
+            </Avatar>
+            <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
+              ${totalAccountBalance.toLocaleString()}
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              Total Assets
+            </Typography>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ textAlign: 'center', p: 3 }}>
+            <Avatar sx={{ 
+              bgcolor: alpha('#d32f2f', 0.1), 
+              color: '#d32f2f',
+              width: 60, 
+              height: 60, 
+              mx: 'auto', 
+              mb: 2 
+            }}>
+              <CreditCardIcon sx={{ fontSize: 30 }} />
+            </Avatar>
+            <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#d32f2f' }}>
+              ${totalDebtBalance.toLocaleString()}
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              Total Debts
+            </Typography>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ textAlign: 'center', p: 3 }}>
+            <Avatar sx={{ 
+              bgcolor: alpha(netWorth >= 0 ? '#2e7d32' : '#d32f2f', 0.1), 
+              color: netWorth >= 0 ? '#2e7d32' : '#d32f2f',
+              width: 60, 
+              height: 60, 
+              mx: 'auto', 
+              mb: 2 
+            }}>
+              {netWorth >= 0 ? <CheckCircleIcon sx={{ fontSize: 30 }} /> : <WarningIcon sx={{ fontSize: 30 }} />}
+            </Avatar>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 'bold', 
+              color: netWorth >= 0 ? '#2e7d32' : '#d32f2f' 
+            }}>
+              ${netWorth.toLocaleString()}
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              Net Worth
+            </Typography>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Tabs */}
+      <Card>
+        <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
+          <Tab label={`Accounts (${accounts?.length || 0})`} />
+          <Tab label={`Debts (${debts?.length || 0})`} />
+        </Tabs>
+
+        <TabPanel value={tabValue} index={0}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5" fontWeight="bold">
+              Your Accounts
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => openAccountDialog()}
+            >
+              Add Account
+            </Button>
+          </Box>
+
+          {(accounts || []).length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No accounts added yet
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Add your first account to get started tracking your finances.
+              </Typography>
+            </Box>
+          ) : (
+            <List>
+              {(accounts || []).map((account) => (
+                <ListItem key={account.id} divider>
+                  <ListItemAvatar>
+                    <Avatar sx={{ 
+                      bgcolor: alpha(getTypeColor(account.account_type), 0.1),
+                      color: getTypeColor(account.account_type)
+                    }}>
+                      {getTypeIcon(account.account_type)}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {account.name}
+                        </Typography>
+                        <Chip 
+                          label={getTypeLabel(account.account_type)}
+                          size="small"
+                          sx={{ 
+                            bgcolor: alpha(getTypeColor(account.account_type), 0.1),
+                            color: getTypeColor(account.account_type)
+                          }}
+                        />
+                      </Box>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="h6" sx={{ color: '#2e7d32', fontWeight: 'bold' }}>
+                          ${account.balance.toLocaleString()}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {account.interest_rate}% interest rate
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton onClick={() => openAccountDialog(account)}>
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton onClick={() => handleDeleteAccount(account)}>
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={1}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5" fontWeight="bold">
+              Your Debts
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => openDebtDialog()}
+            >
+              Add Debt
+            </Button>
+          </Box>
+
+          {(debts || []).length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No debts added yet
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Add your debts to track your payoff progress.
+              </Typography>
+            </Box>
+          ) : (
+            <List>
+              {(debts || []).map((debt) => (
+                <ListItem key={debt.id} divider>
+                  <ListItemAvatar>
+                    <Avatar sx={{ 
+                      bgcolor: alpha(getTypeColor(debt.debt_type, true), 0.1),
+                      color: getTypeColor(debt.debt_type, true)
+                    }}>
+                      {getTypeIcon(debt.debt_type, true)}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="subtitle1" fontWeight="bold">
+                          {debt.name}
+                        </Typography>
+                        <Chip 
+                          label={getTypeLabel(debt.debt_type, true)}
+                          size="small"
+                          sx={{ 
+                            bgcolor: alpha(getTypeColor(debt.debt_type, true), 0.1),
+                            color: getTypeColor(debt.debt_type, true)
+                          }}
+                        />
+                      </Box>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="h6" sx={{ color: '#d32f2f', fontWeight: 'bold' }}>
+                          ${debt.balance.toLocaleString()}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {debt.interest_rate}% interest rate
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton onClick={() => openDebtDialog(debt)}>
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton onClick={() => handleDeleteDebt(debt)}>
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </TabPanel>
+      </Card>
+
+      {/* Account Dialog */}
+      <Dialog open={accountDialogOpen} onClose={() => setAccountDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {editingAccount ? 'Edit Account' : 'Add New Account'}
+        </DialogTitle>
+        <form onSubmit={handleAccountSubmit}>
+          <DialogContent>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Account Name"
+                  value={accountForm.name}
+                  onChange={(e) => setAccountForm({...accountForm, name: e.target.value})}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Account Type"
+                  value={accountForm.accountType}
+                  onChange={(e) => {
+                    const newType = e.target.value;
+                    setAccountForm({
+                      ...accountForm, 
+                      accountType: newType,
+                      interestRate: defaultAccountRates[newType].toString()
+                    });
+                  }}
+                >
+                  {accountTypes.map((type) => (
+                    <MenuItem key={type.value} value={type.value}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {type.icon}
+                        {type.label}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Balance"
+                  value={accountForm.balance}
+                  onChange={(e) => setAccountForm({...accountForm, balance: e.target.value})}
+                  required
+                  InputProps={{
+                    startAdornment: <Typography>$</Typography>
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Interest Rate (%)"
+                  value={accountForm.interestRate}
+                  onChange={(e) => setAccountForm({...accountForm, interestRate: e.target.value})}
+                  required
+                  inputProps={{ step: 0.01 }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Effective Date"
+                  value={accountForm.effectiveDate}
+                  onChange={(e) => setAccountForm({...accountForm, effectiveDate: e.target.value})}
+                  InputLabelProps={{ shrink: true }}
+                  required
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAccountDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained">
+              {editingAccount ? 'Update' : 'Add'} Account
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Debt Dialog */}
+      <Dialog open={debtDialogOpen} onClose={() => setDebtDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {editingDebt ? 'Edit Debt' : 'Add New Debt'}
+        </DialogTitle>
+        <form onSubmit={handleDebtSubmit}>
+          <DialogContent>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Debt Name"
+                  value={debtForm.name}
+                  onChange={(e) => setDebtForm({...debtForm, name: e.target.value})}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Debt Type"
+                  value={debtForm.debtType}
+                  onChange={(e) => {
+                    const newType = e.target.value;
+                    setDebtForm({
+                      ...debtForm, 
+                      debtType: newType,
+                      interestRate: defaultDebtRates[newType].toString()
+                    });
+                  }}
+                >
+                  {debtTypes.map((type) => (
+                    <MenuItem key={type.value} value={type.value}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {type.icon}
+                        {type.label}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Balance"
+                  value={debtForm.balance}
+                  onChange={(e) => setDebtForm({...debtForm, balance: e.target.value})}
+                  required
+                  InputProps={{
+                    startAdornment: <Typography>$</Typography>
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Interest Rate (%)"
+                  value={debtForm.interestRate}
+                  onChange={(e) => setDebtForm({...debtForm, interestRate: e.target.value})}
+                  required
+                  inputProps={{ step: 0.01 }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Effective Date"
+                  value={debtForm.effectiveDate}
+                  onChange={(e) => setDebtForm({...debtForm, effectiveDate: e.target.value})}
+                  InputLabelProps={{ shrink: true }}
+                  required
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDebtDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained">
+              {editingDebt ? 'Update' : 'Add'} Debt
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Delete Account Confirmation Dialog */}
+      <Dialog
+        open={deleteAccountDialogOpen}
+        onClose={cancelDeleteAccount}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1">
+            Are you sure you want to delete the account "{accountToDelete?.name}"? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelDeleteAccount} color="primary">
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmDeleteAccount} 
+            color="error" 
+            variant="contained" 
+            endIcon={<DeleteIcon />}
+          >
+            Delete Account
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Debt Confirmation Dialog */}
+      <Dialog
+        open={deleteDebtDialogOpen}
+        onClose={cancelDeleteDebt}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1">
+            Are you sure you want to delete the debt "{debtToDelete?.name}"? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelDeleteDebt} color="primary">
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmDeleteDebt} 
+            color="error" 
+            variant="contained" 
+            endIcon={<DeleteIcon />}
+          >
+            Delete Debt
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
 
-export default AccountsAndDebts; 
+export default AccountsAndDebts;

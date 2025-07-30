@@ -39,9 +39,7 @@ class Account(models.Model):
         return f"{self.user.username} - {self.name}"
 
     def save(self, *args, **kwargs):
-        # Always create a new record for each update (never overwrite)
-        if self.pk:
-            self.pk = None  # Force insert
+        # Update existing record instead of creating new one
         super().save(*args, **kwargs)
 
     @classmethod
@@ -164,9 +162,7 @@ class Debt(models.Model):
         return f"{self.user.username} - {self.name}"
 
     def save(self, *args, **kwargs):
-        # Always create a new record for each update (never overwrite)
-        if self.pk:
-            self.pk = None  # Force insert
+        # Update existing record instead of creating new one
         super().save(*args, **kwargs)
 
     @classmethod

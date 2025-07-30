@@ -1,84 +1,483 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import {
+  AppBar,
+  Toolbar,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  IconButton,
+  Typography,
+  Box,
+  Avatar,
+  Menu,
+  MenuItem,
+  Switch,
+  Divider,
+  Collapse,
+  Badge,
+  Tooltip,
+} from '@mui/material';
+import {
+  Menu as MenuIcon,
+  Dashboard as DashboardIcon,
+  AccountBalance as AccountBalanceIcon,
+  Receipt as ReceiptIcon,
+  TrendingUp as TrendingUpIcon,
+  Analytics as AnalyticsIcon,
+  CreditCard as CreditCardIcon,
+  Settings as SettingsIcon,
+  Logout as LogoutIcon,
+  Person as PersonIcon,
+  LightMode as LightModeIcon,
+  DarkMode as DarkModeIcon,
+  ExpandLess,
+  ExpandMore,
+  Notifications as NotificationsIcon,
+  Search as SearchIcon,
+  MonetizationOn as MonetizationOnIcon,
+  Assessment as AssessmentIcon,
+} from '@mui/icons-material';
+import { styled } from '@mui/material/styles';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import USAFlag from './USAFlag';
-import '../styles/Navigation.css';
+import { useTheme } from '../contexts/ThemeContext';
+
+const DRAWER_WIDTH = 280;
+const COLLAPSED_WIDTH = 72;
+
+const StyledDrawer = styled(Drawer)(({ theme, open }) => ({
+  width: open ? DRAWER_WIDTH : COLLAPSED_WIDTH,
+  flexShrink: 0,
+  whiteSpace: 'nowrap',
+  boxSizing: 'border-box',
+  '& .MuiDrawer-paper': {
+    width: open ? DRAWER_WIDTH : COLLAPSED_WIDTH,
+    transition: theme.transitions.create('width', {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+    overflowX: 'hidden',
+    background: theme.palette.mode === 'dark' 
+      ? 'linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%)'
+      : 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+    borderRight: `1px solid ${theme.palette.divider}`,
+    '&::-webkit-scrollbar': {
+      width: '6px',
+    },
+    '&::-webkit-scrollbar-track': {
+      background: 'transparent',
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: theme.palette.action.hover,
+      borderRadius: '3px',
+    },
+  },
+}));
+
+const StyledAppBar = styled(AppBar)(({ theme, open }) => ({
+  zIndex: theme.zIndex.drawer + 1,
+  background: theme.palette.mode === 'dark'
+    ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+    : 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+  boxShadow: theme.palette.mode === 'dark'
+    ? '0 2px 20px rgba(0,0,0,0.3)'
+    : '0 2px 20px rgba(25,118,210,0.15)',
+  backdropFilter: 'blur(10px)',
+  transition: theme.transitions.create(['margin', 'width'], {
+    easing: theme.transitions.easing.sharp,
+    duration: theme.transitions.duration.leavingScreen,
+  }),
+}));
+
+const LogoContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  padding: theme.spacing(2),
+  background: theme.palette.mode === 'dark'
+    ? 'linear-gradient(135deg, #2d2d2d 0%, #1e1e1e 100%)'
+    : 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  minHeight: 64,
+}));
+
+const ProfileSection = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(2),
+  background: theme.palette.mode === 'dark'
+    ? 'linear-gradient(135deg, #2d2d2d 0%, #1e1e1e 100%)'
+    : 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+  borderBottom: `1px solid ${theme.palette.divider}`,
+}));
+
+const NavSection = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(1, 0),
+}));
+
+const SectionTitle = styled(Typography)(({ theme }) => ({
+  padding: theme.spacing(2, 2, 1, 2),
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  color: theme.palette.text.secondary,
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
+}));
 
 function Navigation({ onNavigate }) {
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const { isDarkMode, toggleTheme } = useTheme();
   
-  const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
+  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [profileMenuAnchor, setProfileMenuAnchor] = useState(null);
+  const [analyticsExpanded, setAnalyticsExpanded] = useState(true);
+  const [accountsExpanded, setAccountsExpanded] = useState(true);
+
+  const handleDrawerToggle = () => {
+    setDrawerOpen(!drawerOpen);
   };
-  
+
+  const handleProfileMenuOpen = (event) => {
+    setProfileMenuAnchor(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setProfileMenuAnchor(null);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+    handleProfileMenuClose();
+  };
+
+  const handleNavigation = (path) => {
+    navigate(path);
+    if (onNavigate) onNavigate();
+  };
+
+  const mainMenuItems = [
+    { 
+      text: 'Dashboard', 
+      icon: <DashboardIcon />, 
+      path: '/dashboard',
+      color: '#1976d2'
+    },
+  ];
+
+  const accountMenuItems = [
+    { 
+      text: 'Accounts & Debts', 
+      icon: <AccountBalanceIcon />, 
+      path: '/accounts-and-debts',
+      color: '#2e7d32'
+    },
+    { 
+      text: 'Monthly Budget', 
+      icon: <ReceiptIcon />, 
+      path: '/monthly-budget',
+      color: '#ed6c02'
+    },
+    { 
+      text: 'Debt Planning', 
+      icon: <CreditCardIcon />, 
+      path: '/debt-planning',
+      color: '#d32f2f'
+    },
+  ];
+
+  const analyticsMenuItems = [
+    { 
+      text: 'Expense Analyzer', 
+      icon: <AnalyticsIcon />, 
+      path: '/expense-analyzer',
+      color: '#7b1fa2'
+    },
+    { 
+      text: 'Wealth Projector', 
+      icon: <TrendingUpIcon />, 
+      path: '/wealth-projector',
+      color: '#1565c0'
+    },
+  ];
+
+  const renderMenuItem = (item) => {
+    const isActive = location.pathname === item.path;
+    
+    return (
+      <ListItem key={item.path} disablePadding>
+        <ListItemButton
+          onClick={() => handleNavigation(item.path)}
+          sx={{
+            minHeight: 48,
+            justifyContent: drawerOpen ? 'initial' : 'center',
+            px: 2.5,
+            mx: 1,
+            my: 0.5,
+            borderRadius: 2,
+            background: isActive 
+              ? (theme) => theme.palette.mode === 'dark'
+                ? `linear-gradient(135deg, ${item.color}20 0%, ${item.color}10 100%)`
+                : `linear-gradient(135deg, ${item.color}15 0%, ${item.color}08 100%)`
+              : 'transparent',
+            borderLeft: isActive ? `4px solid ${item.color}` : '4px solid transparent',
+            '&:hover': {
+              background: (theme) => theme.palette.mode === 'dark'
+                ? `linear-gradient(135deg, ${item.color}15 0%, ${item.color}08 100%)`
+                : `linear-gradient(135deg, ${item.color}10 0%, ${item.color}05 100%)`,
+            },
+          }}
+        >
+          <ListItemIcon
+            sx={{
+              minWidth: 0,
+              mr: drawerOpen ? 3 : 'auto',
+              justifyContent: 'center',
+              color: isActive ? item.color : 'inherit',
+            }}
+          >
+            {item.icon}
+          </ListItemIcon>
+          <ListItemText 
+            primary={item.text} 
+            sx={{ 
+              opacity: drawerOpen ? 1 : 0,
+              '& .MuiTypography-root': {
+                fontWeight: isActive ? 600 : 400,
+                color: isActive ? item.color : 'inherit',
+              }
+            }} 
+          />
+        </ListItemButton>
+      </ListItem>
+    );
+  };
+
+  const renderCollapsibleSection = (title, items, expanded, onToggle) => (
+    <>
+      <ListItem disablePadding>
+        <ListItemButton
+          onClick={onToggle}
+          sx={{
+            minHeight: 48,
+            justifyContent: drawerOpen ? 'initial' : 'center',
+            px: 2.5,
+            mx: 1,
+            my: 0.5,
+            borderRadius: 2,
+          }}
+        >
+          <ListItemText 
+            primary={title}
+            sx={{ 
+              opacity: drawerOpen ? 1 : 0,
+              '& .MuiTypography-root': {
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                color: 'text.secondary',
+              }
+            }} 
+          />
+          {drawerOpen && (expanded ? <ExpandLess /> : <ExpandMore />)}
+        </ListItemButton>
+      </ListItem>
+      <Collapse in={expanded && drawerOpen} timeout="auto" unmountOnExit>
+        <List component="div" disablePadding sx={{ pl: drawerOpen ? 1 : 0 }}>
+          {items.map(renderMenuItem)}
+        </List>
+      </Collapse>
+      {!drawerOpen && items.map(renderMenuItem)}
+    </>
+  );
+
   return (
-    <nav className={`navigation ${isCollapsed ? 'collapsed' : ''}`}>
-      <button 
-        className={`nav-toggle ${isCollapsed ? 'collapsed' : ''}`}
-        onClick={toggleCollapse}
-        title={isCollapsed ? 'Expand Menu' : 'Collapse Menu'}
+    <Box sx={{ display: 'flex' }}>
+      <StyledAppBar position="fixed" open={drawerOpen}>
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            aria-label="toggle drawer"
+            onClick={handleDrawerToggle}
+            edge="start"
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
+          
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+            Financability
+          </Typography>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Tooltip title="Notifications">
+              <IconButton color="inherit" size="large">
+                <Badge badgeContent={3} color="error">
+                  <NotificationsIcon />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+            
+            <Tooltip title="Search">
+              <IconButton color="inherit" size="large">
+                <SearchIcon />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Profile">
+              <IconButton 
+                color="inherit" 
+                onClick={handleProfileMenuOpen}
+                size="large"
+              >
+                <Avatar 
+                  sx={{ 
+                    width: 32, 
+                    height: 32,
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  }}
+                >
+                  {user?.username?.charAt(0).toUpperCase() || 'U'}
+                </Avatar>
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Toolbar>
+      </StyledAppBar>
+
+      <StyledDrawer
+        variant="permanent"
+        open={drawerOpen}
       >
-        {isCollapsed ? '→' : '←'}
-      </button>
-      
-      <ul className="App-menu">
-        <li 
-          className={`App-menu-item ${location.pathname === '/dashboard' ? 'active' : ''}`}
-          data-tooltip="Dashboard"
-        >
-          <Link to="/dashboard" onClick={onNavigate}>
-            <span className="menu-icon">📊</span>
-            <span className="menu-text">Dashboard</span>
-          </Link>
-        </li>
-        <li 
-          className={`App-menu-item ${location.pathname === '/accounts-and-debts' ? 'active' : ''}`}
-          data-tooltip="Accounts and Debts"
-        >
-          <Link to="/accounts-and-debts" onClick={onNavigate}>
-            <span className="menu-icon">💰</span>
-            <span className="menu-text">Accounts and Debts</span>
-          </Link>
-        </li>
-        <li 
-          className={`App-menu-item ${location.pathname === '/monthly-budget' ? 'active' : ''}`}
-          data-tooltip="Monthly Budget"
-        >
-          <Link to="/monthly-budget" onClick={onNavigate}>
-            <span className="menu-icon">📋</span>
-            <span className="menu-text">Monthly Budget</span>
-          </Link>
-        </li>
-        <li 
-          className={`App-menu-item ${location.pathname === '/debt-planning' ? 'active' : ''}`}
-          data-tooltip="Debt Planning"
-        >
-          <Link to="/debt-planning" onClick={onNavigate}>
-            <span className="menu-icon">🎯</span>
-            <span className="menu-text">Debt Planning</span>
-          </Link>
-        </li>
-        <li 
-          className={`App-menu-item ${location.pathname === '/expense-analyzer' ? 'active' : ''}`}
-          data-tooltip="Expense Analyzer"
-        >
-          <Link to="/expense-analyzer" onClick={onNavigate}>
-            <span className="menu-icon">📈</span>
-            <span className="menu-text">Expense Analyzer</span>
-          </Link>
-        </li>
-        <li 
-          className={`App-menu-item ${location.pathname === '/wealth-projector' ? 'active' : ''}`}
-          data-tooltip="Wealth Projector"
-        >
-          <Link to="/wealth-projector" onClick={onNavigate}>
-            <span className="menu-icon">🚀</span>
-            <span className="menu-text">Wealth Projector</span>
-          </Link>
-        </li>
-      </ul>
-    </nav>
+        <Toolbar />
+        
+        <LogoContainer>
+          <MonetizationOnIcon sx={{ mr: drawerOpen ? 1 : 0, color: 'primary.main' }} />
+          {drawerOpen && (
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+              Financability
+            </Typography>
+          )}
+        </LogoContainer>
+
+        <ProfileSection>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar 
+              sx={{ 
+                width: 40, 
+                height: 40,
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              }}
+            >
+              {user?.username?.charAt(0).toUpperCase() || 'U'}
+            </Avatar>
+            {drawerOpen && (
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="subtitle2" noWrap>
+                  {user?.username || 'User'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" noWrap>
+                  {user?.email || 'user@example.com'}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </ProfileSection>
+
+        <List>
+          {/* Main Menu */}
+          <NavSection>
+            {mainMenuItems.map(renderMenuItem)}
+          </NavSection>
+
+          <Divider sx={{ mx: 2 }} />
+
+          {/* Accounts Section */}
+          <NavSection>
+            {renderCollapsibleSection('Accounts', accountMenuItems, accountsExpanded, () => setAccountsExpanded(!accountsExpanded))}
+          </NavSection>
+
+          <Divider sx={{ mx: 2 }} />
+
+          {/* Analytics Section */}
+          <NavSection>
+            {renderCollapsibleSection('Analytics', analyticsMenuItems, analyticsExpanded, () => setAnalyticsExpanded(!analyticsExpanded))}
+          </NavSection>
+        </List>
+
+        <Box sx={{ flexGrow: 1 }} />
+
+        {/* Theme Toggle */}
+        <Box sx={{ p: 2 }}>
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={toggleTheme}
+              sx={{
+                minHeight: 48,
+                justifyContent: drawerOpen ? 'initial' : 'center',
+                px: 2.5,
+                borderRadius: 2,
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  minWidth: 0,
+                  mr: drawerOpen ? 3 : 'auto',
+                  justifyContent: 'center',
+                }}
+              >
+                {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+              </ListItemIcon>
+              <ListItemText 
+                primary={isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                sx={{ opacity: drawerOpen ? 1 : 0 }} 
+              />
+            </ListItemButton>
+          </ListItem>
+        </Box>
+      </StyledDrawer>
+
+      <Menu
+        anchorEl={profileMenuAnchor}
+        open={Boolean(profileMenuAnchor)}
+        onClose={handleProfileMenuClose}
+        PaperProps={{
+          sx: {
+            mt: 1,
+            minWidth: 200,
+            background: (theme) => theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, #2d2d2d 0%, #1e1e1e 100%)'
+              : 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+            backdropFilter: 'blur(10px)',
+            border: (theme) => `1px solid ${theme.palette.divider}`,
+            boxShadow: (theme) => theme.palette.mode === 'dark'
+              ? '0 8px 32px rgba(0,0,0,0.3)'
+              : '0 8px 32px rgba(0,0,0,0.1)',
+          }
+        }}
+      >
+        <MenuItem onClick={handleProfileMenuClose}>
+          <ListItemIcon>
+            <PersonIcon />
+          </ListItemIcon>
+          <ListItemText>Profile</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleProfileMenuClose}>
+          <ListItemIcon>
+            <SettingsIcon />
+          </ListItemIcon>
+          <ListItemText>Settings</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleLogout}>
+          <ListItemIcon>
+            <LogoutIcon />
+          </ListItemIcon>
+          <ListItemText>Logout</ListItemText>
+        </MenuItem>
+      </Menu>
+    </Box>
   );
 }
 
