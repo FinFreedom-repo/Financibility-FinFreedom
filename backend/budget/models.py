@@ -25,10 +25,16 @@ class Budget(models.Model):
     additional_items = models.JSONField(default=list)
 
     # Savings stored as JSON
-    savings = models.JSONField(default=list)
+    savings_items = models.JSONField(default=list)
+
+    # Add month and year fields for better organization
+    month = models.IntegerField(default=1)  # 1-12
+    year = models.IntegerField(default=2024)
 
     class Meta:
         ordering = ['-updated_at']
+        # Ensure each user can only have one budget per month/year combination
+        unique_together = ['user', 'month', 'year']
 
     def __str__(self):
-        return f"Budget for {self.user.username} - {self.updated_at}"
+        return f"Budget for {self.user.username} - {self.month}/{self.year}"

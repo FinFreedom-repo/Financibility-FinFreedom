@@ -1,6 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Box, Toolbar } from '@mui/material';
+import { ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
+import { CssBaseline } from '@mui/material';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import Navigation from './components/Navigation';
 import WealthProjector from './components/WealthProjector';
 import Login from './components/Login';
@@ -12,9 +16,8 @@ import DebtPlanning from './components/DebtPlanning';
 import Dashboard from './components/Dashboard';
 import AccountsAndDebts from './components/AccountsAndDebts';
 import Account from './components/Account';
-import './App.css';
+import DialogTest from './components/DialogTest';
 import axios from './utils/axios';
-import USAFlag from './components/USAFlag';
 
 // Protected Route component
 function ProtectedRoute({ children }) {
@@ -34,13 +37,12 @@ function ProtectedRoute({ children }) {
 }
 
 function AppContent() {
-  const { user, loading, logout } = useAuth();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const { user, loading } = useAuth();
+  const { theme } = useTheme();
   const [showAccount, setShowAccount] = useState(false);
   const [profile, setProfile] = useState({ age: '', sex: '', marital_status: '' });
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const dropdownRef = useRef(null);
 
   // Add logging for user state changes
   useEffect(() => {
@@ -67,23 +69,6 @@ function AppContent() {
       setSaveSuccess(false);
     }
   }, [showAccount, user, profileLoaded]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    if (dropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [dropdownOpen]);
 
   const handleSaveProfile = (data) => {
     console.log('Saving profile data:', data);
@@ -112,109 +97,126 @@ function AppContent() {
   }
 
   return (
-    <div className="App">
-      {user ? (
-        <>
-          <header className="app-header">
-            <div className="header-content">
-              <h1 className="app-title">FinFreedom <USAFlag /></h1>
-              <nav className="nav-menu">
-                <div className="user-menu-container" ref={dropdownRef}>
-                  {console.log('Current user state in header:', user)}
-                  <div
-                    className="user-icon"
-                    onClick={() => setDropdownOpen((open) => !open)}
-                    title={user?.username || 'User'}
-                  >
-                    {user?.username ? user.username.charAt(0).toUpperCase() : '?'}
-                  </div>
-                  {dropdownOpen && (
-                    <div className="user-dropdown">
-                      <button className="dropdown-item" onClick={() => { setShowAccount(true); setDropdownOpen(false); }}>Account</button>
-                      <button className="dropdown-item">Settings</button>
-                      <button className="dropdown-item" onClick={logout}>Logout</button>
-                    </div>
-                  )}
-                </div>
-              </nav>
-            </div>
-          </header>
-          {showAccount ? (
-            <div className="App-container">
-              <Navigation onNavigate={() => setShowAccount(false)} />
-              <main className="App-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-                <div style={{ width: '100%' }}>
-                  <Account
-                    username={user.username || ''}
-                    age={profile.age || ''}
-                    sex={profile.sex || ''}
-                    maritalStatus={profile.marital_status || ''}
-                    onSave={handleSaveProfile}
-                  />
-                  {saveSuccess && <div style={{ color: 'green', marginTop: '1rem', textAlign: 'center' }}>Profile saved!</div>}
-                </div>
-              </main>
-            </div>
-          ) : (
-            <div className="App-container">
-              <Navigation onNavigate={() => setShowAccount(false)} />
-              <main className="App-content">
-                <Routes>
-                  <Route path="/wealth-projector" element={
-                    <ProtectedRoute>
-                      <WealthProjector onNavigateToAccount={() => setShowAccount(true)} />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/monthly-budget" element={
-                    <ProtectedRoute>
-                      <MonthlyBudget />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/expense-analyzer" element={
-                    <ProtectedRoute>
-                      <ExpenseAnalyzer />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/debt-planning" element={
-                    <ProtectedRoute>
-                      <DebtPlanning />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/dashboard" element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/accounts-and-debts" element={
-                    <ProtectedRoute>
-                      <AccountsAndDebts />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                </Routes>
-              </main>
-            </div>
-          )}
-        </>
-      ) : (
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      )}
-    </div>
+    <MuiThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+        {user ? (
+          <>
+            <Navigation onNavigate={() => setShowAccount(false)} />
+            <Box
+              component="main"
+              sx={{
+                flexGrow: 1,
+                backgroundColor: (theme) => theme.palette.mode === 'dark' 
+                  ? '#0a0a0a' 
+                  : theme.palette.grey[50],
+                minHeight: '100vh',
+                transition: 'all 0.3s ease',
+              }}
+            >
+              <Toolbar />
+              <Box sx={{ p: 3 }}>
+                {showAccount ? (
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    minHeight: '60vh' 
+                  }}>
+                    <Box sx={{ width: '100%', maxWidth: 600 }}>
+                      <Account
+                        username={user.username || ''}
+                        age={profile.age || ''}
+                        sex={profile.sex || ''}
+                        maritalStatus={profile.marital_status || ''}
+                        onSave={handleSaveProfile}
+                      />
+                      {saveSuccess && (
+                        <Box sx={{ 
+                          color: 'success.main', 
+                          mt: 2, 
+                          textAlign: 'center',
+                          p: 2,
+                          borderRadius: 1,
+                          bgcolor: 'success.light',
+                          opacity: 0.9
+                        }}>
+                          Profile saved successfully!
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                ) : (
+                  <Routes>
+                    <Route path="/wealth-projector" element={
+                      <ProtectedRoute>
+                        <WealthProjector onNavigateToAccount={() => setShowAccount(true)} />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/monthly-budget" element={
+                      <ProtectedRoute>
+                        <MonthlyBudget />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/expense-analyzer" element={
+                      <ProtectedRoute>
+                        <ExpenseAnalyzer />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/debt-planning" element={
+                      <ProtectedRoute>
+                        <DebtPlanning />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/dashboard" element={
+                      <ProtectedRoute>
+                        <Dashboard />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/accounts-and-debts" element={
+                      <ProtectedRoute>
+                        <AccountsAndDebts />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/dialog-test" element={
+                      <ProtectedRoute>
+                        <DialogTest />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/" element={
+                      <ProtectedRoute>
+                        <Home />
+                      </ProtectedRoute>
+                    } />
+                  </Routes>
+                )}
+              </Box>
+            </Box>
+          </>
+        ) : (
+          <Box sx={{ width: '100%' }}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Box>
+        )}
+      </Box>
+    </MuiThemeProvider>
   );
 }
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

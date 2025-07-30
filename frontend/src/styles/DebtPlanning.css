@@ -1,5 +1,7 @@
+/* Unified Debt Planning Theme - Modern, Clean, Consistent */
+
 .debt-planning {
-  background: none;
+  background: #0a0a0a;
   padding: 2rem;
   border-radius: 18px;
   box-shadow: none;
@@ -7,21 +9,17 @@
   width: 100%;
 }
 
-.debt-header {
-  margin-bottom: 2rem;
-}
-
 .debt-header h2 {
-  color: #1a237e;
+  color: #2196f3;
   margin: 0 0 0.5rem 0;
   font-size: 2rem;
   font-weight: 700;
   letter-spacing: -0.5px;
-  text-shadow: 0 2px 8px rgba(60,60,120,0.18);
+  text-shadow: none;
 }
 
 .debt-subtitle {
-  color: #2c3e50;
+  color: #e0e0e0;
   font-size: 1rem;
   font-style: italic;
   margin: 0;
@@ -39,13 +37,13 @@
   width: 100%;
   overflow-x: auto;
   overflow-y: visible;
-  border: 1px solid rgba(255,255,255,0.09);
+  border: 1px solid #333;
   border-radius: 14px;
-  background: rgba(255,255,255,0.13);
-  backdrop-filter: blur(10px);
+  background: #1a1a1a;
+  backdrop-filter: none;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2px 12px rgba(106, 141, 255, 0.10);
+  box-shadow: none;
   padding-top: 0;
 }
 
@@ -53,8 +51,8 @@
   display: flex;
   position: sticky;
   top: 0;
-  background: rgba(255,255,255,0.18);
-  border-bottom: 2px solid #6a8dff;
+  background: #2196f3;
+  border-bottom: 2px solid #1976d2;
   width: 100%;
   min-width: max-content;
   overflow: visible;
@@ -70,9 +68,10 @@
 
 .grid-row {
   display: flex;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid #333;
   width: 100%;
   min-width: max-content;
+  background: #1a1a1a;
 }
 
 .grid-row:last-child {
@@ -84,9 +83,9 @@
   min-width: 120px;
   padding: 0.75rem;
   text-align: right;
-  border-right: 1px solid rgba(255,255,255,0.09);
+  border-right: 1px solid #333;
   font-size: 0.95rem;
-  color: #2c3e50;
+  color: #e0e0e0;
   background: transparent;
 }
 
@@ -96,31 +95,27 @@
 
 .grid-cell.header-cell {
   font-weight: 700;
-  color: #1a237e;
+  color: #fff;
   text-align: center;
-  background: transparent;
-  overflow: visible;
-  position: relative;
+  background: #2196f3;
+  border-bottom: 2px solid #1976d2;
 }
 
 .category-cell {
   min-width: 180px;
   text-align: left;
   font-weight: 600;
-  background: transparent;
-  color: #1a237e;
+  background: #1a1a1a;
+  color: #2196f3;
+  border-left: 4px solid #2196f3;
 }
 
 .category-cell.income {
-  color: #10b981;
-  font-weight: 800;
-  text-shadow: 0 1px 2px #0e7c5b33;
+  border-left: 4px solid #2196f3;
 }
 
 .category-cell.expense {
-  color: #e53935;
-  font-weight: 800;
-  text-shadow: 0 1px 2px #b71c1c33;
+  border-left: 4px solid #f44336;
 }
 
 .loading {
@@ -153,42 +148,38 @@
 
 .income-expense-separator {
   height: 0;
-  border-top: 2px solid #1a237e;
+  border-top: 2px solid #2196f3;
   margin: 0.2rem 0 0.2rem 0;
   width: 100%;
   min-width: max-content;
 }
 
-.net-savings-row {
-  background: rgba(106,141,255,0.13);
-  font-weight: 700;
-  border-bottom: 2px solid #6a8dff;
+.net-savings-row, .net-savings-label, .net-savings-cell {
+  color: #fff;
+  background: #2196f3;
+  font-weight: 600;
+  border-bottom: 2px solid #2196f3;
   width: 100%;
   min-width: max-content;
   display: flex;
 }
 
-.net-savings-label, .net-savings-cell {
-  color: #1a237e !important;
-  font-weight: 800;
-}
-
 .personal-savings-row {
-  background: rgba(46,236,180,0.13);
+  background: rgba(33, 150, 243, 0.1);
   font-weight: 600;
-  border-bottom: 2px solid #2eecb4;
+  border-bottom: 2px solid #2196f3;
   width: 100%;
   min-width: max-content;
   display: flex;
 }
 
 .personal-savings-label, .personal-savings-cell {
-  color: #2eecb4;
+  color: #2196f3;
   font-weight: 600;
 }
 
 .negative-value {
-  color: #ff6b6b;
+  color: #f44336;
 }
 
 .debt-header-content {
@@ -209,7 +200,7 @@
   background: rgba(255,255,255,0.18);
   border-radius: 8px;
   padding: 4px;
-  box-shadow: 0 2px 4px rgba(106,141,255,0.10);
+  box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
 }
 
 .strategy-option {
@@ -224,10 +215,10 @@
 }
 
 .strategy-option.active {
-  color: #1a237e;
-  font-weight: 700;
-  background: linear-gradient(90deg, #6a8dff 0%, #764ba2 100%);
-  box-shadow: 0 2px 8px rgba(106,141,255,0.13);
+  color: #fff;
+  font-weight: 600;
+  background: #2196f3;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
 }
 
 .slider {
@@ -239,7 +230,7 @@
   background: rgba(255,255,255,0.7);
   border-radius: 6px;
   transition: transform 0.3s ease;
-  box-shadow: 0 2px 8px rgba(106,141,255,0.13);
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
 }
 
 .slider.avalanche {
@@ -299,26 +290,25 @@ input:checked + .slider:before {
 }
 
 .outstanding-debts-table-container h3 {
-  color: #1a237e;
+  color: #2196f3;
   margin-bottom: 1rem;
   font-size: 1.2rem;
-  font-weight: 700;
+  font-weight: 600;
   text-align: left;
-  text-shadow: 0 2px 8px rgba(60,60,120,0.18);
+  text-shadow: none;
 }
 
 .outstanding-debts-table-container .grid-container {
-  border: 1px solid rgba(255,255,255,0.09);
-  border-radius: 12px;
-  /* overflow: hidden; */
-  background: rgba(255,255,255,0.13);
-  box-shadow: 0 2px 12px rgba(106,141,255,0.10);
+  border: 1px solid #2196f3;
+  border-radius: 8px;
+  background: #1a1a1a;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
   width: 100%;
 }
 
 .outstanding-debts-table-container .grid-header {
-  background: rgba(255,255,255,0.18);
-  border-bottom: 2px solid #6a8dff;
+  background: #2196f3;
+  border-bottom: 2px solid #2196f3;
   display: flex;
 }
 
@@ -337,14 +327,14 @@ input:checked + .slider:before {
   font-size: 0.95rem;
   flex-shrink: 0;
   width: 95px;
-  color: #2c3e50;
+  color: #e0e0e0;
   background: transparent;
 }
 
 .outstanding-debts-table-container .grid-cell.category-cell {
   text-align: left;
   font-weight: 600;
-  color: #1a237e;
+  color: #2196f3;
   width: 110px;
 }
 
@@ -354,12 +344,12 @@ input:checked + .slider:before {
 
 .outstanding-debts-table-container .grid-row .grid-cell:nth-child(4),
 .grid-row .grid-cell.monthly-interest {
-  color: #233876 !important;
-  font-weight: 800;
+  color: #f44336 !important;
+  font-weight: 600;
 }
 
 .add-months-button, .save-button {
-  background: linear-gradient(90deg, #ff5858 0%, #6a8dff 100%);
+  background: #2196f3;
   color: #fff;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -368,81 +358,81 @@ input:checked + .slider:before {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px #ff585866;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
 }
 
 .add-months-button:hover, .save-button:hover {
-  background: linear-gradient(90deg, #6a8dff 0%, #ff5858 100%);
+  background: #42a5f5;
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px #ff585888;
+  box-shadow: 0 4px 16px rgba(33, 150, 243, 0.4);
 }
 
 /* Historical months styling */
 .historical-month {
-  background: rgba(120, 120, 120, 0.22) !important;
-  border-left: 4px solid #888 !important;
-  color: #1a237e !important;
-  font-style: italic;
+  background: #0a0a0a !important;
+  border-left: 4px solid #bdbdbd !important;
+  color: #bdbdbd !important;
+  font-style: normal;
 }
 
 .historical-month.header-cell {
-  background: rgba(120, 120, 120, 0.32) !important;
-  border-bottom: 3px solid #888 !important;
-  font-weight: 700;
-  color: #1a237e !important;
+  background: #0a0a0a !important;
+  border-bottom: 3px solid #bdbdbd !important;
+  font-weight: 600;
+  color: #bdbdbd !important;
 }
 
 /* Current month styling */
 .current-month {
-  background: rgba(106, 141, 255, 0.25) !important;
-  border-left: 3px solid #6a8dff !important;
-  color: #1a237e !important;
-  font-weight: 700;
-  box-shadow: 0 0 8px 2px #6a8dff44 !important;
+  background: #f44336 !important;
+  border-left: 3px solid #2196f3 !important;
+  color: #fff !important;
+  font-weight: 600;
+  box-shadow: 0 0 8px 2px rgba(33, 150, 243, 0.3) !important;
 }
 
 .current-month.header-cell {
-  background: rgba(106, 141, 255, 0.35) !important;
-  border-bottom: 2px solid #6a8dff !important;
-  font-weight: 700;
-  color: #1a237e !important;
-  text-shadow: 0 2px 4px #6a8dff88;
+  background: rgba(33, 150, 243, 0.35) !important;
+  border-bottom: 2px solid #2196f3 !important;
+  font-weight: 600;
+  color: #fff !important;
+  text-shadow: none;
 }
 
 /* Future months styling */
 .future-month {
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: #1a1a1a !important;
   border-left: 3px solid rgba(255, 255, 255, 0.2) !important;
-  color: #2c3e50 !important;
+  color: #e0e0e0 !important;
 }
 
 .future-month.header-cell {
   background: rgba(255, 255, 255, 0.1) !important;
   border-bottom: 2px solid rgba(255, 255, 255, 0.2) !important;
   font-weight: 600;
-  color: #2c3e50 !important;
+  color: #e0e0e0 !important;
 }
 
 /* Special styling for net savings in different time periods */
 .net-savings-row .historical-month {
   background: rgba(120, 120, 120, 0.28) !important;
-  color: #1a237e !important;
-  font-weight: 700;
+  color: #bdbdbd !important;
+  font-weight: 600;
 }
 
 .net-savings-row .current-month {
-  background: rgba(106, 141, 255, 0.3) !important;
-  color: #1a237e !important;
-  font-weight: 700;
+  background: rgba(33, 150, 243, 0.3) !important;
+  color: #fff !important;
+  font-weight: 600;
 }
 
 .net-savings-row .future-month {
   background: rgba(255, 255, 255, 0.08) !important;
-  color: #2c3e50 !important;
+  color: #e0e0e0 !important;
 }
 
 .future-label, .future-month.header-cell {
-  color: #2c3e50 !important;
+  color: #e0e0e0 !important;
 }
 
 /* Make sure the interest rate and category columns have the same width */
@@ -469,11 +459,10 @@ input:checked + .slider:before {
 }
 
 .payoff-summary-table-container.debts-table-style {
-  background: rgba(255,255,255,0.18);
-  border-radius: 16px;
-  /* overflow: hidden; */
-  box-shadow: 0 2px 12px rgba(106, 141, 255, 0.10);
-  border: 2px solid #b3cfff;
+  background: #1a1a1a;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+  border: 2px solid #2196f3;
   margin-top: 0.5rem;
   padding: 0;
   min-width: 320px;
@@ -483,8 +472,8 @@ input:checked + .slider:before {
 
 .payoff-summary-title {
   font-size: 1.25rem;
-  font-weight: 700;
-  color: #1a237e;
+  font-weight: 600;
+  color: #2196f3;
   margin: 1.2rem 0 0.5rem 1.2rem;
   letter-spacing: -0.5px;
 }
@@ -499,39 +488,39 @@ input:checked + .slider:before {
 .payoff-summary-table.debts-table-style th, .payoff-summary-table.debts-table-style td {
   padding: 0.85rem 1.2rem;
   font-size: 1rem;
-  border-bottom: 1px solid #e0eaff;
+  border-bottom: 1px solid #2196f3;
   background: transparent;
 }
 
 .payoff-summary-table.debts-table-style th {
   text-align: left;
-  font-weight: 700;
-  color: #1a237e;
+  font-weight: 600;
+  color: #2196f3;
   background: transparent;
 }
 
 .payoff-summary-table.debts-table-style td {
   text-align: right;
-  color: #233876;
-  font-weight: 700;
+  color: #e0e0e0;
+  font-weight: 600;
   background: transparent;
 }
 
 .payoff-summary-table.debts-table-style tr:last-child td {
   border-bottom: none;
   font-size: 1.1rem;
-  color: #1a237e;
-  font-weight: 700;
+  color: #2196f3;
+  font-weight: 600;
 }
 
 .debt-free-cell {
-  background: linear-gradient(90deg, #a8ffb0 0%, #e0ffe6 100%) !important;
-  border: 2px solid #10b981 !important;
-  color: #087443 !important;
-  font-weight: 900;
+  background: #2196f3 !important;
+  border: 2px solid #2196f3 !important;
+  color: #fff !important;
+  font-weight: 600;
   position: relative;
   z-index: 2;
-  box-shadow: 0 0 12px 2px #10b98133;
+  box-shadow: 0 0 12px 2px rgba(33, 150, 243, 0.3);
 }
 
 .debt-free-bubble {
@@ -556,7 +545,7 @@ input:checked + .slider:before {
 /* Add padding only to payoff plan table's header */
 .payoff-plan-table-container .grid-header {
   padding-top: 0;
-  background: rgba(255,255,255,0.18);
+  background: #2196f3;
 }
 
 /* Add wider padding to the expenses table's header (main grid) */
@@ -590,8 +579,8 @@ input:checked + .slider:before {
 }
 
 .debt-free-date {
-  color: #1a237e;
-  font-weight: 900;
+  color: #2196f3;
+  font-weight: 600;
   background: none;
 }
 
@@ -604,7 +593,7 @@ input:checked + .slider:before {
   font-size: 1rem;
   font-weight: 600;
   background: none;
-  color: #1a237e;
+  color: #2196f3;
 }
 
 .legend-historical .legend-label {
@@ -614,18 +603,18 @@ input:checked + .slider:before {
 }
 
 .legend-current .legend-label {
-  color: #1a237e;
+  color: #f44336;
   background: none;
-  font-weight: 900;
-  text-shadow: 0 2px 4px #6a8dff22;
+  font-weight: 600;
+  text-shadow: none;
 }
 
 .legend-projected .legend-label {
-  color: #2c3e50;
+  color: #e0e0e0;
   background: rgba(255,255,255,0.1);
   border-radius: 8px;
   padding: 0.1em 0.5em;
-  font-weight: 700;
+  font-weight: 600;
   border: none;
 }
 
@@ -649,10 +638,10 @@ input:checked + .slider:before {
 
 /* --- Refined AG Grid theme for budget/expenses table to match debt payoff table exactly --- */
 .ag-theme-alpine.custom-budget-grid {
-  background: rgba(255,255,255,0.13);
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.09);
-  box-shadow: 0 2px 12px rgba(106, 141, 255, 0.10);
+  background: #1a1a1a;
+  border-radius: 8px;
+  border: 1px solid #2196f3;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
   padding-top: 0;
   margin-top: 0;
   font-family: inherit;
@@ -661,27 +650,52 @@ input:checked + .slider:before {
   min-width: 1200px;
 }
 .ag-theme-alpine.custom-budget-grid .ag-root-wrapper {
-  border-radius: 14px;
+  border-radius: 8px;
   overflow: visible;
+  background: #0a0a0a !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-root-wrapper.ag-ltr.ag-layout-normal {
+  background: #0a0a0a !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-header-row {
+  background: #2196f3 !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-header-row.ag-header-row-column {
+  background: #2196f3 !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-viewport {
+  background: #0a0a0a !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-center-cols-viewport {
+  background: #0a0a0a !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-center-cols-container {
+  background: #0a0a0a !important;
 }
 .ag-theme-alpine.custom-budget-grid .ag-header {
-  background: rgba(255,255,255,0.18);
-  border-bottom: 2px solid #6a8dff;
+  background: #2196f3;
+  border-bottom: 2px solid #2196f3;
   min-width: max-content;
   position: sticky;
   top: 0;
   z-index: 2;
-  border-radius: 14px 14px 0 0;
+  border-radius: 8px 8px 0 0;
   margin-top: 0;
   padding-top: 0;
 }
 .ag-theme-alpine.custom-budget-grid .ag-header-cell-label {
-  color: #1a237e;
-  font-weight: 700;
+  color: #fff;
+  font-weight: 600;
   font-size: 1.35rem;
   text-align: center;
   background: transparent;
-  text-shadow: 0 2px 8px rgba(60,60,120,0.18);
+  text-shadow: none;
   line-height: 1.4;
   padding-top: 0.1rem;
   padding-bottom: 0.1em;
@@ -691,8 +705,8 @@ input:checked + .slider:before {
   min-height: 48px;
   background: transparent;
   border-right: 1px solid rgba(255,255,255,0.09);
-  font-weight: 700;
-  color: #1a237e;
+  font-weight: 600;
+  color: #fff;
   text-align: center;
   font-size: 1rem;
   min-width: 180px;
@@ -706,8 +720,16 @@ input:checked + .slider:before {
 .ag-theme-alpine.custom-budget-grid .ag-center-cols-container,
 .ag-theme-alpine.custom-budget-grid .ag-row .ag-cell,
 .ag-theme-alpine.custom-budget-grid .ag-header-cell {
-  color: #2c3e50 !important;
+  color: #e0e0e0 !important;
   background: transparent !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-body-viewport {
+  background: #0a0a0a !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-body-viewport-wrapper {
+  background: #0a0a0a !important;
 }
 .ag-theme-alpine.custom-budget-grid .ag-cell:last-child {
   border-right: none;
@@ -721,57 +743,57 @@ input:checked + .slider:before {
 .ag-theme-alpine.custom-budget-grid .ag-cell.ag-category-cell {
   text-align: left;
   font-weight: 600;
-  color: #1a237e;
+  color: #2196f3;
   min-width: 180px;
   background: transparent;
 }
 .ag-theme-alpine.custom-budget-grid .ag-cell.ag-category-cell.income {
-  color: #10b981;
-  font-weight: 800;
-  text-shadow: 0 1px 2px #0e7c5b33;
+  color: #2196f3;
+  font-weight: 600;
+  text-shadow: none;
 }
 .ag-theme-alpine.custom-budget-grid .ag-cell.ag-category-cell.expense {
-  color: #e53935;
-  font-weight: 800;
-  text-shadow: 0 1px 2px #b71c1c33;
+  color: #f44336;
+  font-weight: 600;
+  text-shadow: none;
 }
 /* Month type coloring (reuse your classes if possible) */
 .ag-theme-alpine.custom-budget-grid .ag-cell.ag-historical-cell {
-  background: rgba(120, 120, 120, 0.22) !important;
-  border-left: 4px solid #888 !important;
-  color: #1a237e !important;
-  font-style: italic;
+  background: #0a0a0a !important;
+  border-left: 4px solid #bdbdbd !important;
+  color: #bdbdbd !important;
+  font-style: normal;
 }
 .ag-theme-alpine.custom-budget-grid .ag-header-cell.ag-historical-cell {
-  background: rgba(120, 120, 120, 0.32) !important;
-  border-bottom: 3px solid #888 !important;
-  font-weight: 700;
-  color: #1a237e !important;
+  background: #0a0a0a !important;
+  border-bottom: 3px solid #bdbdbd !important;
+  font-weight: 600;
+  color: #bdbdbd !important;
 }
 .ag-theme-alpine.custom-budget-grid .ag-cell.ag-current-cell {
-  background: rgba(106, 141, 255, 0.25) !important;
-  border-left: 3px solid #6a8dff !important;
-  color: #1a237e !important;
-  font-weight: 700;
-  box-shadow: 0 0 8px 2px #6a8dff44 !important;
+  background: #f44336 !important;
+  border-left: 3px solid #2196f3 !important;
+  color: #fff !important;
+  font-weight: 600;
+  box-shadow: 0 0 8px 2px rgba(33, 150, 243, 0.3) !important;
 }
 .ag-theme-alpine.custom-budget-grid .ag-header-cell.ag-current-cell {
-  background: rgba(106, 141, 255, 0.35) !important;
-  border-bottom: 2px solid #6a8dff !important;
-  font-weight: 700;
-  color: #1a237e !important;
-  text-shadow: 0 2px 4px #6a8dff88;
+  background: rgba(33, 150, 243, 0.35) !important;
+  border-bottom: 2px solid #2196f3 !important;
+  font-weight: 600;
+  color: #fff !important;
+  text-shadow: none;
 }
 .ag-theme-alpine.custom-budget-grid .ag-cell.ag-projected-cell {
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: #1a1a1a !important;
   border-left: 3px solid rgba(255, 255, 255, 0.2) !important;
-  color: #2c3e50 !important;
+  color: #e0e0e0 !important;
 }
 .ag-theme-alpine.custom-budget-grid .ag-header-cell.ag-projected-cell {
   background: rgba(255, 255, 255, 0.1) !important;
   border-bottom: 2px solid rgba(255, 255, 255, 0.2) !important;
   font-weight: 600;
-  color: #2c3e50 !important;
+  color: #e0e0e0 !important;
 }
 /* Remove AG Grid focus/selection/hover effects */
 .ag-theme-alpine.custom-budget-grid .ag-cell-focus,
@@ -781,11 +803,11 @@ input:checked + .slider:before {
   outline: none !important;
   box-shadow: none !important;
   background: transparent !important;
-  color: #2c3e50 !important;
+  color: #e0e0e0 !important;
 }
 .ag-theme-alpine.custom-budget-grid .ag-row-selected {
   background: transparent !important;
-  color: #2c3e50 !important;
+  color: #e0e0e0 !important;
 }
 
 /* Larger, more readable AG Grid rows */
@@ -816,42 +838,284 @@ input:checked + .slider:before {
 }
 
 .ag-theme-alpine.custom-budget-grid .ag-cell.income-category-cell {
-  color: #10b981 !important;
-  font-weight: 800;
-  text-shadow: 0 1px 2px #0e7c5b33;
+  color: #2196f3 !important;
+  font-weight: 600;
+  text-shadow: none;
 }
 .ag-theme-alpine.custom-budget-grid .ag-cell.net-savings-category-cell {
-  color: #1a237e !important;
-  font-weight: 900;
-  text-shadow: 0 1px 2px #6a8dff33;
+  color: #fff !important;
+  font-weight: 600;
+  text-shadow: none;
 }
 .ag-theme-alpine.custom-budget-grid .ag-cell.expense-category-cell {
-  color: #e53935 !important;
-  font-weight: 800;
-  text-shadow: 0 1px 2px #b71c1c33;
-} 
-
-/* --- AG Grid month column highlight and font unification --- */
-.ag-theme-alpine.custom-budget-grid .ag-cell.ag-historical-cell,
-.ag-theme-alpine.custom-budget-grid .ag-cell.ag-current-cell,
-.ag-theme-alpine.custom-budget-grid .ag-cell.ag-projected-cell,
-.ag-theme-alpine.custom-budget-grid .ag-header-cell {
-  min-width: 120px !important;
-  width: 120px !important;
-  max-width: 120px !important;
-  font-size: 0.95rem !important;
-  font-weight: 700 !important;
-  font-family: inherit !important;
+  color: #f44336 !important;
+  font-weight: 600;
+  text-shadow: none;
 }
 
-.ag-theme-alpine.custom-budget-grid .ag-header-cell-label {
-  font-size: 0.95rem !important;
-  font-weight: 700 !important;
-  font-family: inherit !important;
+/* AG Grid Custom Styles */
+.custom-budget-grid {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', sans-serif;
+}
+
+.custom-budget-grid .ag-header {
+  background: #2196f3;
+  color: white;
+  font-weight: 600;
+}
+
+.custom-budget-grid .ag-header-cell {
+  border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.custom-budget-grid .ag-row {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.custom-budget-grid .ag-row:hover {
+  background-color: #42a5f5;
+}
+
+.custom-budget-grid .ag-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-right: 1px solid #e0e0e0;
+}
+
+.custom-budget-grid .ag-cell:first-child {
+  justify-content: flex-start;
+  font-weight: 600;
+}
+
+/* Cell type styles */
+.net-savings-category-cell {
+  background-color: #1a1a1a !important;
+  font-weight: 600 !important;
+  color: #e0e0e0 !important;
+}
+
+.income-category-cell {
+  background-color: #1a1a1a !important;
+  color: #2196f3 !important;
+}
+
+.expense-category-cell {
+  background-color: #1a1a1a !important;
+  color: #f44336 !important;
+}
+
+.ag-historical-cell {
+  background-color: #0a0a0a !important;
+  color: #bdbdbd !important;
+}
+
+.ag-current-cell {
+  background-color: #f44336 !important;
+  font-weight: 600 !important;
+  color: #fff !important;
+}
+
+.ag-projected-cell {
+  background-color: #1a1a1a !important;
+  color: #e0e0e0 !important;
+}
+
+/* Editable cell styling */
+.custom-budget-grid .ag-cell-edit-input {
+  text-align: center;
+  border: 2px solid #2196f3;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+/* Legend styling */
+.legend-margin {
+  margin: 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.875rem;
+}
+
+.legend-historical,
+.legend-current,
+.legend-projected {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-sep {
+  color: #ccc;
+  font-weight: bold;
+}
+
+.legend-label {
+  font-weight: 500;
+}
+
+/* Debt free column highlighting */
+.debt-free-col {
+  background: #2196f3 !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+/* DataTable styling for Outstanding Debts section */
+.ag-theme-material-dark {
+  background: #0a0a0a !important;
+  border: 1px solid #333333 !important;
+  border-radius: 8px !important;
+}
+
+.ag-theme-material-dark .ag-header {
+  background: #2196f3 !important;
+  color: white !important;
+}
+
+.ag-theme-material-dark .ag-header-cell {
+  background: #2196f3 !important;
+  color: white !important;
+  border-bottom: 1px solid #1976d2 !important;
+}
+
+.ag-theme-material-dark .ag-header-cell-text {
+  color: white !important;
+  font-weight: 600 !important;
+}
+
+.ag-theme-material-dark .ag-body-viewport {
+  background: #0a0a0a !important;
+}
+
+.ag-theme-material-dark .ag-center-cols-viewport {
+  background: #0a0a0a !important;
+}
+
+.ag-theme-material-dark .ag-row {
+  background: #1a1a1a !important;
+  border-bottom: 1px solid #333333 !important;
+}
+
+.ag-theme-material-dark .ag-row:hover {
+  background: #1a1a1a !important;
+}
+
+/* Outstanding Debts Table - Remove White Background */
+.ag-theme-material .ag-row {
+  background: #f5f5f5 !important;
+}
+
+.ag-theme-material .ag-row-even {
+  background: #fafafa !important;
+}
+
+.ag-theme-material .ag-row:hover {
+  background: #e8f5e8 !important;
+}
+
+.ag-theme-material .ag-row.ag-row-selected {
+  background: #e3f2fd !important;
+}
+
+.ag-theme-material .ag-cell {
+  background: transparent !important;
+  color: #2c3e50 !important;
+}
+
+.ag-theme-material .ag-header-cell {
+  background: #e3f2fd !important;
+  color: #1976d2 !important;
+  border-bottom: 2px solid #1976d2 !important;
+  border-right: 1px solid #1976d2 !important;
+}
+
+.ag-theme-material-dark .ag-row-selected {
+  background: #404040 !important;
+}
+
+.ag-theme-material-dark .ag-cell {
+  color: #e0e0e0 !important;
+  border-right: 1px solid #333333 !important;
+}
+
+.ag-theme-material-dark .ag-paging-panel {
+  background: #1a1a1a !important;
+  color: #e0e0e0 !important;
+  border-top: 1px solid #333333 !important;
+}
+
+.ag-theme-material-dark .ag-paging-button {
+  background: #333333 !important;
+  color: #e0e0e0 !important;
+  border: 1px solid #404040 !important;
+}
+
+.ag-theme-material-dark .ag-paging-button:hover {
+  background: #404040 !important;
+}
+
+.ag-theme-material-dark .ag-paging-button.ag-disabled {
+  background: #1a1a1a !important;
+  color: #666666 !important;
+}
+
+/* Editable Budget Projection Table Improvements */
+.ag-theme-alpine.custom-budget-grid .ag-header-cell {
+  background: #e3f2fd !important;
+  color: #1976d2 !important;
+  border-right: 1px solid #1976d2 !important;
+  border-bottom: 2px solid #1976d2 !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  padding: 12px 8px !important;
 }
 
 .ag-theme-alpine.custom-budget-grid .ag-cell {
-  font-size: 0.95rem !important;
+  border-right: 1px solid #1976d2 !important;
+  border-bottom: 1px solid #1976d2 !important;
+  padding: 8px 12px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-row {
+  min-height: 48px !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .net-savings-category-cell {
+  background: white !important;
+  color: #2e7d32 !important;
+  border-left: 4px solid #4caf50 !important;
+  text-align: left !important;
+  padding-left: 16px !important;
   font-weight: 700 !important;
-  font-family: inherit !important;
-} 
+  font-size: 0.95rem !important;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif !important;
+  letter-spacing: 0.025em !important;
+  text-transform: uppercase !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .income-category-cell {
+  background: white !important;
+  border-left: 4px solid #66bb6a !important;
+  text-align: left !important;
+  padding-left: 16px !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif !important;
+  letter-spacing: 0.025em !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .expense-category-cell {
+  background: white !important;
+  border-left: 4px solid #ff6b6b !important;
+  text-align: left !important;
+  padding-left: 16px !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif !important;
+  letter-spacing: 0.025em !important;
+}

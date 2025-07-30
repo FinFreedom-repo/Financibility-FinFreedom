@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import Account, Transaction, Category, UserProfile, Debt, AccountAudit, TransactionAudit, DebtAudit
 from .serializers import AccountSerializer, TransactionSerializer, CategorySerializer, UserProfileSerializer, AccountAuditSerializer, TransactionAuditSerializer, DebtAuditSerializer, DebtSerializer
 from rest_framework.decorators import api_view, permission_classes, action
@@ -129,7 +129,9 @@ class GrokExcelView(APIView):
 # Create your views here.
 
 class AccountViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    # Temporarily disabled for development
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     serializer_class = AccountSerializer
 
     def get_queryset(self):
@@ -148,43 +150,32 @@ class AccountViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+    
+    def perform_update(self, serializer):
+        serializer.save()
 
     def update(self, request, *args, **kwargs):
-        # Instead of updating, create a new record
-        data = request.data.copy()
-        data['user'] = request.user.id
-        serializer = self.get_serializer(data=data)
+        # Update existing record instead of creating new one
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        self.perform_update(serializer)
+        
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+        
+        return Response(serializer.data)
 
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
 
-    def destroy(self, request, *args, **kwargs):
-        """Add a new record with zero balance to mark account as closed"""
-        account = self.get_object()
-        account_name = account.name
-        user = request.user
-        
-        # Create a new record with zero balance (account closed)
-        Account.objects.create(
-            user=user,
-            name=account_name,
-            account_type=account.account_type,
-            balance=0.00,  # Zero balance = account closed
-            interest_rate=account.interest_rate,
-            effective_date=account.effective_date  # Use same effective date as current record
-        )
-        
-        return Response(
-            {'message': f'Account "{account_name}" has been marked as closed'},
-            status=status.HTTP_200_OK
-        )
-
 class TransactionViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    # Temporarily disabled for development
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     serializer_class = TransactionSerializer
 
     def get_queryset(self):
@@ -194,7 +185,9 @@ class TransactionViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 class CategoryViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    # Temporarily disabled for development
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     serializer_class = CategorySerializer
 
     def get_queryset(self):
@@ -205,9 +198,14 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 class UserProfileViewSet(viewsets.ModelViewSet):
     serializer_class = UserProfileSerializer
-    permission_classes = [IsAuthenticated]
+    # Temporarily disabled for development
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
+        # Handle unauthenticated users in development mode
+        if not self.request.user or not self.request.user.is_authenticated:
+            return UserProfile.objects.none()  # Return empty queryset
         return UserProfile.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
@@ -215,12 +213,23 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], url_path='me')
     def me(self, request):
+        # Handle unauthenticated users in development mode
+        if not request.user or not request.user.is_authenticated:
+            # Return a default profile for development
+            return Response({
+                'id': 1,
+                'username': 'development_user',
+                'email': 'dev@example.com',
+                'first_name': 'Development',
+                'last_name': 'User'
+            })
+        
         profile, created = UserProfile.objects.get_or_create(user=request.user)
         serializer = self.get_serializer(profile)
         return Response(serializer.data)
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def project_wealth(request):
     print("Project wealth endpoint called")
     print("Request headers:", request.headers)
@@ -272,10 +281,14 @@ def project_wealth(request):
         )
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def calculate_net_savings(request):
     """Calculate net savings using the same logic as debt planning"""
     try:
+        # Handle unauthenticated users in development mode
+        if not request.user or not request.user.is_authenticated:
+            return Response({'net_savings': 0, 'annual_contributions': 0})
+        
         # Get the user's budget
         budget = Budget.objects.filter(user=request.user).order_by('-updated_at').first()
         
@@ -347,6 +360,7 @@ def calculate_net_savings(request):
         )
 
 @api_view(['POST'])
+@permission_classes([])  # Added this, as without it. wasnt registering users
 def register_user(request):
     """
     Register a new user
@@ -398,7 +412,7 @@ def register_user(request):
         )
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def calculate_financial_steps(request):
     """Calculate financial steps dynamically from user data."""
     try:
@@ -507,15 +521,15 @@ def calculate_financial_steps(request):
         # Step 3: 3-6 months emergency fund
         if current_step == 3 and monthly_expenses > 0:
             target_emergency = monthly_expenses * 6  # 6 months
-            if total_account_balance >= target_emergency:
+            if total_account_balance >= Decimal(str(target_emergency)):
                 current_step = 4
                 step_progress = {'completed': True, 'next_step': 4}
             else:
-                progress = min((total_account_balance / target_emergency) * 100, 100)
+                progress = min((float(total_account_balance) / target_emergency) * 100, 100)
                 step_progress = {
                     'completed': False,
                     'progress': progress,
-                    'current_amount': total_account_balance,
+                    'current_amount': float(total_account_balance),
                     'goal_amount': target_emergency
                 }
         elif current_step == 3:
@@ -594,7 +608,9 @@ class DebtAuditViewSet(viewsets.ReadOnlyModelViewSet):
         return DebtAudit.objects.filter(user=self.request.user)
 
 class DebtViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    # Temporarily disabled for development
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     serializer_class = DebtSerializer
 
     def get_queryset(self):
@@ -613,37 +629,24 @@ class DebtViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+    
+    def perform_update(self, serializer):
+        serializer.save()
 
     def update(self, request, *args, **kwargs):
-        # Instead of updating, create a new record
-        data = request.data.copy()
-        data['user'] = request.user.id
-        serializer = self.get_serializer(data=data)
+        # Update existing record instead of creating new one
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        self.perform_update(serializer)
+        
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+        
+        return Response(serializer.data)
 
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        """Add a new record with zero balance to mark debt as paid off"""
-        debt = self.get_object()
-        debt_name = debt.name
-        user = request.user
-        
-        # Create a new record with zero balance (paid off)
-        Debt.objects.create(
-            user=user,
-            name=debt_name,
-            debt_type=debt.debt_type,
-            balance=0.00,  # Zero balance = paid off
-            interest_rate=debt.interest_rate,
-            effective_date=debt.effective_date  # Use same effective date as current record
-        )
-        
-        return Response(
-            {'message': f'Debt "{debt_name}" has been marked as paid off'},
-            status=status.HTTP_200_OK
-        )
