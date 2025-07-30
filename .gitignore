@@ -11,9 +11,42 @@
 /frontend/.pnp.js
 
 # Python virtual environment
-/venv/
+venv/
+backend/venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# Python
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Testing
 /frontend/coverage
@@ -22,7 +55,6 @@ __pycache__/
 /frontend/build
 
 # Misc
-.DS_Store
 /frontend/npm-debug.log*
 /frontend/yarn-debug.log*
 /frontend/yarn-error.log*
