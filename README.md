@@ -60,11 +60,7 @@ venv\Scripts\activate
 pip install -r ../requirements.txt
 ```
 
-### 5. Run Database Migrations
-```bash
-python3 manage.py migrate
-
-### 7. Run the Backend Server
+### 5. Run the Backend Server
 ```bash
 python3 manage.py runserver
 ```
