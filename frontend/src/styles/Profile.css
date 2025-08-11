@@ -1,0 +1,700 @@
+/* Modern Profile Settings - Finance App Design */
+.profile-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e8f4fd 0%, #d1e7dd 100%);
+  padding: 0;
+}
+
+.profile-header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 2rem 0;
+  margin-bottom: 2rem;
+}
+
+.profile-header-content {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 3rem;
+  text-align: center;
+}
+
+.profile-title {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700 !important;
+  margin-bottom: 0.5rem !important;
+  font-size: 2.5rem !important;
+}
+
+.profile-subtitle {
+  color: #059669;
+  font-size: 1.1rem !important;
+  margin: 0 !important;
+  font-weight: 400;
+}
+
+.profile-content {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 3rem 3rem;
+}
+
+/* Sidebar Design */
+.profile-sidebar {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  height: fit-content;
+  position: sticky;
+  top: 2rem;
+}
+
+.sidebar-content {
+  padding: 2.5rem !important;
+}
+
+/* Profile Top Section - Image and Info Side by Side */
+.profile-top-section {
+  margin-bottom: 2rem;
+}
+
+.avatar-container {
+  text-align: center;
+  margin-bottom: 0;
+}
+
+.profile-avatar {
+  border: 4px solid #3b82f6;
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.profile-avatar:hover {
+  transform: scale(1.05);
+}
+
+.upload-fab {
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+  transition: transform 0.2s ease !important;
+  background: #3b82f6 !important;
+}
+
+.upload-fab:hover {
+  transform: scale(1.1) !important;
+  background: #2563eb !important;
+}
+
+/* Personal Info Section */
+.personal-info-section {
+  padding-left: 1rem;
+}
+
+.profile-name {
+  font-weight: 600 !important;
+  margin-bottom: 0.5rem !important;
+  color: #1e3a8a;
+  font-size: 1.25rem !important;
+}
+
+.profile-email {
+  color: #059669;
+  font-size: 0.9rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.status-chip {
+  font-weight: 500 !important;
+  height: 28px !important;
+  font-size: 0.8rem !important;
+  margin-bottom: 1rem !important;
+  background: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+/* Quick Info Section */
+.quick-info {
+  margin-top: 1rem;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(219, 234, 254, 0.8);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.info-row:hover {
+  background: rgba(219, 234, 254, 1);
+  transform: translateX(4px);
+}
+
+.info-icon {
+  color: #3b82f6 !important;
+  margin-right: 0.75rem !important;
+  font-size: 1.1rem !important;
+}
+
+.info-text {
+  color: #1e3a8a !important;
+  font-weight: 500 !important;
+  font-size: 0.9rem !important;
+  margin: 0 !important;
+}
+
+.edit-form-section {
+  background: rgba(219, 234, 254, 0.8);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.edit-field {
+  margin-bottom: 1rem;
+}
+
+.edit-field .MuiOutlinedInput-root {
+  border-radius: 8px;
+}
+
+.save-button {
+  border-radius: 8px !important;
+  padding: 0.75rem !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3) !important;
+  transition: all 0.3s ease !important;
+  font-size: 0.9rem !important;
+}
+
+.save-button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4) !important;
+}
+
+/* Sidebar Navigation */
+.sidebar-navigation {
+  margin-top: 1.5rem;
+}
+
+.sidebar-tabs {
+  width: 100% !important;
+}
+
+.sidebar-tab .MuiTab-labelWrapper {
+  margin-left: 0.5rem !important;
+}
+
+.sidebar-tab .MuiTab-label {
+  margin-left: 0.5rem !important;
+}
+
+.sidebar-tab span {
+  margin-left: 0.5rem !important;
+}
+
+.sidebar-tabs .MuiTabs-indicator {
+  left: 0 !important;
+  width: 4px !important;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+}
+
+.sidebar-tab {
+  align-items: flex-start !important;
+  text-align: left !important;
+  padding: 1.25rem 0 !important;
+  min-height: 56px !important;
+  border-radius: 8px !important;
+  margin-bottom: 0.75rem !important;
+  transition: all 0.3s ease !important;
+  font-size: 1rem !important;
+  color: #1e3a8a !important;
+}
+
+.sidebar-tab .MuiTab-label {
+  margin-left: 0.5rem !important;
+}
+
+.sidebar-tab:hover {
+  background: rgba(59, 130, 246, 0.1) !important;
+}
+
+.sidebar-tab.Mui-selected {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #2563eb !important;
+}
+
+.sidebar-tab .MuiTab-iconWrapper {
+  margin-right: 1.25rem !important;
+  color: inherit !important;
+  font-size: 1.25rem !important;
+}
+
+/* Main Content */
+.profile-main-content {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  min-height: 700px;
+}
+
+.main-content {
+  padding: 2.5rem !important;
+}
+
+.tab-content {
+  height: 100%;
+}
+
+.tab-title {
+  font-weight: 600 !important;
+  color: #1e3a8a;
+  margin: 0 0 2rem 0 !important;
+  font-size: 1.75rem !important;
+}
+
+/* Info Fields */
+.info-field {
+  background: rgba(219, 234, 254, 0.8);
+  border-radius: 12px;
+  padding: 2rem;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.info-field:hover {
+  background: rgba(219, 234, 254, 1);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+  transform: translateY(-2px);
+}
+
+.field-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.field-icon {
+  color: #3b82f6 !important;
+  margin-right: 1rem !important;
+  font-size: 1.4rem !important;
+}
+
+.field-value {
+  font-weight: 500 !important;
+  color: #1e3a8a !important;
+  font-size: 1.1rem !important;
+}
+
+/* Security List */
+.security-list {
+  padding: 0 !important;
+}
+
+.security-item {
+  background: rgba(219, 234, 254, 0.8);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  padding: 2rem !important;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  transition: all 0.3s ease;
+}
+
+.security-item:hover {
+  background: rgba(219, 234, 254, 1);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+  transform: translateY(-2px);
+}
+
+.security-item .MuiListItemIcon-root {
+  color: #3b82f6 !important;
+  min-width: 48px !important;
+  font-size: 1.4rem !important;
+}
+
+.security-item .MuiListItemText-primary {
+  font-weight: 600 !important;
+  color: #1e3a8a !important;
+  font-size: 1.1rem !important;
+}
+
+.security-item .MuiListItemText-secondary {
+  color: #059669 !important;
+  font-size: 1rem !important;
+}
+
+.photo-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* Preferences List */
+.preferences-list {
+  padding: 0 !important;
+}
+
+.preference-item {
+  background: rgba(254, 226, 226, 0.8);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  padding: 2rem !important;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  transition: all 0.3s ease;
+}
+
+.preference-item:hover {
+  background: rgba(254, 226, 226, 1);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+  transform: translateY(-2px);
+}
+
+.preference-item .MuiListItemIcon-root {
+  color: #dc2626 !important;
+  min-width: 48px !important;
+  font-size: 1.4rem !important;
+}
+
+.preference-item .MuiListItemText-primary {
+  font-weight: 600 !important;
+  color: #991b1b !important;
+  font-size: 1.1rem !important;
+}
+
+.preference-item .MuiListItemText-secondary {
+  color: #059669 !important;
+  font-size: 1rem !important;
+}
+
+/* Dialog Styles */
+.dialog-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  font-weight: 600 !important;
+  color: #1e3a8a !important;
+  font-size: 1.25rem !important;
+}
+
+.dialog-icon {
+  color: #3b82f6 !important;
+}
+
+/* Image Upload Styles */
+.image-upload-content {
+  text-align: center;
+  padding: 2.5rem 0;
+}
+
+.image-upload-placeholder {
+  border: 2px dashed #3b82f6;
+  border-radius: 12px;
+  padding: 3.5rem 2.5rem;
+  margin-bottom: 2rem;
+  transition: all 0.3s ease;
+  background: rgba(219, 234, 254, 0.5);
+}
+
+.image-upload-placeholder:hover {
+  border-color: #2563eb;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.image-preview-container {
+  margin-bottom: 2rem;
+}
+
+.image-preview {
+  max-width: 100%;
+  max-height: 350px;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.2);
+}
+
+.upload-button {
+  border-radius: 8px !important;
+  padding: 1rem 2.5rem !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  transition: all 0.3s ease !important;
+  font-size: 1rem !important;
+  background: #059669 !important;
+}
+
+.upload-button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3) !important;
+  background: #047857 !important;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .profile-content {
+    padding: 0 2rem 2rem;
+  }
+  
+  .profile-header-content {
+    padding: 0 2rem;
+  }
+  
+  .sidebar-content {
+    padding: 2rem !important;
+  }
+  
+  .main-content {
+    padding: 2rem !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .profile-content {
+    padding: 0 1.5rem 1.5rem;
+  }
+  
+  .profile-sidebar {
+    position: static;
+    margin-bottom: 1.5rem;
+  }
+  
+  .sidebar-content {
+    padding: 1.5rem !important;
+  }
+  
+  .main-content {
+    padding: 1.5rem !important;
+  }
+  
+  .personal-info-section {
+    padding-left: 0;
+    padding-top: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .profile-header-content,
+  .profile-content {
+    padding: 0 1rem;
+  }
+  
+  .profile-title {
+    font-size: 2rem !important;
+  }
+  
+  .info-field {
+    padding: 1.5rem;
+  }
+  
+  .security-item,
+  .preference-item {
+    padding: 1.5rem !important;
+  }
+  
+  .sidebar-content {
+    padding: 1rem !important;
+  }
+  
+  .main-content {
+    padding: 1rem !important;
+  }
+  
+  .profile-avatar {
+    width: 80px !important;
+    height: 80px !important;
+  }
+  
+  .upload-fab {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+  }
+  
+  .personal-info-section {
+    padding-left: 0;
+    padding-top: 1rem;
+  }
+  
+  .info-row {
+    padding: 0.25rem;
+  }
+  
+  .info-icon {
+    font-size: 1rem !important;
+    margin-right: 0.5rem !important;
+  }
+  
+  .info-text {
+    font-size: 0.8rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-header {
+    padding: 1.5rem 0;
+  }
+  
+  .profile-title {
+    font-size: 1.75rem !important;
+  }
+  
+  .profile-subtitle {
+    font-size: 1rem !important;
+  }
+  
+  .profile-top-section {
+    margin-bottom: 1.5rem;
+  }
+  
+  .info-field {
+    padding: 1rem;
+  }
+  
+  .field-header {
+    margin-bottom: 0.75rem;
+  }
+  
+  .field-icon {
+    font-size: 1.2rem !important;
+    margin-right: 0.75rem !important;
+  }
+  
+  .personal-info-section {
+    padding-left: 0;
+    padding-top: 0.5rem;
+  }
+  
+  .profile-name {
+    font-size: 1.1rem !important;
+  }
+  
+  .profile-email {
+    font-size: 0.8rem !important;
+  }
+  
+  .info-row {
+    padding: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .info-icon {
+    font-size: 0.9rem !important;
+    margin-right: 0.5rem !important;
+  }
+  
+  .info-text {
+    font-size: 0.75rem !important;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .profile-container {
+    background: linear-gradient(135deg, #1e3a8a 0%, #059669 100%);
+  }
+  
+  .profile-header,
+  .profile-sidebar,
+  .profile-main-content {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .profile-title,
+  .tab-title {
+    color: #3b82f6 !important;
+  }
+  
+  .profile-subtitle,
+  .profile-email {
+    color: #10b981;
+  }
+  
+  .info-field,
+  .security-item,
+  .preference-item,
+  .info-row,
+  .edit-form-section {
+    background: rgba(59, 130, 246, 0.1);
+  }
+  
+  .field-value,
+  .info-text {
+    color: #3b82f6 !important;
+  }
+}
+
+/* Loading animation */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.profile-container.loading {
+  animation: pulse 2s infinite;
+}
+
+/* Smooth transitions */
+* {
+  transition: all 0.2s ease;
+}
+
+/* Edit Button Styles */
+.edit-profile-button {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  color: white !important;
+  border-radius: 8px !important;
+  padding: 0.5rem 1.5rem !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.edit-profile-button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4) !important;
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%) !important;
+}
+
+.edit-profile-button.MuiButton-outlined {
+  background: transparent !important;
+  color: #dc2626 !important;
+  border-color: #dc2626 !important;
+  box-shadow: none !important;
+}
+
+.edit-profile-button.MuiButton-outlined:hover {
+  background: rgba(220, 38, 38, 0.1) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2) !important;
+}
+
+/* Custom scrollbar */
+.profile-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.profile-container::-webkit-scrollbar-track {
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 3px;
+}
+
+.profile-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 3px;
+}
+
+.profile-container::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+} 

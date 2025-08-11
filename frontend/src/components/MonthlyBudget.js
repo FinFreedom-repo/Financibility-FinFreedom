@@ -67,6 +67,7 @@ function MonthlyBudget() {
   
   const [formData, setFormData] = useState({
     income: '',
+    additional_income: '',
     housing: '',
     debt_payments: '',
     transportation: '',
@@ -121,6 +122,21 @@ function MonthlyBudget() {
     other: 'Other'
   };
 
+  const colorPalette = [
+    theme.palette.primary.main,
+    theme.palette.secondary.main,
+    theme.palette.success.main,
+    theme.palette.warning.main,
+    theme.palette.error.main,
+    theme.palette.info.main,
+    '#FF6B6B',
+    '#4ECDC4',
+    '#45B7D1',
+    '#96CEB4',
+    '#FFEAA7',
+    '#DDA0DD'
+  ];
+
   useEffect(() => {
     loadBudgetData();
   }, []);
@@ -129,15 +145,40 @@ function MonthlyBudget() {
     updateChartData();
   }, [formData, additionalItems, savingsItems]);
 
+  // Add effect to trigger calculations when data changes
+  useEffect(() => {
+    console.log('🔍 Data changed, recalculating...');
+    console.log('🔍 Current formData:', formData);
+    console.log('🔍 Current additionalItems:', additionalItems);
+    console.log('🔍 Current savingsItems:', savingsItems);
+    
+    // Trigger calculations
+    const income = calculateTotalIncome();
+    const expenses = calculateTotalExpenses();
+    const savings = calculateTotalSavings();
+    const remaining = calculateRemaining();
+    
+    console.log('🔍 Final calculations:');
+    console.log('  - Income:', income);
+    console.log('  - Expenses:', expenses);
+    console.log('  - Savings:', savings);
+    console.log('  - Remaining:', remaining);
+  }, [formData, additionalItems, savingsItems]);
+
   const loadBudgetData = async () => {
     try {
       setIsLoading(true);
       const response = await axios.get('/api/budgets/');
       
+      console.log('🔍 Budget API response:', response.data);
+      
       if (response.data && response.data.length > 0) {
         const budget = response.data[0];
-        setFormData({
+        console.log('🔍 Loading budget data:', budget);
+        
+        const newFormData = {
           income: budget.income || '',
+          additional_income: budget.additional_income || '',
           housing: budget.housing || '',
           debt_payments: budget.debt_payments || '',
           transportation: budget.transportation || '',
@@ -150,15 +191,22 @@ function MonthlyBudget() {
           utilities: budget.utilities || '',
           childcare: budget.childcare || '',
           other: budget.other || ''
-        });
+        };
         
+        console.log('🔍 Setting form data:', newFormData);
+        setFormData(newFormData);
+        
+        console.log('🔍 Setting additional items:', budget.additional_items || []);
         setAdditionalItems(budget.additional_items || []);
+        
+        console.log('🔍 Setting savings items:', budget.savings_items || []);
         setSavingsItems(budget.savings_items || []);
       } else {
         // No budget exists yet, initialize with empty values
         console.log('No existing budget found, initializing with empty values');
         setFormData({
           income: '',
+          additional_income: '',
           housing: '',
           debt_payments: '',
           transportation: '',
@@ -241,14 +289,22 @@ function MonthlyBudget() {
     const incomeData = [];
     const incomeColors = [];
     
-    const totalIncome = parseFloat(formData.income) || 0;
+    const primaryIncome = parseFloat(formData.income) || 0;
+    const additionalIncome = parseFloat(formData.additional_income) || 0;
+    const totalIncome = primaryIncome + additionalIncome;
     const totalExpenses = calculateTotalExpenses();
     const totalSavings = calculateTotalSavings();
     
-    if (totalIncome > 0) {
-      incomeLabels.push('Available Income');
-      incomeData.push(totalIncome);
+    if (primaryIncome > 0) {
+      incomeLabels.push('Primary Income');
+      incomeData.push(primaryIncome);
       incomeColors.push(theme.palette.success.main);
+    }
+    
+    if (additionalIncome > 0) {
+      incomeLabels.push('Additional Income');
+      incomeData.push(additionalIncome);
+      incomeColors.push(theme.palette.info.main);
     }
     
     if (totalExpenses > 0) {
@@ -313,28 +369,50 @@ function MonthlyBudget() {
   };
 
   const calculateTotalIncome = () => {
-    return parseFloat(formData.income) || 0;
+    const income = parseFloat(formData.income) || 0;
+    const additionalIncome = parseFloat(formData.additional_income) || 0;
+    const totalIncome = income + additionalIncome;
+    console.log('🔍 Total Income calculation:', income, '+', additionalIncome, '=', totalIncome);
+    return totalIncome;
   };
 
   const calculateTotalExpenses = () => {
     let total = 0;
+    console.log('🔍 Calculating Total Expenses:');
+    
     Object.entries(formData).forEach(([key, value]) => {
       if (key !== 'income' && value) {
-        total += parseFloat(value) || 0;
+        const amount = parseFloat(value) || 0;
+        total += amount;
+        console.log(`  - ${key}: $${amount}`);
       }
     });
+    
+    console.log('🔍 Additional Items:');
     additionalItems.forEach(item => {
-      total += parseFloat(item.amount) || 0;
+      const amount = parseFloat(item.amount) || 0;
+      total += amount;
+      console.log(`  - ${item.name}: $${amount}`);
     });
+    
+    console.log('🔍 Total Expenses:', total);
     return total;
   };
 
   const calculateTotalSavings = () => {
-    return savingsItems?.reduce((total, item) => total + (parseFloat(item.amount) || 0), 0) || 0;
+    const savings = savingsItems?.reduce((total, item) => total + (parseFloat(item.amount) || 0), 0) || 0;
+    console.log('🔍 Total Savings calculation:', savings);
+    console.log('🔍 Savings items:', savingsItems);
+    return savings;
   };
 
   const calculateRemaining = () => {
-    return calculateTotalIncome() - calculateTotalExpenses() - calculateTotalSavings();
+    const income = calculateTotalIncome();
+    const expenses = calculateTotalExpenses();
+    const savings = calculateTotalSavings();
+    const remaining = income - expenses - savings;
+    console.log('🔍 Remaining calculation:', income, '-', expenses, '-', savings, '=', remaining);
+    return remaining;
   };
 
   const formatCurrency = (amount) => {
@@ -355,7 +433,7 @@ function MonthlyBudget() {
       
       // Convert all numeric fields to proper numbers, handling empty strings
       const numericFields = [
-        'income', 'housing', 'debt_payments', 'transportation', 'food', 
+        'income', 'additional_income', 'housing', 'debt_payments', 'transportation', 'food', 
         'healthcare', 'entertainment', 'shopping', 'travel', 'education', 
         'utilities', 'childcare', 'other'
       ];
@@ -445,15 +523,30 @@ function MonthlyBudget() {
                         <MoneyIcon sx={{ mr: 1, color: theme.palette.success.main }} />
                         Monthly Income
                       </Typography>
-                      <Input
-                        label="Monthly Income"
-                        name="income"
-                        value={formData.income}
-                        onChange={handleInputChange}
-                        type="number"
-                        startAdornment={<InputAdornment position="start">$</InputAdornment>}
-                        fullWidth
-                      />
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <Input
+                            label="Primary Income"
+                            name="income"
+                            value={formData.income}
+                            onChange={handleInputChange}
+                            type="number"
+                            startAdornment={<InputAdornment position="start">$</InputAdornment>}
+                            fullWidth
+                          />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          <Input
+                            label="Additional Income"
+                            name="additional_income"
+                            value={formData.additional_income}
+                            onChange={handleInputChange}
+                            type="number"
+                            startAdornment={<InputAdornment position="start">$</InputAdornment>}
+                            fullWidth
+                          />
+                        </Grid>
+                      </Grid>
                     </Box>
 
                     <Divider sx={{ my: 3 }} />
@@ -471,7 +564,7 @@ function MonthlyBudget() {
                       
                       <Grid container spacing={2}>
                         {Object.entries(formData).map(([key, value]) => {
-                          if (key === 'income') return null;
+                          if (key === 'income' || key === 'additional_income') return null;
                           return (
                             <Grid item xs={12} sm={6} md={4} key={key}>
                               <Input
@@ -570,7 +663,7 @@ function MonthlyBudget() {
                             <Grid container spacing={2} alignItems="center">
                               <Grid item xs={12} sm={6}>
                                 <Input
-                                  label="Savings Goal"
+                                  label="Savings (ex: 401k)"
                                   value={item.name}
                                   onChange={(e) => updateSavingsItem(index, 'name', e.target.value)}
                                   fullWidth
@@ -630,11 +723,12 @@ function MonthlyBudget() {
               <Stack spacing={3}>
                 {/* Financial Overview */}
                 <Card elevation={2}>
-                  <Box sx={{ p: 3 }}>
+                  <Box sx={{ p: 3, pt: 0 }}>
                     <Typography variant="h6" gutterBottom sx={{ 
                       display: 'flex', 
                       alignItems: 'center',
-                      mb: 2
+                      mb: 2,
+                      pt: 3
                     }}>
                       <PieChartIcon sx={{ mr: 1 }} />
                       Financial Overview
@@ -707,64 +801,165 @@ function MonthlyBudget() {
                   </Box>
                 </Card>
 
-                {/* Charts */}
-                {expenseChartData && (
-                  <Card elevation={2}>
-                    <Box sx={{ p: 3 }}>
-                      <Typography variant="h6" gutterBottom>
-                        Expense Breakdown
-                      </Typography>
-                      <Chart
-                        type="pie"
-                        data={expenseChartData}
-                        options={{
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          plugins: {
-                            legend: {
-                              position: 'bottom',
-                              labels: {
-                                boxWidth: 12,
-                                padding: 15,
-                                usePointStyle: true
-                              }
-                            }
-                          }
-                        }}
-                        height={300}
-                      />
-                    </Box>
-                  </Card>
-                )}
+                {/* Charts Section */}
+                <Box sx={{ mt: 4, pt: 0 }}>
+                  <Typography variant="h5" gutterBottom sx={{ mb: 3, fontWeight: 'bold', pt: 3 }}>
+                    Financial Analytics
+                  </Typography>
+                  
+                  <Grid container spacing={4} justifyContent="space-between">
+                    {/* Expense Categories Bar Chart - First */}
+                    <Grid item xs={12} md={4}>
+                      <Card elevation={3} sx={{ height: '100%' }}>
+                        <Box sx={{ p: 3 }}>
+                          <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
+                            Expense Categories
+                          </Typography>
+                          <Box sx={{ height: 400, width: '100%' }}>
+                            <Chart
+                              type="bar"
+                              data={{
+                                labels: Object.entries(formData)
+                                  .filter(([key, value]) => key !== 'income' && value && parseFloat(value) > 0)
+                                  .map(([key]) => categoryLabels[key] || key),
+                                datasets: [{
+                                  label: 'Amount ($)',
+                                  data: Object.entries(formData)
+                                    .filter(([key, value]) => key !== 'income' && value && parseFloat(value) > 0)
+                                    .map(([, value]) => parseFloat(value)),
+                                  backgroundColor: colorPalette.slice(0, 12),
+                                  borderColor: isDarkMode ? '#1e1e1e' : '#ffffff',
+                                  borderWidth: 1
+                                }]
+                              }}
+                              options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                  legend: {
+                                    display: false
+                                  },
+                                  title: {
+                                    display: false
+                                  }
+                                },
+                                scales: {
+                                  y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                      callback: function(value) {
+                                        return '$' + value.toLocaleString();
+                                      }
+                                    }
+                                  }
+                                }
+                              }}
+                              height={400}
+                            />
+                          </Box>
+                        </Box>
+                      </Card>
+                    </Grid>
 
-                {incomeChartData && (
-                  <Card elevation={2}>
-                    <Box sx={{ p: 3 }}>
-                      <Typography variant="h6" gutterBottom>
-                        Income Allocation
-                      </Typography>
-                      <Chart
-                        type="pie"
-                        data={incomeChartData}
-                        options={{
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          plugins: {
-                            legend: {
-                              position: 'bottom',
-                              labels: {
-                                boxWidth: 12,
-                                padding: 15,
-                                usePointStyle: true
-                              }
-                            }
-                          }
-                        }}
-                        height={300}
-                      />
-                    </Box>
-                  </Card>
-                )}
+                    {/* Income Allocation Chart - Second */}
+                    {incomeChartData && (
+                      <Grid item xs={12} md={4}>
+                        <Card elevation={3} sx={{ height: '100%' }}>
+                          <Box sx={{ p: 3 }}>
+                            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
+                              Income Allocation
+                            </Typography>
+                            <Box sx={{ height: 400, width: '100%' }}>
+                              <Chart
+                                type="pie"
+                                data={incomeChartData}
+                                options={{
+                                  responsive: true,
+                                  maintainAspectRatio: false,
+                                  plugins: {
+                                    legend: {
+                                      position: 'bottom',
+                                      labels: {
+                                        boxWidth: 15,
+                                        padding: 20,
+                                        usePointStyle: true,
+                                        font: {
+                                          size: 12
+                                        }
+                                      }
+                                    },
+                                    title: {
+                                      display: false
+                                    }
+                                  }
+                                }}
+                                height={400}
+                              />
+                            </Box>
+                          </Box>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    {/* Monthly Overview Chart - Third */}
+                    <Grid item xs={12} md={4}>
+                      <Card elevation={3} sx={{ height: '100%' }}>
+                        <Box sx={{ p: 3 }}>
+                          <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 2 }}>
+                            Monthly Overview
+                          </Typography>
+                          <Box sx={{ height: 400, width: '100%' }}>
+                            <Chart
+                              type="doughnut"
+                              data={{
+                                labels: ['Primary Income', 'Additional Income', 'Expenses', 'Savings', 'Remaining'],
+                                datasets: [{
+                                  data: [
+                                    parseFloat(formData.income) || 0,
+                                    parseFloat(formData.additional_income) || 0,
+                                    calculateTotalExpenses(),
+                                    calculateTotalSavings(),
+                                    calculateRemaining()
+                                  ],
+                                  backgroundColor: [
+                                    theme.palette.success.main,
+                                    theme.palette.info.main,
+                                    theme.palette.error.main,
+                                    theme.palette.primary.main,
+                                    calculateRemaining() >= 0 ? theme.palette.warning.main : theme.palette.error.main
+                                  ],
+                                  borderColor: isDarkMode ? '#1e1e1e' : '#ffffff',
+                                  borderWidth: 2
+                                }]
+                              }}
+                              options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                  legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                      boxWidth: 15,
+                                      padding: 20,
+                                      usePointStyle: true,
+                                      font: {
+                                        size: 12
+                                      }
+                                    }
+                                  },
+                                  title: {
+                                    display: false
+                                  }
+                                }
+                              }}
+                              height={400}
+                            />
+                          </Box>
+                        </Box>
+                      </Card>
+                    </Grid>
+                  </Grid>
+                </Box>
               </Stack>
             </Grid>
           </Grid>

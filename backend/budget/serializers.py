@@ -18,7 +18,7 @@ class BudgetSerializer(serializers.ModelSerializer):
         model = Budget
         fields = [
             'id', 'user', 'created_at', 'updated_at',
-            'income', 'housing', 'debt_payments', 'transportation',
+            'income', 'additional_income', 'housing', 'debt_payments', 'transportation',
             'food', 'healthcare', 'entertainment', 'shopping',
             'travel', 'education', 'utilities', 'childcare',
             'other', 'additional_items', 'savings_items', 'month', 'year'

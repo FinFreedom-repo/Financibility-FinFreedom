@@ -15,11 +15,56 @@ class AccountsDebtsService {
   // Get all accounts
   async getAccounts() {
     try {
+      console.log('🔍 Fetching accounts from API...');
       const response = await axios.get('/api/accounts/');
-      return response.data;
+      console.log('📊 Raw accounts response:', response.data);
+      console.log('📊 Number of accounts:', response.data?.length || 0);
+      
+      // Ensure we return a properly formatted array
+      const accounts = Array.isArray(response.data) ? response.data : [];
+      
+      // Process each account to ensure proper field mapping and number conversion
+      const processedAccounts = accounts.map(account => {
+        const balance = parseFloat(account.balance) || 0;
+        const interestRate = parseFloat(account.interest_rate) || 0;
+        
+        return {
+          id: account.id,
+          name: account.name || 'Unnamed Account',
+          account_type: account.account_type || 'checking',
+          balance: balance,
+          interest_rate: interestRate,
+          effective_date: account.effective_date || new Date().toISOString().split('T')[0],
+          user: account.user,
+          created_at: account.created_at,
+          updated_at: account.updated_at
+        };
+      });
+      
+      console.log('✅ Processed accounts:', processedAccounts);
+      const totalBalance = processedAccounts.reduce((sum, acc) => sum + acc.balance, 0);
+      console.log('💰 Total account balances:', totalBalance);
+      return processedAccounts;
     } catch (error) {
-      console.error('Error fetching accounts:', error);
-      throw error;
+      console.error('❌ Error fetching accounts:', error);
+      
+      // Handle specific error cases
+      if (error.response) {
+        if (error.response.status === 401) {
+          throw new Error('Authentication required. Please log in.');
+        } else if (error.response.status === 403) {
+          throw new Error('Access denied. You do not have permission to view accounts.');
+        } else if (error.response.status === 404) {
+          throw new Error('Accounts endpoint not found. Please check the API configuration.');
+        } else {
+          const errorMessage = error.response.data?.detail || error.response.data?.message || 'Failed to fetch accounts';
+          throw new Error(errorMessage);
+        }
+      } else if (error.request) {
+        throw new Error('No response received from server. Please check your connection.');
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -32,20 +77,28 @@ class AccountsDebtsService {
       // Ensure we return a properly formatted array
       const debts = Array.isArray(response.data) ? response.data : [];
       
-      // Process each debt to ensure proper field mapping
-      const processedDebts = debts.map(debt => ({
-        id: debt.id,
-        name: debt.name || 'Unnamed Debt',
-        debt_type: debt.debt_type || 'other',
-        balance: parseFloat(debt.balance) || 0,
-        interest_rate: parseFloat(debt.interest_rate) || 0,
-        effective_date: debt.effective_date || new Date().toISOString().split('T')[0],
-        user: debt.user,
-        created_at: debt.created_at,
-        updated_at: debt.updated_at
-      }));
+      // Process each debt to ensure proper field mapping and number conversion
+      const processedDebts = debts.map(debt => {
+        const balance = parseFloat(debt.balance) || 0;
+        const interestRate = parseFloat(debt.interest_rate) || 0;
+        
+        return {
+          id: debt.id,
+          name: debt.name || 'Unnamed Debt',
+          debt_type: debt.debt_type || 'other',
+          balance: balance,
+          interest_rate: interestRate,
+          effective_date: debt.effective_date || new Date().toISOString().split('T')[0],
+          payoff_date: debt.payoff_date || null,
+          user: debt.user,
+          created_at: debt.created_at,
+          updated_at: debt.updated_at
+        };
+      });
       
       console.log('Processed debts:', processedDebts);
+      const totalDebt = processedDebts.reduce((sum, debt) => sum + debt.balance, 0);
+      console.log('💳 Total debt balance:', totalDebt);
       return processedDebts;
     } catch (error) {
       console.error('Error fetching debts:', error);
@@ -73,7 +126,20 @@ class AccountsDebtsService {
   // Create a new account
   async createAccount(accountData) {
     try {
-      const response = await axios.post('/api/accounts/', accountData);
+      console.log('Creating account with data:', accountData);
+      
+      // Ensure proper data formatting
+      const formattedData = {
+        name: accountData.name,
+        account_type: accountData.accountType || accountData.account_type || 'checking',
+        balance: parseFloat(accountData.balance),
+        interest_rate: parseFloat(accountData.interestRate || accountData.interest_rate),
+        effective_date: accountData.effectiveDate || accountData.effective_date || new Date().toISOString().split('T')[0]
+      };
+      
+      console.log('Formatted account data:', formattedData);
+      const response = await axios.post('/api/accounts/', formattedData);
+      console.log('Account creation response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error creating account:', error);
@@ -89,10 +155,11 @@ class AccountsDebtsService {
       // Ensure proper data formatting
       const formattedData = {
         name: debtData.name,
-        debt_type: debtData.debt_type || 'other',
+        debt_type: debtData.debtType || debtData.debt_type || 'other',
         balance: parseFloat(debtData.balance),
-        interest_rate: parseFloat(debtData.interest_rate),
-        effective_date: debtData.effective_date || new Date().toISOString().split('T')[0]
+        interest_rate: parseFloat(debtData.interestRate || debtData.interest_rate),
+        effective_date: debtData.effectiveDate || debtData.effective_date || new Date().toISOString().split('T')[0],
+        payoff_date: debtData.payoffDate || debtData.payoff_date || null
       };
       
       console.log('Formatted debt data:', formattedData);
@@ -108,7 +175,20 @@ class AccountsDebtsService {
   // Update an account
   async updateAccount(accountId, accountData) {
     try {
-      const response = await axios.put(`/api/accounts/${accountId}/`, accountData);
+      console.log('Updating account with ID:', accountId, 'Data:', accountData);
+      
+      // Ensure proper data formatting
+      const formattedData = {
+        name: accountData.name,
+        account_type: accountData.accountType || accountData.account_type || 'checking',
+        balance: parseFloat(accountData.balance),
+        interest_rate: parseFloat(accountData.interestRate || accountData.interest_rate),
+        effective_date: accountData.effectiveDate || accountData.effective_date || new Date().toISOString().split('T')[0]
+      };
+      
+      console.log('Formatted account update data:', formattedData);
+      const response = await axios.put(`/api/accounts/${accountId}/`, formattedData);
+      console.log('Account update response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error updating account:', error);
@@ -124,10 +204,11 @@ class AccountsDebtsService {
       // Ensure proper data formatting
       const formattedData = {
         name: debtData.name,
-        debt_type: debtData.debt_type || 'other',
+        debt_type: debtData.debtType || debtData.debt_type || 'other',
         balance: parseFloat(debtData.balance),
-        interest_rate: parseFloat(debtData.interest_rate),
-        effective_date: debtData.effective_date || new Date().toISOString().split('T')[0]
+        interest_rate: parseFloat(debtData.interestRate || debtData.interest_rate),
+        effective_date: debtData.effectiveDate || debtData.effective_date || new Date().toISOString().split('T')[0],
+        payoff_date: debtData.payoffDate || debtData.payoff_date || null
       };
       
       console.log('Formatted debt update data:', formattedData);

@@ -107,7 +107,8 @@ function AccountsAndDebts() {
     balance: '',
     debtType: 'credit-card',
     interestRate: '24.99',
-    effectiveDate: new Date().toISOString().split('T')[0]
+    effectiveDate: new Date().toISOString().split('T')[0],
+    payoffDate: ''
   });
 
   const accountTypes = [
@@ -133,14 +134,17 @@ function AccountsAndDebts() {
   const fetchAccountsAndDebts = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Fetching fresh accounts and debts data...');
       const [accountsRes, debtsRes] = await Promise.all([
         accountsDebtsService.getAccounts(),
         accountsDebtsService.getDebts()
       ]);
+      console.log('✅ Fetched accounts:', accountsRes?.length || 0, 'debts:', debtsRes?.length || 0);
       setAccounts(accountsRes || []);
       setDebts(debtsRes || []);
+      console.log('✅ Data updated successfully');
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('❌ Error fetching data:', error);
       setSaveMessage('Error loading data. Please try again.');
       setAccounts([]);
       setDebts([]);
@@ -149,32 +153,47 @@ function AccountsAndDebts() {
     }
   };
 
+  // Force refresh function
+
+
   const handleAccountSubmit = async (e) => {
     e.preventDefault();
     try {
       const data = {
         ...accountForm,
         balance: parseFloat(accountForm.balance),
-        interest_rate: parseFloat(accountForm.interestRate),
-        effective_date: accountForm.effectiveDate
+        interestRate: parseFloat(accountForm.interestRate),
+        effectiveDate: accountForm.effectiveDate
       };
 
       if (editingAccount) {
-        await accountsDebtsService.updateAccount(editingAccount.id, data);
-        setSaveMessage('Account updated successfully!');
+        console.log('✏️ Updating account:', editingAccount.id, editingAccount.name);
+        const updatedAccount = await accountsDebtsService.updateAccount(editingAccount.id, data);
+        console.log('✅ Account updated successfully:', updatedAccount);
+        setSaveMessage('✅ Account updated successfully!');
       } else {
-        await accountsDebtsService.createAccount(data);
-        setSaveMessage('Account added successfully!');
+        console.log('➕ Creating new account:', data.name);
+        const newAccount = await accountsDebtsService.createAccount(data);
+        console.log('✅ Account created successfully:', newAccount);
+        setSaveMessage('✅ Account added successfully!');
       }
 
       setAccountDialogOpen(false);
       setEditingAccount(null);
       resetAccountForm();
-      fetchAccountsAndDebts();
+      
+      // Add a small delay to ensure the backend has processed the request
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await fetchAccountsAndDebts();
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
-      console.error('Error saving account:', error);
-      setSaveMessage('Error saving account. Please try again.');
+      console.error('❌ Error saving account:', error);
+      if (error.response && error.response.status === 404) {
+        setSaveMessage('⚠️ Account not found. It may have been deleted. Refreshing data...');
+        await fetchAccountsAndDebts();
+      } else {
+        setSaveMessage('❌ Error saving account. Please try again.');
+      }
     }
   };
 
@@ -184,30 +203,44 @@ function AccountsAndDebts() {
       const data = {
         ...debtForm,
         balance: parseFloat(debtForm.balance),
-        interest_rate: parseFloat(debtForm.interestRate),
-        effective_date: debtForm.effectiveDate
+        interestRate: parseFloat(debtForm.interestRate),
+        effectiveDate: debtForm.effectiveDate,
+        payoffDate: debtForm.payoffDate || null
       };
 
       if (editingDebt) {
-        await accountsDebtsService.updateDebt(editingDebt.id, data);
-        setSaveMessage('Debt updated successfully!');
+        console.log('✏️ Updating debt:', editingDebt.id, editingDebt.name);
+        const updatedDebt = await accountsDebtsService.updateDebt(editingDebt.id, data);
+        console.log('✅ Debt updated successfully:', updatedDebt);
+        setSaveMessage('✅ Debt updated successfully!');
       } else {
-        await accountsDebtsService.createDebt(data);
-        setSaveMessage('Debt added successfully!');
+        console.log('➕ Creating new debt:', data.name);
+        const newDebt = await accountsDebtsService.createDebt(data);
+        console.log('✅ Debt created successfully:', newDebt);
+        setSaveMessage('✅ Debt added successfully!');
       }
 
       setDebtDialogOpen(false);
       setEditingDebt(null);
       resetDebtForm();
-      fetchAccountsAndDebts();
+      
+      // Add a small delay to ensure the backend has processed the request
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await fetchAccountsAndDebts();
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
-      console.error('Error saving debt:', error);
-      setSaveMessage('Error saving debt. Please try again.');
+      console.error('❌ Error saving debt:', error);
+      if (error.response && error.response.status === 404) {
+        setSaveMessage('⚠️ Debt not found. It may have been deleted. Refreshing data...');
+        await fetchAccountsAndDebts();
+      } else {
+        setSaveMessage('❌ Error saving debt. Please try again.');
+      }
     }
   };
 
   const handleDeleteAccount = (account) => {
+    console.log('🗑️ Delete account requested:', account);
     setAccountToDelete(account);
     setDeleteAccountDialogOpen(true);
   };
@@ -215,13 +248,22 @@ function AccountsAndDebts() {
   const confirmDeleteAccount = async () => {
     if (accountToDelete) {
       try {
+        console.log('🗑️ Attempting to delete account:', accountToDelete.id, accountToDelete.name);
         await accountsDebtsService.deleteAccount(accountToDelete.id);
-        setSaveMessage('Account deleted successfully!');
-        fetchAccountsAndDebts();
+        setSaveMessage('✅ Account deleted successfully!');
+        // Force refresh the data
+        await fetchAccountsAndDebts();
         setTimeout(() => setSaveMessage(''), 3000);
       } catch (error) {
-        console.error('Error deleting account:', error);
-        setSaveMessage('Error deleting account. Please try again.');
+        console.error('❌ Error deleting account:', error);
+        if (error.response && error.response.status === 404) {
+          setSaveMessage('⚠️ Account not found. It may have been already deleted. Refreshing data...');
+          // Refresh data if item not found
+          await fetchAccountsAndDebts();
+          setTimeout(() => setSaveMessage(''), 3000);
+        } else {
+          setSaveMessage('❌ Error deleting account. Please try again or refresh the data.');
+        }
       }
     }
     setDeleteAccountDialogOpen(false);
@@ -234,6 +276,7 @@ function AccountsAndDebts() {
   };
 
   const handleDeleteDebt = (debt) => {
+    console.log('🗑️ Delete debt requested:', debt);
     setDebtToDelete(debt);
     setDeleteDebtDialogOpen(true);
   };
@@ -241,13 +284,22 @@ function AccountsAndDebts() {
   const confirmDeleteDebt = async () => {
     if (debtToDelete) {
       try {
+        console.log('🗑️ Attempting to delete debt:', debtToDelete.id, debtToDelete.name);
         await accountsDebtsService.deleteDebt(debtToDelete.id);
-        setSaveMessage('Debt deleted successfully!');
-        fetchAccountsAndDebts();
+        setSaveMessage('✅ Debt deleted successfully!');
+        // Force refresh the data
+        await fetchAccountsAndDebts();
         setTimeout(() => setSaveMessage(''), 3000);
       } catch (error) {
-        console.error('Error deleting debt:', error);
-        setSaveMessage('Error deleting debt. Please try again.');
+        console.error('❌ Error deleting debt:', error);
+        if (error.response && error.response.status === 404) {
+          setSaveMessage('⚠️ Debt not found. It may have been already deleted. Refreshing data...');
+          // Refresh data if item not found
+          await fetchAccountsAndDebts();
+          setTimeout(() => setSaveMessage(''), 3000);
+        } else {
+          setSaveMessage('❌ Error deleting debt. Please try again or refresh the data.');
+        }
       }
     }
     setDeleteDebtDialogOpen(false);
@@ -275,12 +327,14 @@ function AccountsAndDebts() {
       balance: '',
       debtType: 'credit-card',
       interestRate: '24.99',
-      effectiveDate: new Date().toISOString().split('T')[0]
+      effectiveDate: new Date().toISOString().split('T')[0],
+      payoffDate: ''
     });
   };
 
   const openAccountDialog = (account = null) => {
     if (account) {
+      console.log('✏️ Opening account for editing:', account);
       setEditingAccount(account);
       setAccountForm({
         name: account.name,
@@ -290,6 +344,7 @@ function AccountsAndDebts() {
         effectiveDate: account.effective_date
       });
     } else {
+      console.log('➕ Opening dialog for new account');
       setEditingAccount(null);
       resetAccountForm();
     }
@@ -298,15 +353,18 @@ function AccountsAndDebts() {
 
   const openDebtDialog = (debt = null) => {
     if (debt) {
+      console.log('✏️ Opening debt for editing:', debt);
       setEditingDebt(debt);
       setDebtForm({
         name: debt.name,
         balance: debt.balance.toString(),
         debtType: debt.debt_type,
         interestRate: debt.interest_rate.toString(),
-        effectiveDate: debt.effective_date
+        effectiveDate: debt.effective_date,
+        payoffDate: debt.payoff_date || ''
       });
     } else {
+      console.log('➕ Opening dialog for new debt');
       setEditingDebt(null);
       resetDebtForm();
     }
@@ -329,6 +387,46 @@ function AccountsAndDebts() {
     const types = isDebt ? debtTypes : accountTypes;
     const typeInfo = types.find(t => t.value === type);
     return typeInfo ? typeInfo.label : type;
+  };
+
+  const calculateDebtPayoffTime = (debt) => {
+    if (!debt.balance) return 'N/A';
+    
+    // If payoff date is provided, calculate exact time from today
+    if (debt.payoff_date) {
+      const today = new Date();
+      const payoffDate = new Date(debt.payoff_date);
+      
+      // Calculate the difference in milliseconds
+      const timeDiff = payoffDate.getTime() - today.getTime();
+      
+      // If the date is in the past, return 0
+      if (timeDiff <= 0) return 0;
+      
+      // Calculate years, months, and days
+      const years = Math.floor(timeDiff / (1000 * 60 * 60 * 24 * 365.25));
+      const remainingMs = timeDiff % (1000 * 60 * 60 * 24 * 365.25);
+      const months = Math.floor(remainingMs / (1000 * 60 * 60 * 24 * 30.44));
+      const remainingDaysMs = remainingMs % (1000 * 60 * 60 * 24 * 30.44);
+      const days = Math.floor(remainingDaysMs / (1000 * 60 * 60 * 24));
+      
+      return { years, months, days, totalMonths: years * 12 + months };
+    }
+    
+    // Fallback to current calculation if no payoff date
+    const balance = parseFloat(debt.balance);
+    const rate = parseFloat(debt.interest_rate) / 100 / 12;
+    
+    // Calculate estimated minimum payment (2% of balance or interest-only payment)
+    const estimatedPayment = Math.max(balance * 0.02, balance * rate);
+    
+    if (rate === 0) {
+      const months = Math.ceil(balance / estimatedPayment);
+      return { years: Math.floor(months / 12), months: months % 12, days: 0, totalMonths: months };
+    }
+    
+    const totalMonths = Math.ceil(Math.log(1 + (balance * rate) / estimatedPayment) / Math.log(1 + rate));
+    return { years: Math.floor(totalMonths / 12), months: totalMonths % 12, days: 0, totalMonths };
   };
 
   const totalAccountBalance = accounts?.reduce((sum, account) => sum + parseFloat(account.balance || 0), 0) || 0;
@@ -450,13 +548,15 @@ function AccountsAndDebts() {
             <Typography variant="h5" fontWeight="bold">
               Your Accounts
             </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => openAccountDialog()}
-            >
-              Add Account
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => openAccountDialog()}
+              >
+                Add Account
+              </Button>
+            </Box>
           </Box>
 
           {(accounts || []).length === 0 ? (
@@ -526,13 +626,15 @@ function AccountsAndDebts() {
             <Typography variant="h5" fontWeight="bold">
               Your Debts
             </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => openDebtDialog()}
-            >
-              Add Debt
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => openDebtDialog()}
+              >
+                Add Debt
+              </Button>
+            </Box>
           </Box>
 
           {(debts || []).length === 0 ? (
@@ -580,6 +682,45 @@ function AccountsAndDebts() {
                         <Typography variant="body2" color="text.secondary">
                           {debt.interest_rate}% interest rate
                         </Typography>
+                        {(() => {
+                          const payoffTime = calculateDebtPayoffTime(debt);
+                          if (payoffTime === 'N/A') return null;
+                          
+                          if (payoffTime === 0) {
+                            return (
+                              <Typography variant="body2" sx={{ color: '#4caf50', fontWeight: 600, mt: 0.5 }}>
+                                Paid Off!
+                              </Typography>
+                            );
+                          }
+                          
+                          const { years, months, days, totalMonths } = payoffTime;
+                          return (
+                            <Box sx={{ mt: 0.5 }}>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 600,
+                                color: debt.payoff_date ? '#4caf50' : (totalMonths > 60 ? '#f44336' : totalMonths > 24 ? '#ff9800' : '#4caf50')
+                              }}>
+                                {debt.payoff_date ? 'Target: ' : 'Payoff: '}
+                                {years > 0 
+                                  ? `${years}Y ${months}m` 
+                                  : months > 0 
+                                    ? `${months}M ${days}d`
+                                    : `${days}D`
+                                }
+                              </Typography>
+                              {debt.payoff_date && (
+                                <Typography variant="caption" sx={{ 
+                                  color: '#888',
+                                  fontSize: '0.75rem',
+                                  fontStyle: 'italic'
+                                }}>
+                                  {new Date(debt.payoff_date).getDate()}{new Date(debt.payoff_date).toLocaleDateString('en-US', { month: 'short' })}, {new Date(debt.payoff_date).getFullYear()}
+                                </Typography>
+                              )}
+                            </Box>
+                          );
+                        })()}
                       </Box>
                     }
                   />
@@ -758,11 +899,23 @@ function AccountsAndDebts() {
                 <TextField
                   fullWidth
                   type="date"
-                  label="Effective Date"
+                  label="Balance Effective Date"
                   value={debtForm.effectiveDate}
                   onChange={(e) => setDebtForm({...debtForm, effectiveDate: e.target.value})}
                   InputLabelProps={{ shrink: true }}
                   required
+                  helperText="When this balance was recorded"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Target Payoff Date (Optional)"
+                  value={debtForm.payoffDate}
+                  onChange={(e) => setDebtForm({...debtForm, payoffDate: e.target.value})}
+                  InputLabelProps={{ shrink: true }}
+                  helperText="When you plan to pay this off"
                 />
               </Grid>
             </Grid>

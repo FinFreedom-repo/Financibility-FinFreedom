@@ -132,6 +132,10 @@ class UserProfile(models.Model):
     age = models.IntegerField(null=True, blank=True)
     sex = models.CharField(max_length=10, choices=[('M', 'Male'), ('F', 'Female'), ('O', 'Other')], null=True, blank=True)
     marital_status = models.CharField(max_length=20, choices=[('single', 'Single'), ('married', 'Married'), ('divorced', 'Divorced'), ('widowed', 'Widowed')], null=True, blank=True)
+    profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.user.username}'s profile"
@@ -152,6 +156,7 @@ class Debt(models.Model):
     balance = models.DecimalField(max_digits=15, decimal_places=2)
     interest_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
     effective_date = models.DateField(default=today, help_text="Date this balance is effective for")
+    payoff_date = models.DateField(null=True, blank=True, help_text="Expected payoff date")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
