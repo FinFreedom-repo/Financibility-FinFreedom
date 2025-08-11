@@ -30,52 +30,47 @@ financability/
 
 ## Prerequisites
 
-- **Python 3.8+** (Python 3.12.3 recommended)
-- **Node.js 16+** and npm
-- **Git**
+- Python 3.8+
+- Node.js 16+
+- MongoDB
 
-## Backend Setup (Django REST API)
+## Quick Start
 
-### 1. Navigate to Backend Directory
+### 1. Setup MongoDB
+```bash
+chmod +x setup_mongodb.sh
+./setup_mongodb.sh
+```
+
+### 2. Backend Setup
 ```bash
 cd backend
-```
-
-### 2. Create Virtual Environment
-```bash
 python3 -m venv venv
-```
-
-### 3. Activate Virtual Environment
-```bash
-# On Linux/macOS:
 source venv/bin/activate
-
-# On Windows:
-venv\Scripts\activate
-```
-
-### 4. Install Dependencies
-```bash
 pip install -r ../requirements.txt
-```
-
-### 5. Run Database Migrations
-```bash
 python3 manage.py migrate
-
-### 7. Run the Backend Server
-```bash
 python3 manage.py runserver
 ```
 
-The backend will be available at: **http://localhost:8000**
-
-## Frontend Setup (React)
-
-### 1. Navigate to Frontend Directory
+### 3. Frontend Setup
 ```bash
 cd frontend
+npm install
+npm start
+```
+
+## Access Points
+
+- **Backend**: http://localhost:8000
+- **Frontend**: http://localhost:3000
+- **Admin**: http://localhost:8000/admin
+
+## API Endpoints
+
+The backend will be available at: **http://localhost:8000**
+
+## Project Structure
+
 ```
 
 ### 2. Install Dependencies
