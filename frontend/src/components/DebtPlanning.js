@@ -167,7 +167,8 @@ const DebtPlanning = () => {
     balance: '',
     debtType: 'credit-card',
     interestRate: '24.99',
-    effectiveDate: new Date().toISOString().split('T')[0]
+    effectiveDate: new Date().toISOString().split('T')[0],
+    payoffDate: ''
   });
 
   // Add missing state variables for debt payoff planning
@@ -182,14 +183,14 @@ const DebtPlanning = () => {
   // Auto-save timeout ref
   const autoSaveTimeoutRef = useRef(null);
 
-  // Debt types configuration
+  // Debt types configuration - Using only blue, green, and red theme
   const debtTypes = [
     { value: 'credit-card', label: 'Credit Card', icon: <CreditCardIcon />, color: debtDarkColors.blue },
     { value: 'personal-loan', label: 'Personal Loan', icon: <PersonalVideoIcon />, color: debtDarkColors.red },
     { value: 'student-loan', label: 'Student Loan', icon: <SchoolIcon />, color: debtDarkColors.blue },
     { value: 'auto-loan', label: 'Auto Loan', icon: <CarIcon />, color: debtDarkColors.blue },
     { value: 'mortgage', label: 'Mortgage', icon: <HomeIcon />, color: debtDarkColors.blue },
-    { value: 'other', label: 'Other', icon: <ReceiptIcon />, color: debtDarkColors.lightGrey }
+    { value: 'other', label: 'Other', icon: <ReceiptIcon />, color: '#4caf50' }
   ];
 
   const defaultDebtRates = {
@@ -208,7 +209,8 @@ const DebtPlanning = () => {
       balance: '',
       debtType: 'credit-card',
       interestRate: '24.99',
-      effectiveDate: new Date().toISOString().split('T')[0]
+      effectiveDate: new Date().toISOString().split('T')[0],
+      payoffDate: ''
     });
   };
 
@@ -224,7 +226,8 @@ const DebtPlanning = () => {
         balance: (debt.balance !== undefined && debt.balance !== null) ? debt.balance.toString() : '',
         debtType: debt.debt_type || 'credit-card',
         interestRate: (debt.interest_rate !== undefined && debt.interest_rate !== null) ? debt.interest_rate.toString() : '24.99',
-        effectiveDate: debt.effective_date || new Date().toISOString().split('T')[0]
+        effectiveDate: debt.effective_date || new Date().toISOString().split('T')[0],
+        payoffDate: debt.payoff_date || ''
       };
       
       console.log('Setting debt form with data:', debtData);
@@ -265,7 +268,8 @@ const DebtPlanning = () => {
         balance: parseFloat(debtForm.balance),
         debt_type: debtForm.debtType,
         interest_rate: parseFloat(debtForm.interestRate),
-        effective_date: debtForm.effectiveDate
+        effective_date: debtForm.effectiveDate,
+        payoff_date: debtForm.payoffDate || null
       };
 
       if (editingDebt) {
@@ -370,11 +374,12 @@ const DebtPlanning = () => {
         // Ensure balance is a number
         balance: parseFloat(debt.balance) || 0,
         interest_rate: parseFloat(debt.interest_rate) || 0,
-        minimum_payment: parseFloat(debt.minimum_payment) || 0,
+
         // Ensure required fields exist with proper field names
         name: debt.name || 'Unnamed Debt',
         debt_type: debt.debt_type || 'other',
         effective_date: debt.effective_date || new Date().toISOString().split('T')[0],
+        payoff_date: debt.payoff_date || null,
         // Add missing fields that the frontend expects
         id: debt.id || null,
         user: debt.user || null,
@@ -444,10 +449,11 @@ const DebtPlanning = () => {
     });
     data.push(netRow);
     
-    // Income row
+    // Income row (Primary + Additional Income)
+    const totalIncome = (budget.income || 0) + (budget.additional_income || 0);
     const incomeRow = { category: 'Income', type: 'income', editable: true };
     months.forEach((month, idx) => {
-      incomeRow[`month_${idx}`] = budget.income || 0;
+      incomeRow[`month_${idx}`] = totalIncome;
     });
     data.push(incomeRow);
     
@@ -528,7 +534,8 @@ const DebtPlanning = () => {
             // Update the grid data with the loaded budget for this specific month only
             data.forEach(row => {
               if (row.category === 'Income') {
-                row[`month_${monthIdx}`] = monthBudget.income || 0;
+                const totalIncome = (monthBudget.income || 0) + (monthBudget.additional_income || 0);
+                row[`month_${monthIdx}`] = totalIncome;
               } else if (row.type === 'expense') {
                 const fieldMap = {
                   'Housing': 'housing',
@@ -619,27 +626,46 @@ const DebtPlanning = () => {
   };
 
   const calculateDebtPayoffTime = (debt) => {
-    if (!debt.balance || !debt.minimum_payment || debt.minimum_payment <= 0) return 'N/A';
+    if (!debt.balance) return 'N/A';
     
-    const balance = parseFloat(debt.balance);
-    const payment = parseFloat(debt.minimum_payment);
-    const rate = parseFloat(debt.interest_rate) / 100 / 12;
-    
-    if (rate === 0) {
-      return Math.ceil(balance / payment);
+    // If payoff date is provided, calculate exact time from today
+    if (debt.payoff_date) {
+      const today = new Date();
+      const payoffDate = new Date(debt.payoff_date);
+      
+      // Calculate the difference in milliseconds
+      const timeDiff = payoffDate.getTime() - today.getTime();
+      
+      // If the date is in the past, return 0
+      if (timeDiff <= 0) return 0;
+      
+      // Calculate years, months, and days
+      const years = Math.floor(timeDiff / (1000 * 60 * 60 * 24 * 365.25));
+      const remainingMs = timeDiff % (1000 * 60 * 60 * 24 * 365.25);
+      const months = Math.floor(remainingMs / (1000 * 60 * 60 * 24 * 30.44));
+      const remainingDaysMs = remainingMs % (1000 * 60 * 60 * 24 * 30.44);
+      const days = Math.floor(remainingDaysMs / (1000 * 60 * 60 * 24));
+      
+      return { years, months, days, totalMonths: years * 12 + months };
     }
     
-    const months = Math.ceil(Math.log(1 + (balance * rate) / payment) / Math.log(1 + rate));
-    return months;
+    // Fallback to current calculation if no payoff date
+    const balance = parseFloat(debt.balance);
+    const rate = parseFloat(debt.interest_rate) / 100 / 12;
+    
+    // Calculate estimated minimum payment (2% of balance or interest-only payment)
+    const estimatedPayment = Math.max(balance * 0.02, balance * rate);
+    
+    if (rate === 0) {
+      const months = Math.ceil(balance / estimatedPayment);
+      return { years: Math.floor(months / 12), months: months % 12, days: 0, totalMonths: months };
+    }
+    
+    const totalMonths = Math.ceil(Math.log(1 + (balance * rate) / estimatedPayment) / Math.log(1 + rate));
+    return { years: Math.floor(totalMonths / 12), months: totalMonths % 12, days: 0, totalMonths };
   };
 
-  const calculateTotalInterest = (debt) => {
-    const payoffTime = calculateDebtPayoffTime(debt);
-    if (payoffTime === 'N/A') return 0;
-    
-    const totalPaid = parseFloat(debt.minimum_payment) * payoffTime;
-    return totalPaid - parseFloat(debt.balance);
-  };
+
 
   const debtColumns = [
     {
@@ -733,35 +759,24 @@ const DebtPlanning = () => {
         );
       }
     },
+
     {
-      headerName: 'Min Payment',
-      field: 'minimum_payment',
-      width: 130,
-      cellRenderer: ({ value, data }) => {
-        // Calculate minimum payment if not provided (2% of balance or interest-only payment)
-        const minPayment = value || Math.max(data.balance * 0.02, (data.balance * (data.interest_rate / 100 / 12)));
-        return (
-          <Typography variant="body2" sx={{ 
-            fontWeight: 600,
-            color: '#42a5f5'
-          }}>
-            {formatCurrency(minPayment)}
-          </Typography>
-        );
-      }
-    },
-    {
-      headerName: '📅 Monthly Interest',
-      field: 'monthly_interest',
+      headerName: '📅 Total Monthly Interest',
+      field: 'total_monthly_interest',
       width: 140,
       cellRenderer: ({ data }) => {
-        const monthlyInterest = (data.balance * (data.interest_rate / 100 / 12));
+        // Calculate total monthly interest across all debts
+        const totalMonthlyInterest = outstandingDebts?.reduce((sum, debt) => {
+          const monthlyInterest = (debt.balance || 0) * ((debt.interest_rate || 0) / 100 / 12);
+          return sum + monthlyInterest;
+        }, 0) || 0;
+        
         return (
           <Typography variant="body2" sx={{ 
             fontWeight: 600,
-            color: '#ff9800'
+            color: debtDarkColors.red
           }}>
-            {formatCurrency(monthlyInterest)}
+            {formatCurrency(totalMonthlyInterest)}
           </Typography>
         );
       }
@@ -771,41 +786,40 @@ const DebtPlanning = () => {
       field: 'payoff_time',
       width: 130,
       cellRenderer: ({ data }) => {
-        const months = calculateDebtPayoffTime(data);
-        if (months === 'N/A') return (
+        const payoffTime = calculateDebtPayoffTime(data);
+        if (payoffTime === 'N/A') return (
           <Typography variant="body2" sx={{ color: '#999', fontStyle: 'italic' }}>
             N/A
           </Typography>
         );
-        const years = Math.floor(months / 12);
-        const remainingMonths = months % 12;
+        
+        if (payoffTime === 0) return (
+          <Typography variant="body2" sx={{ 
+            color: '#4caf50', 
+            fontWeight: 600,
+            fontStyle: 'italic'
+          }}>
+            Paid Off!
+          </Typography>
+        );
+        
+        const { years, months, days, totalMonths } = payoffTime;
         return (
           <Typography variant="body2" sx={{ 
             fontWeight: 600,
-            color: months > 60 ? '#f44336' : months > 24 ? '#ff9800' : '#4caf50'
+                          color: data.payoff_date ? '#4caf50' : (totalMonths > 60 ? '#f44336' : totalMonths > 24 ? '#f44336' : '#4caf50')
           }}>
-            {years > 0 ? `${years}y ` : ''}{remainingMonths}m
+            {years > 0 
+              ? `${years}Y ${months}m` 
+              : months > 0 
+                ? `${months}M ${days}d`
+                : `${days}D`
+            }
           </Typography>
         );
       }
     },
-    {
-      headerName: '💸 Total Interest',
-      field: 'total_interest',
-      width: 140,
-      cellRenderer: ({ data }) => {
-        const totalInterest = calculateTotalInterest(data);
-        return (
-          <Typography variant="body2" sx={{ 
-            fontWeight: 700,
-            color: '#e91e63',
-            fontSize: '0.95rem'
-          }}>
-            {formatCurrency(totalInterest)}
-          </Typography>
-        );
-      }
-    },
+
     {
       headerName: '⚙️ Actions',
       field: 'actions',
@@ -1085,7 +1099,7 @@ const DebtPlanning = () => {
         res.plan.forEach((monthPlan, idx) => {
           // Skip the initial month (idx 0) which has $0 payments
           if (idx === 0) {
-            console.log(`\nPrevious Month (Initial Balances):`);
+            console.log(`\nPrevious Month:`);
             if (monthPlan.debts) {
               monthPlan.debts.forEach(debt => {
                 console.log(`  - ${debt.name}: Balance $${debt.balance}, Paid $${debt.paid}, Interest $${debt.interest}`);
@@ -1712,7 +1726,7 @@ const DebtPlanning = () => {
                 : 'white',
               borderLeft: isDarkMode 
                 ? `4px solid ${debtDarkColors.red}` 
-                : '4px solid #ff6b6b',
+                : '4px solid #f44336',
               textAlign: 'left',
               paddingLeft: '16px'
             },
@@ -2006,7 +2020,7 @@ const DebtPlanning = () => {
                       label={`+${((summary.totalInterest / summary.totalPrincipal) * 100).toFixed(1)}%`}
                       size="small"
                       sx={{
-                        background: 'linear-gradient(45deg, #ff6b6b, #ee5a52)',
+                                                                      background: debtDarkColors.red,
                         color: 'white',
                         fontWeight: 'bold',
                         fontSize: '0.65rem',
@@ -2086,7 +2100,7 @@ const DebtPlanning = () => {
                             {(() => {
                               const currentMonthIdx = months.findIndex(m => m.type === 'current');
                               if (idx === currentMonthIdx - 1) {
-                                return `${month.label}\n(Initial Balances)`;
+                                return `${month.label}\n`;
                               }
                               return month.label || `Month ${idx}`;
                             })()}
@@ -2108,7 +2122,7 @@ const DebtPlanning = () => {
                             {(() => {
                               const currentMonthIdx = months.findIndex(m => m.type === 'current');
                               if (idx === currentMonthIdx - 1) {
-                                return `${month.label}\n(Initial Balances)`;
+                                return `${month.label}\n`;
                               }
                               return month.label || `Month ${idx}`;
                             })()}
@@ -2808,6 +2822,7 @@ const DebtPlanning = () => {
     
     const budget = {
       income: 0,
+      additional_income: 0,
       housing: 0,
       transportation: 0,
       food: 0,
@@ -2836,7 +2851,28 @@ const DebtPlanning = () => {
       const currentValue = parseFloat(row[`month_${currentMonthIdx}`]) || 0;
       
       if (row.category === 'Income') {
-        budget.income = currentValue;
+        // For the debt planning grid, we show total income
+        // We'll preserve the existing split if available, otherwise put all in primary income
+        const existingBudget = editedBudgetData || {};
+        const existingAdditionalIncome = existingBudget.additional_income || 0;
+        const existingPrimaryIncome = existingBudget.income || 0;
+        
+        if (existingPrimaryIncome > 0 || existingAdditionalIncome > 0) {
+          // Preserve the existing ratio
+          const totalExisting = existingPrimaryIncome + existingAdditionalIncome;
+          if (totalExisting > 0) {
+            const ratio = currentValue / totalExisting;
+            budget.income = existingPrimaryIncome * ratio;
+            budget.additional_income = existingAdditionalIncome * ratio;
+          } else {
+            budget.income = currentValue;
+            budget.additional_income = 0;
+          }
+        } else {
+          // No existing data, put all in primary income
+          budget.income = currentValue;
+          budget.additional_income = 0;
+        }
       } else if (row.type === 'income' && row.category !== 'Income') {
         // Additional income items
         budget.additional_items.push({
@@ -2903,6 +2939,7 @@ const DebtPlanning = () => {
       // Prepare budget data for this specific month only
       const budgetUpdate = {
         income: 0,
+        additional_income: 0,
         housing: 0,
         transportation: 0,
         food: 0,
@@ -2920,12 +2957,49 @@ const DebtPlanning = () => {
         year: year
       };
       
+      // First, try to get existing budget data for this month to preserve the income split
+      let existingBudget = null;
+      try {
+        const existingResponse = await axios.get(`/api/budgets/get-month/?month=${month}&year=${year}`);
+        if (existingResponse.data && existingResponse.status !== 404) {
+          existingBudget = existingResponse.data;
+        }
+      } catch (error) {
+        console.log(`No existing budget found for month ${month}/${year}, will use default split`);
+      }
+      
       // Process each row in the grid data for this specific month only
       localGridData.forEach(row => {
         const monthValue = parseFloat(row[`month_${monthIdx}`]) || 0;
         
         if (row.category === 'Income') {
-          budgetUpdate.income = monthValue;
+          // For the debt planning grid, we show total income
+          // We need to preserve the existing split if available
+          if (existingBudget) {
+            const existingAdditionalIncome = existingBudget.additional_income || 0;
+            const existingPrimaryIncome = existingBudget.income || 0;
+            
+            if (existingPrimaryIncome > 0 || existingAdditionalIncome > 0) {
+              // Preserve the existing ratio
+              const totalExisting = existingPrimaryIncome + existingAdditionalIncome;
+              if (totalExisting > 0) {
+                const ratio = monthValue / totalExisting;
+                budgetUpdate.income = existingPrimaryIncome * ratio;
+                budgetUpdate.additional_income = existingAdditionalIncome * ratio;
+              } else {
+                budgetUpdate.income = monthValue;
+                budgetUpdate.additional_income = 0;
+              }
+            } else {
+              // No existing data, put all in primary income
+              budgetUpdate.income = monthValue;
+              budgetUpdate.additional_income = 0;
+            }
+          } else {
+            // No existing data, put all in primary income
+            budgetUpdate.income = monthValue;
+            budgetUpdate.additional_income = 0;
+          }
         } else if (row.type === 'income' && row.category !== 'Income') {
           // Additional income items
           budgetUpdate.additional_items.push({
@@ -3077,8 +3151,16 @@ const DebtPlanning = () => {
   }
 
   const totalDebtBalance = outstandingDebts?.reduce((sum, debt) => sum + parseFloat(debt.balance || 0), 0) || 0;
-  const totalMinPayments = outstandingDebts?.reduce((sum, debt) => sum + parseFloat(debt.minimum_payment || 0), 0) || 0;
-  const totalInterest = outstandingDebts?.reduce((sum, debt) => sum + calculateTotalInterest(debt), 0) || 0;
+  const totalMinPayments = outstandingDebts?.reduce((sum, debt) => {
+    const balance = parseFloat(debt.balance || 0);
+    const rate = parseFloat(debt.interest_rate || 0) / 100 / 12;
+    const estimatedPayment = Math.max(balance * 0.02, balance * rate);
+    return sum + estimatedPayment;
+  }, 0) || 0;
+  const totalMonthlyInterest = outstandingDebts?.reduce((sum, debt) => {
+    const monthlyInterest = (debt.balance || 0) * ((debt.interest_rate || 0) / 100 / 12);
+    return sum + monthlyInterest;
+  }, 0) || 0;
 
   return (
     <Box sx={{ 
@@ -3145,7 +3227,7 @@ const DebtPlanning = () => {
                       width: 24,
                       height: 24,
                       borderRadius: '50%',
-                      background: 'linear-gradient(45deg, #4caf50, #66bb6a)',
+                      background: '#4caf50',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -3206,9 +3288,9 @@ const DebtPlanning = () => {
                     icon={<LightbulbIcon />}
                     label="AI-Powered Analysis"
                     sx={{ 
-                      background: 'rgba(255, 193, 7, 0.2)',
-                      color: isDarkMode ? 'white' : '#e65100',
-                      border: '1px solid rgba(255, 193, 7, 0.3)',
+                      background: 'rgba(33, 150, 243, 0.2)',
+                      color: isDarkMode ? 'white' : '#1565c0',
+                      border: '1px solid rgba(33, 150, 243, 0.3)',
                       fontWeight: 500
                     }}
                   />
@@ -3237,9 +3319,9 @@ const DebtPlanning = () => {
                       icon={<CheckCircleIcon />}
                       label={`${outstandingDebts.length} Active Debts Tracked`}
                       sx={{ 
-                        background: 'rgba(156, 39, 176, 0.2)',
-                        color: isDarkMode ? 'white' : '#7b1fa2',
-                        border: '1px solid rgba(156, 39, 176, 0.3)',
+                        background: 'rgba(76, 175, 80, 0.2)',
+                        color: isDarkMode ? 'white' : '#2e7d32',
+                        border: '1px solid rgba(76, 175, 80, 0.3)',
                         fontWeight: 500
                       }}
                     />
@@ -3251,37 +3333,29 @@ const DebtPlanning = () => {
 
           <Container maxWidth="xl" sx={{ pb: 4 }}>
             {/* Enhanced Summary Cards with Glassmorphism and Animations */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid container spacing={4} sx={{ mb: 4 }}>
               <Grid item xs={12}>
-                <Grid container spacing={3}>
+                <Grid container spacing={4} justifyContent="space-between">
                   {[
                     {
                       title: 'Total Debt Balance',
                       value: totalDebtBalance,
                       icon: AccountBalanceIcon,
-                      gradient: ['#ff6b6b', '#ee5a52'],
+                      gradient: [debtDarkColors.red, debtDarkColors.redDark],
                       progress: Math.min((totalDebtBalance / 100000) * 100, 100),
-                      color: '#ff6b6b',
+                                              color: debtDarkColors.red,
                       delay: 0
                     },
                     {
-                      title: 'Monthly Minimums', 
-                      value: totalMinPayments,
+                      title: 'Monthly Interest', 
+                      value: totalMonthlyInterest,
                       icon: MoneyIcon,
-                      gradient: ['#ffa726', '#ff9800'],
-                      progress: Math.min((totalMinPayments / 5000) * 100, 100),
-                      color: '#ffa726',
+                      gradient: [debtDarkColors.red, debtDarkColors.redDark],
+                      progress: Math.min((totalMonthlyInterest / 1000) * 100, 100),
+                      color: debtDarkColors.red,
                       delay: 200
                     },
-                    {
-                      title: 'Total Interest',
-                      value: totalInterest,
-                      icon: TrendingUpIcon,
-                      gradient: ['#42a5f5', '#2196f3'],
-                      progress: Math.min((totalInterest / totalDebtBalance) * 100, 100),
-                      color: '#42a5f5',
-                      delay: 400
-                    },
+
                     {
                       title: 'Active Debts',
                       value: outstandingDebts.length,
@@ -3293,7 +3367,7 @@ const DebtPlanning = () => {
                       isCount: true
                     }
                   ].map((card, index) => (
-                    <Grid item xs={12} sm={6} md={3} key={index}>
+                    <Grid item xs={12} sm={6} md={4} key={index}>
                       <Grow in={true} timeout={800 + card.delay}>
                         <Card sx={{
                           background: isDarkMode 
@@ -3309,6 +3383,8 @@ const DebtPlanning = () => {
                           boxShadow: isDarkMode 
                             ? '0 2px 8px rgba(33, 150, 243, 0.2)' 
                             : '0 4px 20px rgba(0, 0, 0, 0.08)',
+                          mx: 1,
+                          my: 1,
                           '&:hover': {
                             transform: 'translateY(-4px)',
                             background: isDarkMode 
@@ -3585,7 +3661,7 @@ const DebtPlanning = () => {
                               ? 'white' 
                               : (isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 107, 107, 0.8)'),
                             background: strategy === 'avalanche' 
-                              ? 'linear-gradient(135deg, #ff6b6b, #ee5a52)' 
+                              ? debtDarkColors.red
                               : 'transparent',
                             px: 3,
                             py: 1.5,
@@ -3594,7 +3670,7 @@ const DebtPlanning = () => {
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                             '&:hover': {
                               background: strategy === 'avalanche' 
-                                ? 'linear-gradient(135deg, #e53e3e, #c53030)' 
+                                ? debtDarkColors.redDark
                                 : 'rgba(255, 107, 107, 0.15)',
                               border: 'none',
                               transform: 'translateY(-1px)',
@@ -3615,7 +3691,7 @@ const DebtPlanning = () => {
                         size="medium"
                         sx={{
                           background: hasUnsavedChanges 
-                            ? 'linear-gradient(135deg, #ffa726, #ff9800)' 
+                            ? debtDarkColors.blue
                             : 'rgba(158, 158, 158, 0.3)',
                           color: hasUnsavedChanges 
                             ? 'white' 
@@ -3629,7 +3705,7 @@ const DebtPlanning = () => {
                           transition: 'all 0.3s ease',
                           '&:hover': {
                             background: hasUnsavedChanges 
-                              ? 'linear-gradient(135deg, #ff9800, #f57c00)' 
+                              ? debtDarkColors.blueDark
                               : 'rgba(158, 158, 158, 0.3)',
                             transform: hasUnsavedChanges ? 'translateY(-2px)' : 'none',
                             boxShadow: hasUnsavedChanges ? '0 6px 25px rgba(255, 167, 38, 0.4)' : 'none'
@@ -3891,7 +3967,7 @@ const DebtPlanning = () => {
                                     <TableCell align="right"><strong>Balance</strong></TableCell>
                                     <TableCell align="right"><strong>Interest Rate</strong></TableCell>
                                     <TableCell align="right"><strong>Debt Type</strong></TableCell>
-                                    <TableCell align="right"><strong>Min Payment</strong></TableCell>
+                                    <TableCell align="right"><strong>Monthly Interest</strong></TableCell>
                                   </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -3972,10 +4048,10 @@ const DebtPlanning = () => {
                                             size="small"
                                             sx={{ 
                                               background: debt.interest_rate > 15 
-                                                ? 'linear-gradient(45deg, #ff6b6b, #ee5a52)'
+                                                ? debtDarkColors.red
                                                 : debt.interest_rate > 8 
-                                                  ? 'linear-gradient(45deg, #ffa726, #ff9800)'
-                                                  : 'linear-gradient(45deg, #66bb6a, #4caf50)',
+                                                  ? debtDarkColors.red
+                                                  : debtDarkColors.blue,
                                               color: 'white',
                                               fontWeight: 600
                                             }}
@@ -3987,15 +4063,15 @@ const DebtPlanning = () => {
                                             size="small"
                                             icon={debtTypes.find(type => type.value === debt.debt_type)?.icon || <ReceiptIcon />}
                                             sx={{ 
-                                              background: `${debtTypes.find(type => type.value === debt.debt_type)?.color || '#616161'}20`,
-                                              color: debtTypes.find(type => type.value === debt.debt_type)?.color || '#616161',
+                                              background: `${debtTypes.find(type => type.value === debt.debt_type)?.color || '#4caf50'}20`,
+                                              color: debtTypes.find(type => type.value === debt.debt_type)?.color || '#4caf50',
                                               fontWeight: 500,
-                                              border: `1px solid ${debtTypes.find(type => type.value === debt.debt_type)?.color || '#616161'}50`
+                                              border: `1px solid ${debtTypes.find(type => type.value === debt.debt_type)?.color || '#4caf50'}50`
                                             }}
                                           />
                                         </TableCell>
                                         <TableCell align="right">
-                                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#4fc3f7' }}>
+                                          <Typography variant="body2" sx={{ fontWeight: 500, color: debtDarkColors.red }}>
                                             ${((debt.balance || 0) * ((debt.interest_rate || 0) / 100 / 12)).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                           </Typography>
                                         </TableCell>
@@ -4116,33 +4192,7 @@ const DebtPlanning = () => {
                             sx={{ color: isDarkMode ? 'white' : '#2c3e50' }} 
                           />
                         )}
-                        <Button
-                          startIcon={<AddIcon />}
-                          variant="contained"
-                          onClick={() => openDebtDialog()}
-                          disabled={debtsLoading}
-                          sx={{
-                            background: debtDarkColors.blue,
-                            color: 'white',
-                            fontWeight: 600,
-                            px: 3,
-                            py: 1,
-                            borderRadius: 2,
-                            textTransform: 'none',
-                            boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
-                            '&:hover': {
-                              background: '#42a5f5',
-                              transform: 'translateY(-1px)',
-                              boxShadow: '0 6px 16px rgba(33, 150, 243, 0.4)'
-                            },
-                            '&:disabled': {
-                              background: 'rgba(0, 0, 0, 0.12)',
-                              color: 'rgba(0, 0, 0, 0.26)'
-                            }
-                          }}
-                        >
-                          Add New Debt
-                        </Button>
+
                       </Box>
                     </Box>
                     
@@ -4228,13 +4278,15 @@ const DebtPlanning = () => {
                       <Box sx={{ position: 'relative' }}>
                         {/* Debt Summary Cards */}
                         {outstandingDebts && outstandingDebts.length > 0 && (
-                          <Grid container spacing={2} sx={{ mb: 3 }}>
+                          <Grid container spacing={3} sx={{ mb: 3 }}>
                             <Grid item xs={12} sm={6} md={3}>
                               <Card sx={{ 
                                 background: 'linear-gradient(45deg, #f44336, #d32f2f)',
                                 color: 'white',
                                 textAlign: 'center',
-                                p: 2
+                                p: 2,
+                                mx: 0.5,
+                                my: 0.5
                               }}>
                                 <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
                                   {formatCurrency(outstandingDebts.reduce((sum, debt) => {
@@ -4249,10 +4301,12 @@ const DebtPlanning = () => {
                             </Grid>
                             <Grid item xs={12} sm={6} md={3}>
                               <Card sx={{ 
-                                background: 'linear-gradient(45deg, #ff9800, #f57c00)',
+                                background: '#f44336',
                                 color: 'white',
                                 textAlign: 'center',
-                                p: 2
+                                p: 2,
+                                mx: 0.5,
+                                my: 0.5
                               }}>
                                 <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
                                   {formatCurrency(outstandingDebts.reduce((sum, debt) => {
@@ -4272,7 +4326,9 @@ const DebtPlanning = () => {
                                 background: 'linear-gradient(45deg, #2196f3, #1976d2)',
                                 color: 'white',
                                 textAlign: 'center',
-                                p: 2
+                                p: 2,
+                                mx: 0.5,
+                                my: 0.5
                               }}>
                                 <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
                                   {outstandingDebts.length > 0 
@@ -4290,10 +4346,12 @@ const DebtPlanning = () => {
                             </Grid>
                             <Grid item xs={12} sm={6} md={3}>
                               <Card sx={{ 
-                                background: 'linear-gradient(45deg, #4caf50, #388e3c)',
+                                background: '#2196f3',
                                 color: 'white',
                                 textAlign: 'center',
-                                p: 2
+                                p: 2,
+                                mx: 0.5,
+                                my: 0.5
                               }}>
                                 <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
                                   {outstandingDebts.length}
@@ -4306,33 +4364,435 @@ const DebtPlanning = () => {
                           </Grid>
                         )}
                         
-                        <DataTable
-                          data={outstandingDebts}
-                          type="debts"
-                          columns={debtColumns}
-                          rows={outstandingDebts}
-                          height={450}
-                          loading={debtsLoading}
-                        />
-                        {debtsLoading && (
-                          <Box sx={{ 
-                            position: 'absolute', 
-                            top: 0, 
-                            left: 0, 
-                            right: 0, 
-                            bottom: 0, 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
+                        {/* Enhanced Outstanding Debts Grid */}
+                        <Card sx={{
+                          background: isDarkMode 
+                            ? 'rgba(255, 255, 255, 0.05)' 
+                            : 'rgba(255, 255, 255, 0.9)',
+                          backdropFilter: 'blur(20px)',
+                          border: isDarkMode 
+                            ? '1px solid rgba(255, 255, 255, 0.1)' 
+                            : '1px solid rgba(0, 0, 0, 0.1)',
+                          borderRadius: 3,
+                          boxShadow: isDarkMode 
+                            ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
+                            : '0 8px 32px rgba(0, 0, 0, 0.1)',
+                          overflow: 'hidden',
+                          position: 'relative'
+                        }}>
+                          {/* Header */}
+                          <Box sx={{
                             background: isDarkMode 
-                              ? 'rgba(0, 0, 0, 0.3)' 
-                              : 'rgba(255, 255, 255, 0.7)',
-                            backdropFilter: 'blur(2px)',
-                            borderRadius: 1
+                              ? 'linear-gradient(135deg, #1a1a2e, #16213e)' 
+                              : 'linear-gradient(135deg, #f8f9fa, #e9ecef)',
+                            p: 3,
+                            borderBottom: isDarkMode 
+                              ? '1px solid rgba(255, 255, 255, 0.1)' 
+                              : '1px solid rgba(0, 0, 0, 0.1)'
                           }}>
-                            <CircularProgress size={40} />
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Avatar sx={{ 
+                                  bgcolor: debtDarkColors.blue, 
+                                  mr: 2,
+                                  width: 40,
+                                  height: 40
+                                }}>
+                                  <AccountBalanceIcon />
+                                </Avatar>
+                                <Box>
+                                  <Typography variant="h5" sx={{ 
+                                    fontWeight: 'bold',
+                                    color: isDarkMode ? 'white' : '#2c3e50',
+                                    mb: 0.5
+                                  }}>
+                                    Outstanding Debts
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ 
+                                    color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : '#666',
+                                    fontSize: '0.875rem'
+                                  }}>
+                                    {outstandingDebts.length} active debt{outstandingDebts.length !== 1 ? 's' : ''}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={() => openDebtDialog()}
+                                sx={{
+                                  background: '#4caf50',
+                                  color: 'white',
+                                  fontWeight: 600,
+                                  px: 3,
+                                  py: 1,
+                                  borderRadius: 2,
+                                  textTransform: 'none',
+                                  boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+                                  '&:hover': {
+                                    background: '#4caf50',
+                                    transform: 'translateY(-2px)',
+                                    boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4)'
+                                  },
+                                  transition: 'all 0.3s ease'
+                                }}
+                              >
+                                Add Debt
+                              </Button>
+                            </Box>
                           </Box>
-                        )}
+
+                          {/* Loading State */}
+                          {debtsLoading && (
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              p: 8,
+                              background: isDarkMode 
+                                ? 'rgba(0, 0, 0, 0.2)' 
+                                : 'rgba(255, 255, 255, 0.5)',
+                              backdropFilter: 'blur(10px)'
+                            }}>
+                              <Box sx={{ textAlign: 'center' }}>
+                                <CircularProgress size={60} sx={{ color: debtDarkColors.blue, mb: 2 }} />
+                                <Typography variant="body1" sx={{ 
+                                  color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : '#666',
+                                  fontWeight: 500
+                                }}>
+                                  Loading your debts...
+                                </Typography>
+                              </Box>
+                            </Box>
+                          )}
+
+                          {/* Empty State */}
+                          {!debtsLoading && (!outstandingDebts || outstandingDebts.length === 0) && (
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              p: 8,
+                              textAlign: 'center'
+                            }}>
+                              <Box>
+                                <Avatar sx={{ 
+                                  bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(76, 175, 80, 0.1)', 
+                                  width: 80, 
+                                  height: 80, 
+                                  mb: 3,
+                                  mx: 'auto'
+                                }}>
+                                  <CheckCircleIcon sx={{ fontSize: 40, color: '#4caf50' }} />
+                                </Avatar>
+                                <Typography variant="h6" sx={{ 
+                                  fontWeight: 'bold',
+                                  color: isDarkMode ? 'white' : '#2c3e50',
+                                  mb: 1
+                                }}>
+                                  No Debts Found
+                                </Typography>
+                                <Typography variant="body1" sx={{ 
+                                  color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : '#666',
+                                  mb: 3
+                                }}>
+                                  You're debt-free! Add your first debt to start tracking your financial journey.
+                                </Typography>
+                                <Button
+                                  variant="contained"
+                                  startIcon={<AddIcon />}
+                                  onClick={() => openDebtDialog()}
+                                  sx={{
+                                    background: '#4caf50',
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    px: 4,
+                                    py: 1.5,
+                                    borderRadius: 2,
+                                    textTransform: 'none',
+                                    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+                                    '&:hover': {
+                                      background: '#4caf50',
+                                      transform: 'translateY(-2px)',
+                                      boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4)'
+                                    },
+                                    transition: 'all 0.3s ease'
+                                  }}
+                                >
+                                  Add Your First Debt
+                                </Button>
+                              </Box>
+                            </Box>
+                          )}
+
+                          {/* Debt Cards Grid */}
+                          {!debtsLoading && outstandingDebts && outstandingDebts.length > 0 && (
+                                                                                      <Box sx={{ p: 4 }}>
+                               <Box sx={{ 
+                                 display: 'flex', 
+                                 flexWrap: 'wrap', 
+                                 gap: 2, 
+                                 justifyContent: 'center',
+                                 alignItems: 'flex-start'
+                               }}>
+                                 {outstandingDebts.map((debt, index) => (
+                                   <Box sx={{ 
+                                     width: { xs: '100%', md: 'calc(33.333% - 16px)' },
+                                     minWidth: { md: 300 },
+                                     maxWidth: { md: 400 }
+                                   }} key={debt.id || index}>
+                                    <Grow in={true} timeout={300 + (index * 100)}>
+                                                                             <Card sx={{
+                                         background: isDarkMode 
+                                           ? 'rgba(255, 255, 255, 0.05)' 
+                                           : 'white',
+                                         border: isDarkMode 
+                                           ? '1px solid rgba(255, 255, 255, 0.1)' 
+                                           : '1px solid rgba(0, 0, 0, 0.1)',
+                                         borderRadius: 3,
+                                         boxShadow: isDarkMode 
+                                           ? '0 4px 16px rgba(0, 0, 0, 0.2)' 
+                                           : '0 4px 16px rgba(0, 0, 0, 0.08)',
+                                         transition: 'all 0.3s ease',
+                                         mx: 0.5,
+                                         my: 0.5,
+                                         position: 'relative',
+                                         overflow: 'hidden',
+                                         aspectRatio: '1',
+                                         minHeight: 400,
+                                        '&:hover': {
+                                          transform: 'translateY(-8px)',
+                                          boxShadow: isDarkMode 
+                                            ? '0 12px 32px rgba(0, 0, 0, 0.4)' 
+                                            : '0 12px 32px rgba(0, 0, 0, 0.15)',
+                                          '& .debt-card-actions': {
+                                            opacity: 1,
+                                            transform: 'translateY(0)'
+                                          }
+                                        }
+                                      }}>
+                                        {/* Debt Type Badge */}
+                                        <Box sx={{
+                                          position: 'absolute',
+                                          top: 12,
+                                          right: 12,
+                                          zIndex: 2
+                                        }}>
+                                          <Chip
+                                            label={debtTypes.find(type => type.value === debt.debt_type)?.label || 'Other'}
+                                            size="small"
+                                            icon={debtTypes.find(type => type.value === debt.debt_type)?.icon || <ReceiptIcon />}
+                                            sx={{
+                                              background: debtTypes.find(type => type.value === debt.debt_type)?.color || '#616161',
+                                              color: 'white',
+                                              fontWeight: 600,
+                                              fontSize: '0.75rem',
+                                              height: 24
+                                            }}
+                                          />
+                                        </Box>
+
+                                                                                 {/* Card Content */}
+                                                                                  <CardContent sx={{ p: 4, pt: 5, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                           {/* Top Section */}
+                                           <Box>
+                                             {/* Debt Name */}
+                                             <Typography variant="h6" sx={{ 
+                                               fontWeight: 'bold',
+                                               color: isDarkMode ? 'white' : '#2c3e50',
+                                               mb: 2,
+                                               pr: 8
+                                             }}>
+                                               {debt.name}
+                                             </Typography>
+
+                                             {/* Balance */}
+                                             <Box sx={{ mb: 2 }}>
+                                               <Typography variant="body2" sx={{ 
+                                                 color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : '#666',
+                                                 mb: 0.5,
+                                                 fontSize: '0.875rem'
+                                               }}>
+                                                 Current Balance
+                                               </Typography>
+                                               <Typography variant="h5" sx={{ 
+                                                 fontWeight: 'bold',
+                                                 color: debtDarkColors.red,
+                                                 fontSize: '1.5rem'
+                                               }}>
+                                                 {formatCurrency(parseFloat(debt.balance) || 0)}
+                                               </Typography>
+                                             </Box>
+
+                                             {/* Interest Rate */}
+                                             <Box sx={{ mb: 2 }}>
+                                               <Typography variant="body2" sx={{ 
+                                                 color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : '#666',
+                                                 mb: 0.5,
+                                                 fontSize: '0.875rem'
+                                               }}>
+                                                 Interest Rate
+                                               </Typography>
+                                               <Chip
+                                                 label={`${(parseFloat(debt.interest_rate) || 0).toFixed(2)}%`}
+                                                 size="small"
+                                                 sx={{
+                                                   background: (parseFloat(debt.interest_rate) || 0) > 20 
+                                                     ? debtDarkColors.red
+                                                     : (parseFloat(debt.interest_rate) || 0) > 15 
+                                                       ? debtDarkColors.red
+                                                       : debtDarkColors.blue,
+                                                   color: 'white',
+                                                   fontWeight: 600,
+                                                   fontSize: '0.8rem'
+                                                 }}
+                                               />
+                                             </Box>
+                                           </Box>
+
+                                           {/* Middle Section */}
+                                           <Box>
+                                             {/* Monthly Interest */}
+                                             <Box sx={{ mb: 2 }}>
+                                               <Typography variant="body2" sx={{ 
+                                                 color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : '#666',
+                                                 mb: 0.5,
+                                                 fontSize: '0.875rem'
+                                               }}>
+                                                 Monthly Interest
+                                               </Typography>
+                                               <Typography variant="body1" sx={{ 
+                                                 fontWeight: 600,
+                                                 color: '#f44336',
+                                                 fontSize: '1.1rem'
+                                               }}>
+                                                 {formatCurrency((parseFloat(debt.balance) || 0) * ((parseFloat(debt.interest_rate) || 0) / 100 / 12))}
+                                               </Typography>
+                                             </Box>
+
+                                             {/* Payoff Time */}
+                                             <Box sx={{ mb: 2 }}>
+                                               <Typography variant="body2" sx={{ 
+                                                 color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : '#666',
+                                                 mb: 0.5,
+                                                 fontSize: '0.875rem'
+                                               }}>
+                                                 {debt.payoff_date ? 'Target Payoff' : 'Payoff Time'}
+                                               </Typography>
+                                               {(() => {
+                                                 const payoffTime = calculateDebtPayoffTime(debt);
+                                                 if (payoffTime === 'N/A') {
+                                                   return (
+                                                     <Typography variant="body1" sx={{ 
+                                                       color: '#999', 
+                                                       fontStyle: 'italic',
+                                                       fontSize: '1rem'
+                                                     }}>
+                                                       N/A
+                                                     </Typography>
+                                                   );
+                                                 }
+                                                 
+                                                 if (payoffTime === 0) {
+                                                   return (
+                                                     <Typography variant="body1" sx={{ 
+                                                       color: '#4caf50', 
+                                                       fontWeight: 600,
+                                                       fontSize: '1rem'
+                                                     }}>
+                                                       Paid Off!
+                                                     </Typography>
+                                                   );
+                                                 }
+                                                 
+                                                 const { years, months, days, totalMonths } = payoffTime;
+                                                 return (
+                                                   <Box>
+                                                     <Typography variant="body1" sx={{ 
+                                                       fontWeight: 600,
+                                                       color: debt.payoff_date ? '#4caf50' : (totalMonths > 60 ? '#f44336' : totalMonths > 24 ? '#f44336' : '#4caf50'),
+                                                       fontSize: '1rem'
+                                                     }}>
+                                                       {years > 0 
+                                                         ? `${years}Y ${months}m` 
+                                                         : months > 0 
+                                                           ? `${months}M ${days}d`
+                                                           : `${days}D`
+                                                       }
+                                                     </Typography>
+                                                     {debt.payoff_date && (
+                                                       <Typography variant="caption" sx={{ 
+                                                         color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : '#888',
+                                                         fontSize: '0.75rem',
+                                                         fontStyle: 'italic'
+                                                       }}>
+                                                         Target: {new Date(debt.payoff_date).getDate()}{new Date(debt.payoff_date).toLocaleDateString('en-US', { month: 'short' })}, {new Date(debt.payoff_date).getFullYear()}
+                                                       </Typography>
+                                                     )}
+                                                   </Box>
+                                                 );
+                                               })()}
+                                             </Box>
+                                           </Box>
+
+                                           
+                                         </CardContent>
+
+                                        {/* Hover Actions */}
+                                        <Box className="debt-card-actions" sx={{
+                                          position: 'absolute',
+                                          bottom: 0,
+                                          left: 0,
+                                          right: 0,
+                                          background: isDarkMode 
+                                            ? 'rgba(0, 0, 0, 0.9)' 
+                                            : 'rgba(255, 255, 255, 0.95)',
+                                          backdropFilter: 'blur(10px)',
+                                          p: 2,
+                                          display: 'flex',
+                                          gap: 1,
+                                          justifyContent: 'center',
+                                          opacity: 0,
+                                          transform: 'translateY(100%)',
+                                          transition: 'all 0.3s ease'
+                                        }}>
+                                          <IconButton
+                                            size="small"
+                                            onClick={() => openDebtDialog(debt)}
+                                            sx={{
+                                              color: debtDarkColors.blue,
+                                              background: isDarkMode ? 'rgba(33, 150, 243, 0.1)' : 'rgba(33, 150, 243, 0.1)',
+                                              '&:hover': {
+                                                background: isDarkMode ? 'rgba(33, 150, 243, 0.2)' : 'rgba(33, 150, 243, 0.2)',
+                                                transform: 'scale(1.1)'
+                                              }
+                                            }}
+                                          >
+                                            <EditIcon fontSize="small" />
+                                          </IconButton>
+                                          <IconButton
+                                            size="small"
+                                            onClick={() => handleDeleteDebt(debt)}
+                                            sx={{
+                                              color: debtDarkColors.red,
+                                              background: isDarkMode ? 'rgba(244, 67, 54, 0.1)' : 'rgba(244, 67, 54, 0.1)',
+                                              '&:hover': {
+                                                background: isDarkMode ? 'rgba(244, 67, 54, 0.2)' : 'rgba(244, 67, 54, 0.2)',
+                                                transform: 'scale(1.1)'
+                                              }
+                                            }}
+                                          >
+                                            <DeleteIcon fontSize="small" />
+                                          </IconButton>
+                                        </Box>
+                                      </Card>
+                                    </Grow>
+                                  </Box>
+                                ))}
+                              </Box>
+                            </Box>
+                          )}
+                        </Card>
                       </Box>
                     )}
                   </CardContent>
@@ -4419,9 +4879,9 @@ const DebtPlanning = () => {
                               borderRadius: 0,
                               border: 'none',
                               color: strategy === 'avalanche' ? 'white' : 'rgba(255, 255, 255, 0.7)',
-                              bgcolor: strategy === 'avalanche' ? 'linear-gradient(45deg, #ff6b6b, #ee5a52)' : 'transparent',
+                              bgcolor: strategy === 'avalanche' ? debtDarkColors.red : 'transparent',
                               '&:hover': {
-                                bgcolor: strategy === 'avalanche' ? 'linear-gradient(45deg, #e53e3e, #c53030)' : 'rgba(255, 255, 255, 0.1)',
+                                                                  bgcolor: strategy === 'avalanche' ? debtDarkColors.redDark : 'rgba(255, 255, 255, 0.1)',
                                 border: 'none'
                               }
                             }}
@@ -4537,7 +4997,7 @@ const DebtPlanning = () => {
                                 ? 'rgba(255, 255, 255, 0.08)' 
                                 : 'rgba(248, 249, 250, 0.8)'),
                             border: strategy === 'avalanche' 
-                              ? '2px solid #ff6b6b' 
+                              ? '2px solid #f44336' 
                               : (isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.1)'),
                             borderRadius: 3,
                             backdropFilter: 'blur(10px)',
@@ -4553,7 +5013,7 @@ const DebtPlanning = () => {
                         >
                           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                             <Avatar sx={{ 
-                              bgcolor: strategy === 'avalanche' ? '#ff6b6b' : 'rgba(255, 107, 107, 0.7)',
+                              bgcolor: strategy === 'avalanche' ? debtDarkColors.red : 'rgba(255, 107, 107, 0.7)',
                               mr: 2, 
                               width: 40, 
                               height: 40,
@@ -4573,7 +5033,7 @@ const DebtPlanning = () => {
                                 size="small" 
                                 sx={{ 
                                   ml: 'auto',
-                                  background: '#ff6b6b',
+                                  background: debtDarkColors.red,
                                   color: 'white',
                                   fontWeight: 600
                                 }}
@@ -4601,7 +5061,7 @@ const DebtPlanning = () => {
                           
                           <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(255, 107, 107, 0.2)' }}>
                             <Typography variant="body2" sx={{ 
-                              color: '#ff9800', 
+                              color: debtDarkColors.blue, 
                               fontWeight: 600 
                             }}>
                               <strong>Best for:</strong> Minimizing total interest paid
@@ -4637,7 +5097,7 @@ const DebtPlanning = () => {
                                 size="small" 
                                 sx={{ 
                                   ml: 2,
-                                  background: strategy === 'snowball' ? '#42a5f5' : '#ff6b6b',
+                                  background: strategy === 'snowball' ? debtDarkColors.blue : debtDarkColors.red,
                                   color: 'white',
                                   fontWeight: 600
                                 }}
@@ -4830,7 +5290,7 @@ const DebtPlanning = () => {
           variant="filled"
           sx={{ 
             width: '100%',
-            background: 'linear-gradient(135deg, #66bb6a, #4caf50)',
+            background: '#4caf50',
             backdropFilter: 'blur(20px)',
             boxShadow: '0 8px 32px rgba(76, 175, 80, 0.3)',
             color: 'white',
@@ -4873,7 +5333,7 @@ const DebtPlanning = () => {
           variant="filled"
           sx={{ 
             width: '100%',
-            background: 'linear-gradient(135deg, #f44336, #d32f2f)',
+            background: debtDarkColors.red,
             backdropFilter: 'blur(20px)',
             boxShadow: '0 8px 32px rgba(244, 67, 54, 0.3)',
             color: 'white',
@@ -5073,11 +5533,12 @@ const DebtPlanning = () => {
                 <TextField
                   fullWidth
                   type="date"
-                  label="Effective Date"
+                  label="Balance Effective Date"
                   value={debtForm.effectiveDate}
                   onChange={(e) => setDebtForm({...debtForm, effectiveDate: e.target.value})}
                   InputLabelProps={{ shrink: true }}
                   required
+                  helperText="When this balance was recorded"
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       background: isDarkMode 
@@ -5096,6 +5557,45 @@ const DebtPlanning = () => {
                     },
                     '& .MuiOutlinedInput-input': {
                       color: isDarkMode ? 'white' : '#2c3e50'
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : '#666',
+                      fontSize: '0.75rem'
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Target Payoff Date (Optional)"
+                  value={debtForm.payoffDate}
+                  onChange={(e) => setDebtForm({...debtForm, payoffDate: e.target.value})}
+                  InputLabelProps={{ shrink: true }}
+                  helperText="When you plan to pay this off"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      background: isDarkMode 
+                        ? 'rgba(255, 255, 255, 0.1)' 
+                        : 'rgba(255, 255, 255, 0.9)',
+                      '& fieldset': {
+                        borderColor: isDarkMode 
+                          ? 'rgba(255, 255, 255, 0.3)' 
+                          : 'rgba(0, 0, 0, 0.3)'
+                      }
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: isDarkMode 
+                        ? 'rgba(255, 255, 255, 0.8)' 
+                        : 'rgba(0, 0, 0, 0.7)'
+                    },
+                    '& .MuiOutlinedInput-input': {
+                      color: isDarkMode ? 'white' : '#2c3e50'
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: isDarkMode ? 'rgba(255, 255, 255, 0.6)' : '#666',
+                      fontSize: '0.75rem'
                     }
                   }}
                 />
@@ -5130,16 +5630,16 @@ const DebtPlanning = () => {
               variant="contained"
               sx={{
                 background: editingDebt 
-                  ? 'linear-gradient(45deg, #42a5f5, #2196f3)' 
-                  : 'linear-gradient(45deg, #4caf50, #66bb6a)',
+                  ? debtDarkColors.blue
+                  : '#4caf50',
                 color: 'white',
                 fontWeight: 600,
                 px: 3,
                 borderRadius: 2,
                 '&:hover': {
                   background: editingDebt 
-                    ? 'linear-gradient(45deg, #1e88e5, #1976d2)' 
-                    : 'linear-gradient(45deg, #388e3c, #4caf50)',
+                    ? debtDarkColors.blueDark
+                    : '#4caf50',
                   transform: 'translateY(-1px)'
                 }
               }}
@@ -5199,12 +5699,12 @@ const DebtPlanning = () => {
             onClick={confirmDeleteDebt}
             variant="contained"
             sx={{
-              background: 'linear-gradient(45deg, #f44336, #d32f2f)',
+              background: debtDarkColors.red,
               color: 'white',
               fontWeight: 600,
               px: 3,
               '&:hover': {
-                background: 'linear-gradient(45deg, #d32f2f, #c62828)',
+                background: debtDarkColors.redDark,
                 transform: 'translateY(-1px)'
               }
             }}

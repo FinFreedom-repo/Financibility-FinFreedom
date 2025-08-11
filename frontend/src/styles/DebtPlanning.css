@@ -799,14 +799,89 @@ input:checked + .slider:before {
 .ag-theme-alpine.custom-budget-grid .ag-cell-focus,
 .ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-range-selected,
 .ag-theme-alpine.custom-budget-grid .ag-row-hover,
-.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-range-single-cell {
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-range-single-cell,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing input,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing .ag-cell-edit-input {
   outline: none !important;
   box-shadow: none !important;
   background: transparent !important;
   color: #e0e0e0 !important;
 }
+
 .ag-theme-alpine.custom-budget-grid .ag-row-selected {
   background: transparent !important;
+  color: #e0e0e0 !important;
+}
+
+/* Prevent white background on cell editing in dark mode */
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input {
+  background: transparent !important;
+  color: #e0e0e0 !important;
+  border: 2px solid #2196f3 !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input:focus {
+  background: transparent !important;
+  color: #e0e0e0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Override any AG Grid default white backgrounds */
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing * {
+  background: transparent !important;
+  color: #e0e0e0 !important;
+}
+
+/* Force override all AG Grid cell editing styles */
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing input,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing .ag-cell-edit-input,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing .ag-cell-edit-input input,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing .ag-cell-edit-input * {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #e0e0e0 !important;
+  border: 2px solid #2196f3 !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+}
+
+/* Override AG Grid's default cell editing styles with higher specificity */
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing * {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Target the specific AG Grid editing input elements */
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input input,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input * {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #e0e0e0 !important;
+}
+
+/* Override any AG Grid default styles that might be causing white backgrounds */
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing input,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing .ag-cell-edit-input,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing .ag-cell-edit-input input,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing .ag-cell-edit-input *,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input input,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input * {
+  background: transparent !important;
+  background-color: transparent !important;
   color: #e0e0e0 !important;
 }
 
@@ -928,6 +1003,103 @@ input:checked + .slider:before {
   border: 2px solid #2196f3;
   border-radius: 4px;
   padding: 4px 8px;
+  background: transparent !important;
+  color: #e0e0e0 !important;
+}
+
+.custom-budget-grid .ag-cell-edit-input:focus {
+  background: transparent !important;
+  color: #e0e0e0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Additional AG Grid editing overrides for dark mode */
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing {
+  background: transparent !important;
+}
+
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing input,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing .ag-cell-edit-input {
+  background: transparent !important;
+  color: #e0e0e0 !important;
+  border: 2px solid #2196f3 !important;
+}
+
+/* Override any AG Grid default input styles */
+.ag-theme-alpine.custom-budget-grid input[type="text"],
+.ag-theme-alpine.custom-budget-grid input[type="number"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #e0e0e0 !important;
+  border: 2px solid #2196f3 !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+}
+
+.ag-theme-alpine.custom-budget-grid input[type="text"]:focus,
+.ag-theme-alpine.custom-budget-grid input[type="number"]:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #e0e0e0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Global override for all AG Grid editing elements */
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing *,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input *,
+.ag-theme-alpine.custom-budget-grid input,
+.ag-theme-alpine.custom-budget-grid input:focus,
+.ag-theme-alpine.custom-budget-grid input:active {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #e0e0e0 !important;
+}
+
+/* Force override for any remaining white backgrounds in editing cells only */
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing *,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input * {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Ultra-specific override for AG Grid editing */
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing input,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing .ag-cell-edit-input,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing .ag-cell-edit-input input,
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing .ag-cell-edit-input *,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input input,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input * {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #e0e0e0 !important;
+}
+
+/* Override AG Grid's default cell editing background */
+.ag-theme-alpine.custom-budget-grid .ag-cell.ag-cell-editing {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Target the actual input element that AG Grid creates */
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input input,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input input:focus,
+.ag-theme-alpine.custom-budget-grid .ag-cell-edit-input input:active {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #e0e0e0 !important;
+  border: 2px solid #2196f3 !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Legend styling */

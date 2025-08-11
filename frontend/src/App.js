@@ -17,6 +17,8 @@ import Dashboard from './components/Dashboard';
 import AccountsAndDebts from './components/AccountsAndDebts';
 import Account from './components/Account';
 import DialogTest from './components/DialogTest';
+import SettingsPage from './components/SettingsPage';
+import Profile from './components/Profile';
 import axios from './utils/axios';
 
 // Protected Route component
@@ -176,6 +178,16 @@ function AppContent() {
                     <Route path="/accounts-and-debts" element={
                       <ProtectedRoute>
                         <AccountsAndDebts />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/settings" element={
+                      <ProtectedRoute>
+                        <SettingsPage />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/profile" element={
+                      <ProtectedRoute>
+                        <Profile />
                       </ProtectedRoute>
                     } />
                     <Route path="/dialog-test" element={

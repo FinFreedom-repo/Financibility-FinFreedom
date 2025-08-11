@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from .models import Account, Debt
 from .serializers import AccountSerializer, DebtSerializer
+from .mongodb_services import MongoDBService, DataConverter
 import logging
 from django.db.models import Max
 
@@ -16,16 +17,38 @@ logger = logging.getLogger(__name__)
 def account_list(request):
     """Get all accounts for the user or create a new account"""
     if request.method == 'GET':
-        accounts = Account.objects.filter(user=request.user)
-        serializer = AccountSerializer(accounts, many=True)
-        return Response(serializer.data)
+        # Get accounts from MongoDB
+        mongo_accounts = MongoDBService.get_user_accounts(request.user.id)
+        accounts_data = [DataConverter.mongo_account_to_dict(acc) for acc in mongo_accounts]
+        return Response(accounts_data)
     
     elif request.method == 'POST':
         logger.info(f"Creating account with data: {request.data}")
         serializer = AccountSerializer(data=request.data)
         if serializer.is_valid():
+            # Save to Django ORM first
             account = serializer.save(user=request.user)
             logger.info(f"Account created successfully: {account.id}")
+            
+            # Also save to MongoDB
+            try:
+                from .mongodb_services import MongoAccount
+                mongo_account = MongoAccount(
+                    id=account.id,
+                    user_id=account.user.id,
+                    name=account.name,
+                    account_type=account.account_type,
+                    balance=account.balance,
+                    interest_rate=account.interest_rate,
+                    effective_date=account.effective_date,
+                    created_at=account.created_at,
+                    updated_at=account.updated_at
+                )
+                mongo_account.save()
+                logger.info(f"MongoDB account created: {account.id}")
+            except Exception as e:
+                logger.error(f"Error creating MongoDB account: {e}")
+            
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             logger.error(f"Account creation validation errors: {serializer.errors}")
@@ -63,13 +86,10 @@ def debt_list(request):
         if not request.user or not request.user.is_authenticated:
             return Response([])
             
-        # Only return the latest record for each debt name (DB-level filtering)
-        latest_ids = Debt.objects.filter(user=request.user).values('name').annotate(
-            latest_id=Max('id')
-        ).values_list('latest_id', flat=True)
-        debts = Debt.objects.filter(id__in=latest_ids)
-        serializer = DebtSerializer(debts, many=True)
-        return Response(serializer.data)
+        # Get debts from MongoDB
+        mongo_debts = MongoDBService.get_user_debts(request.user.id)
+        debts_data = [DataConverter.mongo_debt_to_dict(debt) for debt in mongo_debts]
+        return Response(debts_data)
     
     elif request.method == 'POST':
         logger.info(f"Creating debt with data: {request.data}")
@@ -82,6 +102,27 @@ def debt_list(request):
                 # For testing, create without user
                 debt = serializer.save()
             logger.info(f"Debt created successfully: {debt.id}")
+            
+            # Also save to MongoDB
+            try:
+                from .mongodb_services import MongoDebt
+                mongo_debt = MongoDebt(
+                    id=debt.id,
+                    user_id=debt.user.id if debt.user else 1,  # Default to user 1 if no user
+                    name=debt.name,
+                    debt_type=debt.debt_type,
+                    balance=debt.balance,
+                    interest_rate=debt.interest_rate,
+                    effective_date=debt.effective_date,
+                    payoff_date=debt.payoff_date,
+                    created_at=debt.created_at,
+                    updated_at=debt.updated_at
+                )
+                mongo_debt.save()
+                logger.info(f"MongoDB debt created: {debt.id}")
+            except Exception as e:
+                logger.error(f"Error creating MongoDB debt: {e}")
+            
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             logger.error(f"Debt creation validation errors: {serializer.errors}")
@@ -113,81 +154,90 @@ def debt_detail(request, pk):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def bulk_save_accounts_debts(request):
-    """Save multiple accounts and debts at once (append-only)"""
+    """Mongo-only bulk append of accounts and debts"""
     try:
+        from .mongodb_services import MongoAccount, MongoDebt
+        from datetime import datetime
         accounts_data = request.data.get('accounts', [])
         debts_data = request.data.get('debts', [])
-        
-        # Create new accounts (append-only, no deletion)
+
         created_accounts = []
-        for account_data in accounts_data:
-            serializer = AccountSerializer(data=account_data)
-            if serializer.is_valid():
-                account = serializer.save(user=request.user)
-                created_accounts.append(account)
-            else:
-                logger.error(f"Invalid account data: {serializer.errors}")
-        
-        # Create new debts (append-only, no deletion)
         created_debts = []
-        for debt_data in debts_data:
-            serializer = DebtSerializer(data=debt_data)
-            if serializer.is_valid():
-                debt = serializer.save(user=request.user)
-                created_debts.append(debt)
-            else:
-                logger.error(f"Invalid debt data: {serializer.errors}")
-        
-        # Return the created data
-        accounts_serializer = AccountSerializer(created_accounts, many=True)
-        debts_serializer = DebtSerializer(created_debts, many=True)
-        
+
+        # Insert accounts directly to Mongo
+        for ad in accounts_data:
+            existing = MongoAccount.objects.order_by('-id').first()
+            next_id = (existing.id + 1) if existing else 1
+            ma = MongoAccount(
+                id=next_id,
+                user_id=request.user.id,
+                name=ad.get('name'),
+                account_type=ad.get('account_type'),
+                balance=ad.get('balance'),
+                interest_rate=ad.get('interest_rate'),
+                effective_date=ad.get('effective_date'),
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            ma.save()
+            created_accounts.append(ma)
+
+        # Insert debts directly to Mongo
+        for dd in debts_data:
+            existing = MongoDebt.objects.order_by('-id').first()
+            next_id = (existing.id + 1) if existing else 1
+            md = MongoDebt(
+                id=next_id,
+                user_id=request.user.id,
+                name=dd.get('name'),
+                debt_type=dd.get('debt_type'),
+                balance=dd.get('balance'),
+                interest_rate=dd.get('interest_rate'),
+                effective_date=dd.get('effective_date'),
+                payoff_date=dd.get('payoff_date'),
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            md.save()
+            created_debts.append(md)
+
+        # Return simple summaries
         return Response({
-            'accounts': accounts_serializer.data,
-            'debts': debts_serializer.data,
-            'message': f'Successfully saved {len(created_accounts)} accounts and {len(created_debts)} debts'
+            'accounts_created': len(created_accounts),
+            'debts_created': len(created_debts),
+            'message': 'Saved to MongoDB'
         }, status=status.HTTP_200_OK)
-        
     except Exception as e:
-        logger.error(f"Error in bulk save: {str(e)}")
-        return Response({
-            'error': 'Failed to save accounts and debts'
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.error(f"Error in Mongo bulk save: {str(e)}")
+        return Response({'error': 'Failed to save accounts and debts'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_accounts_debts_summary(request):
-    """Get all accounts and debts for the user with summary data (most recent records only)"""
+    """Get all accounts and debts for the user with summary data from MongoDB"""
     try:
-        # Get the most recent record for each unique account name
-        accounts = Account.objects.filter(user=request.user).values('name').annotate(
-            latest_id=Max('id')
-        ).values('latest_id')
-        accounts = Account.objects.filter(id__in=accounts)
+        # Get accounts and debts from MongoDB
+        mongo_accounts = MongoDBService.get_user_accounts(request.user.id)
+        mongo_debts = MongoDBService.get_user_debts(request.user.id)
         
-        # Get the most recent record for each unique debt name
-        debts = Debt.objects.filter(user=request.user).values('name').annotate(
-            latest_id=Max('id')
-        ).values('latest_id')
-        debts = Debt.objects.filter(id__in=debts)
-        
-        accounts_serializer = AccountSerializer(accounts, many=True)
-        debts_serializer = DebtSerializer(debts, many=True)
+        # Convert to dictionaries
+        accounts_data = [DataConverter.mongo_account_to_dict(acc) for acc in mongo_accounts]
+        debts_data = [DataConverter.mongo_debt_to_dict(debt) for debt in mongo_debts]
         
         # Calculate summary data
-        total_account_balance = sum(account.balance for account in accounts)
-        total_debt_balance = sum(debt.balance for debt in debts)
+        total_account_balance = sum(float(acc['balance']) for acc in accounts_data)
+        total_debt_balance = sum(float(debt['balance']) for debt in debts_data)
         net_worth = total_account_balance - total_debt_balance
         
         return Response({
-            'accounts': accounts_serializer.data,
-            'debts': debts_serializer.data,
+            'accounts': accounts_data,
+            'debts': debts_data,
             'summary': {
-                'total_account_balance': float(total_account_balance),
-                'total_debt_balance': float(total_debt_balance),
-                'net_worth': float(net_worth),
-                'account_count': len(accounts),
-                'debt_count': len(debts)
+                'total_account_balance': total_account_balance,
+                'total_debt_balance': total_debt_balance,
+                'net_worth': net_worth,
+                'account_count': len(accounts_data),
+                'debt_count': len(debts_data)
             }
         }, status=status.HTTP_200_OK)
         

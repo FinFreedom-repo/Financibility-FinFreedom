@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -31,8 +31,6 @@ import {
   Settings as SettingsIcon,
   Logout as LogoutIcon,
   Person as PersonIcon,
-  LightMode as LightModeIcon,
-  DarkMode as DarkModeIcon,
   ExpandLess,
   ExpandMore,
   Notifications as NotificationsIcon,
@@ -43,7 +41,8 @@ import {
 import { styled } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
+import NotificationPopover from './NotificationPopover';
+import notificationService from '../services/notificationService';
 
 const DRAWER_WIDTH = 280;
 const COLLAPSED_WIDTH = 72;
@@ -128,12 +127,25 @@ function Navigation({ onNavigate }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { isDarkMode, toggleTheme } = useTheme();
   
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [profileMenuAnchor, setProfileMenuAnchor] = useState(null);
   const [analyticsExpanded, setAnalyticsExpanded] = useState(true);
   const [accountsExpanded, setAccountsExpanded] = useState(true);
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Subscribe to notification service updates
+  useEffect(() => {
+    const unsubscribe = notificationService.subscribe(({ unreadCount }) => {
+      setUnreadCount(unreadCount);
+    });
+
+    // Initialize with current unread count
+    setUnreadCount(notificationService.getUnreadCount());
+
+    return unsubscribe;
+  }, []);
 
   const handleDrawerToggle = () => {
     setDrawerOpen(!drawerOpen);
@@ -145,6 +157,14 @@ function Navigation({ onNavigate }) {
 
   const handleProfileMenuClose = () => {
     setProfileMenuAnchor(null);
+  };
+
+  const handleNotificationOpen = (event) => {
+    setNotificationAnchorEl(event.currentTarget);
+  };
+
+  const handleNotificationClose = () => {
+    setNotificationAnchorEl(null);
   };
 
   const handleLogout = () => {
@@ -312,8 +332,12 @@ function Navigation({ onNavigate }) {
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Tooltip title="Notifications">
-              <IconButton color="inherit" size="large">
-                <Badge badgeContent={3} color="error">
+              <IconButton 
+                color="inherit" 
+                size="large"
+                onClick={handleNotificationOpen}
+              >
+                <Badge badgeContent={unreadCount} color="error">
                   <NotificationsIcon />
                 </Badge>
               </IconButton>
@@ -407,35 +431,6 @@ function Navigation({ onNavigate }) {
         </List>
 
         <Box sx={{ flexGrow: 1 }} />
-
-        {/* Theme Toggle */}
-        <Box sx={{ p: 2 }}>
-          <ListItem disablePadding>
-            <ListItemButton
-              onClick={toggleTheme}
-              sx={{
-                minHeight: 48,
-                justifyContent: drawerOpen ? 'initial' : 'center',
-                px: 2.5,
-                borderRadius: 2,
-              }}
-            >
-              <ListItemIcon
-                sx={{
-                  minWidth: 0,
-                  mr: drawerOpen ? 3 : 'auto',
-                  justifyContent: 'center',
-                }}
-              >
-                {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
-              </ListItemIcon>
-              <ListItemText 
-                primary={isDarkMode ? 'Light Mode' : 'Dark Mode'}
-                sx={{ opacity: drawerOpen ? 1 : 0 }} 
-              />
-            </ListItemButton>
-          </ListItem>
-        </Box>
       </StyledDrawer>
 
       <Menu
@@ -457,13 +452,13 @@ function Navigation({ onNavigate }) {
           }
         }}
       >
-        <MenuItem onClick={handleProfileMenuClose}>
+        <MenuItem onClick={() => { handleProfileMenuClose(); handleNavigation('/profile'); }}>
           <ListItemIcon>
             <PersonIcon />
           </ListItemIcon>
           <ListItemText>Profile</ListItemText>
         </MenuItem>
-        <MenuItem onClick={handleProfileMenuClose}>
+        <MenuItem onClick={() => { handleProfileMenuClose(); handleNavigation('/settings'); }}>
           <ListItemIcon>
             <SettingsIcon />
           </ListItemIcon>
@@ -477,6 +472,13 @@ function Navigation({ onNavigate }) {
           <ListItemText>Logout</ListItemText>
         </MenuItem>
       </Menu>
+
+      {/* Notification Popover */}
+      <NotificationPopover
+        open={Boolean(notificationAnchorEl)}
+        anchorEl={notificationAnchorEl}
+        onClose={handleNotificationClose}
+      />
     </Box>
   );
 }

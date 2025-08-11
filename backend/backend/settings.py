@@ -83,11 +83,10 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+from .mongodb_settings import MONGODB_CONFIG
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': MONGODB_CONFIG
 }
 
 
@@ -126,6 +125,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Media files (User uploaded content)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -169,3 +173,30 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# Feature flags for gradual MongoDB migration (reads/writes routing)
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+# Accounts
+USE_MONGO_ACCOUNTS = _env_bool("USE_MONGO_ACCOUNTS", True)
+DUAL_WRITE_ACCOUNTS = _env_bool("DUAL_WRITE_ACCOUNTS", False)
+
+# Debts
+USE_MONGO_DEBTS = _env_bool("USE_MONGO_DEBTS", True)
+DUAL_WRITE_DEBTS = _env_bool("DUAL_WRITE_DEBTS", False)
+
+# Budget
+USE_MONGO_BUDGET = _env_bool("USE_MONGO_BUDGET", True)
+DUAL_WRITE_BUDGET = _env_bool("DUAL_WRITE_BUDGET", False)
+
+# Categories
+USE_MONGO_CATEGORIES = _env_bool("USE_MONGO_CATEGORIES", True)
+DUAL_WRITE_CATEGORIES = _env_bool("DUAL_WRITE_CATEGORIES", False)
+
+# Transactions
+USE_MONGO_TRANSACTIONS = _env_bool("USE_MONGO_TRANSACTIONS", True)
+DUAL_WRITE_TRANSACTIONS = _env_bool("DUAL_WRITE_TRANSACTIONS", False)

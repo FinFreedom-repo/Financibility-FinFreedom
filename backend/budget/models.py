@@ -8,6 +8,7 @@ class Budget(models.Model):
 
     # Base income and expenses
     income = models.FloatField(default=0)
+    additional_income = models.FloatField(default=0)
     housing = models.FloatField(default=0)
     debt_payments = models.FloatField(default=0)
     transportation = models.FloatField(default=0)
