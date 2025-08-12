@@ -3,16 +3,16 @@ import { createTheme } from '@mui/material/styles';
 // Modern color palette
 const colors = {
   primary: {
-    50: '#E8F5E8',
-    100: '#C3E6C3',
-    200: '#9DD99D',
-    300: '#77CC77',
-    400: '#5AC05A',
-    500: '#4CAF50', // Main green
-    600: '#43A047',
-    700: '#388E3C',
-    800: '#2E7D32',
-    900: '#1B5E20',
+    50: '#E3F2FD',
+    100: '#BBDEFB',
+    200: '#90CAF9',
+    300: '#64B5F6',
+    400: '#42A5F5',
+    500: '#2196F3', // Main blue
+    600: '#1E88E5',
+    700: '#1976D2',
+    800: '#1565C0',
+    900: '#0D47A1',
   },
   secondary: {
     50: '#FFF3E0',
@@ -37,7 +37,7 @@ const colors = {
   error: '#F44336',
   warning: '#FF9800',
   info: '#2196F3',
-  success: '#4CAF50',
+  success: '#F44336',
 };
 
 // Light theme
@@ -65,7 +65,7 @@ export const lightTheme = createTheme({
     divider: 'rgba(0, 0, 0, 0.08)',
     action: {
       hover: 'rgba(0, 0, 0, 0.04)',
-      selected: 'rgba(76, 175, 80, 0.08)',
+      selected: 'rgba(244, 67, 54, 0.08)',
     },
   },
   typography: {
@@ -222,7 +222,7 @@ export const darkTheme = createTheme({
     divider: 'rgba(255, 255, 255, 0.08)',
     action: {
       hover: 'rgba(255, 255, 255, 0.04)',
-      selected: 'rgba(76, 175, 80, 0.12)',
+      selected: 'rgba(244, 67, 54, 0.12)',
     },
   },
   typography: {
@@ -357,7 +357,7 @@ export const darkTheme = createTheme({
 // Chart.js theme configurations
 export const chartTheme = {
   light: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    backgroundColor: 'rgba(244, 67, 54, 0.1)',
     borderColor: colors.primary[500],
     gridColor: 'rgba(0, 0, 0, 0.1)',
     textColor: '#1A1A1A',
@@ -375,7 +375,7 @@ export const chartTheme = {
     ],
   },
   dark: {
-    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    backgroundColor: 'rgba(244, 67, 54, 0.2)',
     borderColor: colors.primary[400],
     gridColor: 'rgba(255, 255, 255, 0.1)',
     textColor: '#FFFFFF',
