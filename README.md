@@ -59,6 +59,7 @@ npm install
 npm start
 ```
 
+<<<<<<< debt-planning-page
 ## Access Points
 
 - **Backend**: http://localhost:8000
@@ -66,6 +67,12 @@ npm start
 - **Admin**: http://localhost:8000/admin
 
 ## API Endpoints
+=======
+### 5. Run the Backend Server
+```bash
+python3 manage.py runserver
+```
+>>>>>>> master
 
 The backend will be available at: **http://localhost:8000**
 
