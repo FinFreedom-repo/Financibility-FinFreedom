@@ -84,7 +84,3 @@ The backend will be available at: **http://localhost:8000**
 ```bash
 npm install
 ```
-
-### 3. Run the Frontend Development Server
-```bash
-npm start

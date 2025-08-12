@@ -111,7 +111,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #1976d2 0%, #4caf50 100%);
+  background: linear-gradient(90deg, #1976d2 0%, #f44336 100%);
 }
 
 .settings-card-content {
@@ -121,7 +121,7 @@
   flex-direction: column;
 }
 
-/* Section Headers */
+/* Section Headers */ 
 .settings-section-header {
   display: flex;
   align-items: center;
@@ -162,13 +162,13 @@
   justify-content: space-between;
   padding: 16px 20px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(76, 175, 80, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(244, 67, 54, 0.05) 100%);
   border: 1px solid rgba(25, 118, 210, 0.1);
   transition: all 0.3s ease;
 }
 
 .settings-toggle-content:hover {
-  background: linear-gradient(135deg, rgba(25, 118, 210, 0.08) 0%, rgba(76, 175, 80, 0.08) 100%);
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.08) 0%, rgba(244, 67, 54, 0.08) 100%);
   border-color: rgba(25, 118, 210, 0.2);
   transform: translateY(-2px);
   box-shadow: 0 4px 16px rgba(25, 118, 210, 0.1);
@@ -209,11 +209,11 @@
 }
 
 .settings-switch .MuiSwitch-switchBase.Mui-checked {
-  color: #4caf50 !important;
+  color: #f44336 !important;
 }
 
 .settings-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
-  background-color: #4caf50 !important;
+  background-color: #f44336 !important;
 }
 
 /* Dark mode switch styles */
@@ -278,7 +278,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #1976d2 0%, #4caf50 100%);
+  background: linear-gradient(90deg, #1976d2 0%, #f44336 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -291,7 +291,7 @@
 
 .payment-plan.active {
   border-color: #1976d2 !important;
-  background: linear-gradient(135deg, rgba(25, 118, 210, 0.08) 0%, rgba(76, 175, 80, 0.08) 100%) !important;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.08) 0%, rgba(244, 67, 54, 0.08) 100%) !important;
   box-shadow: 0 12px 40px rgba(25, 118, 210, 0.2) !important;
 }
 
@@ -318,11 +318,15 @@
 }
 
 .current-plan-chip {
-  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%) !important;
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%) !important;
   color: #ffffff !important;
   font-weight: 600 !important;
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3) !important;
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3) !important;
   border-radius: 20px !important;
+}
+
+.current-plan-chip .MuiChip-icon {
+  color: #ffffff !important;
 }
 
 .payment-plan-divider {
@@ -341,7 +345,7 @@
 }
 
 .payment-plan-feature-icon {
-  color: #4caf50 !important;
+  color: #1976d2 !important;
   min-width: 32px !important;
 }
 
@@ -378,9 +382,9 @@
 }
 
 .payment-plan-button:not(.current):hover {
-  background: #45a049 !important;
+  background: #d32f2f !important;
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(76, 175, 80, 0.3) !important;
+  box-shadow: 0 8px 24px rgba(244, 67, 54, 0.3) !important;
 }
 
 
@@ -455,18 +459,18 @@
 
 [data-mui-color-scheme="dark"] .settings-section-title,
 .settings-container.dark-mode .settings-section-title {
-  color: #4caf50 !important;
+  color: #1976d2 !important;
 }
 
 [data-mui-color-scheme="dark"] .settings-toggle-content,
 .settings-container.dark-mode .settings-toggle-content {
-  background: linear-gradient(135deg, rgba(25, 118, 210, 0.15) 0%, rgba(76, 175, 80, 0.15) 100%) !important;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.15) 0%, rgba(244, 67, 54, 0.15) 100%) !important;
   border-color: rgba(25, 118, 210, 0.4) !important;
 }
 
 [data-mui-color-scheme="dark"] .settings-toggle-content:hover,
 .settings-container.dark-mode .settings-toggle-content:hover {
-  background: linear-gradient(135deg, rgba(25, 118, 210, 0.2) 0%, rgba(76, 175, 80, 0.2) 100%) !important;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.2) 0%, rgba(244, 67, 54, 0.2) 100%) !important;
   border-color: rgba(25, 118, 210, 0.5) !important;
 }
 
@@ -483,7 +487,7 @@
 
 [data-mui-color-scheme="dark"] .payment-plan-price,
 .settings-container.dark-mode .payment-plan-price {
-  color: #4caf50 !important;
+  color: #1976d2 !important;
 }
 
 [data-mui-color-scheme="dark"] .payment-plan-feature-text .MuiListItemText-primary,

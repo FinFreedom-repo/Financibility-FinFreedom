@@ -377,9 +377,9 @@ function Navigation({ onNavigate }) {
         <Toolbar />
         
         <LogoContainer>
-          <MonetizationOnIcon sx={{ mr: drawerOpen ? 1 : 0, color: 'primary.main' }} />
+          <MonetizationOnIcon sx={{ mr: drawerOpen ? 1 : 0, color: '#4caf50' }} />
           {drawerOpen && (
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#4caf50' }}>
               Financability
             </Typography>
           )}
