@@ -1,67 +1,75 @@
-# Financability - Financial Management Application
+# Financability - Financial Management App
 
 A comprehensive financial management application with Django REST API backend and React frontend, powered by MongoDB Atlas.
 
+## 🚀 Quick Start
 
-### 2. Configure MongoDB Atlas
-1. Go to [MongoDB Atlas](https://www.mongodb.com/atlas)
-2. Create free account and cluster
-3. Get your connection string
-4. Edit `.env` file with your credentials:
-```bash
-MONGODB_ATLAS_URI=mongodb+srv://your_username:your_password@your_cluster.mongodb.net/?retryWrites=true&w=majority
-MONGODB_NAME=financability_db
-SECRET_KEY=your_django_secret_key_here
-DEBUG=true
-ALLOWED_HOSTS=localhost,127.0.0.1
-```
-
-### 3. Start the Application
-```bash
-# Terminal 1 - Backend
-cd backend
-source venv/bin/activate
-python3 manage.py runserver
-
-# Terminal 2 - Frontend
-cd frontend
-npm start
-```
-
-### 4. Access Your App
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-
-## 📋 Prerequisites
-
+### Prerequisites
 - Python 3.8+
 - Node.js 16+
-- MongoDB Atlas Account (free)
+- MongoDB Atlas Account
 
-## 🔧 Manual Setup (if setup.sh fails)
+### 1. Clone & Setup
+```bash
+git clone <your-repo-url>
+cd financability
+```
 
-### Backend
+### 2. Backend Setup
 ```bash
 cd backend
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r ../requirements.txt
-python3 manage.py migrate
-python3 manage.py runserver
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
 ```
 
-### Frontend
+### 3. Frontend Setup
 ```bash
 cd frontend
 npm install
 npm start
 ```
 
-**MongoDB connection issues?**
-- Check `.env` file has correct `MONGODB_ATLAS_URI`
-- Verify IP is whitelisted in MongoDB Atlas
-- Ensure database user has correct permissions
+### 4. MongoDB Atlas Setup
+1. Create MongoDB Atlas account at [mongodb.com/atlas](https://www.mongodb.com/atlas)
+2. Create a cluster and get your connection string
+3. Add your IP to Network Access in Atlas dashboard
+4. Update connection string in `backend/api/mongodb_service.py`
 
-**Module not found errors?**
+### 5. Access Application
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+
+## 🔧 Environment Variables
+
+Create `.env` file in backend directory:
+```bash
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/financability_db
+SECRET_KEY=your-secret-key-here
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+```
+
+## 📁 Project Structure
+```
+financability/
+├── backend/          # Django REST API
+├── frontend/         # React Application
+└── requirements.txt  # Python dependencies
+```
+
+## 🐛 Common Issues
+
+**MongoDB Connection Failed:**
+- Check IP is whitelisted in MongoDB Atlas
+- Verify connection string in `mongodb_service.py`
+
+**Module Not Found:**
 - Ensure virtual environment is activated
-- Run `pip install -r requirements.txt` again
+- Run `pip install -r requirements.txt`
+
+**Frontend Build Issues:**
+- Check Node.js version (16+)
+- Run `npm install` again
