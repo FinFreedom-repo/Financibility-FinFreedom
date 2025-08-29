@@ -102,7 +102,7 @@ function WealthProjector({ onNavigateToAccount }) {
       // Load user profile
       console.log('📋 Loading user profile...');
       try {
-        const profileResponse = await axios.get('/api/profile-mongo/'); // Updated to MongoDB endpoint
+        const profileResponse = await axios.get('/api/mongodb/auth/mongodb/profile/'); // Updated to MongoDB endpoint
         console.log('✅ Profile response:', profileResponse.data);
         if (profileResponse.data) {
           setUserProfile(profileResponse.data);
@@ -119,7 +119,7 @@ function WealthProjector({ onNavigateToAccount }) {
       // Load budget data
       console.log('💰 Loading budget data...');
       try {
-        const budgetResponse = await axios.get('/api/budgets/');
+        const budgetResponse = await axios.get('/api/mongodb/budgets/');
         console.log('✅ Budget response:', budgetResponse.data);
         if (budgetResponse.data && budgetResponse.data.length > 0) {
           setBudgetData(budgetResponse.data[0]);
@@ -298,7 +298,7 @@ function WealthProjector({ onNavigateToAccount }) {
       setIsLoading(true);
       console.log('🚀 Sending projection request with data:', formData);
       
-      const response = await axios.post('/api/project-wealth/', formData);
+              const response = await axios.post('/api/mongodb/mongodb/project-wealth/', formData);
       console.log('✅ Projection response received:', response.data);
       
       if (response.data && response.data.projections) {

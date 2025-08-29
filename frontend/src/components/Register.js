@@ -173,11 +173,11 @@ const Register = () => {
                   height: 64,
                   mx: 'auto',
                   mb: 2,
-                  background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                  background: 'linear-gradient(45deg, #ff0000, #0066ff)',
                   fontSize: '2rem'
                 }}
               >
-                <AccountBalanceIcon sx={{ fontSize: '2rem' }} />
+                <AccountBalanceIcon sx={{ fontSize: '2rem', color: 'white' }} />
               </Avatar>
               
               <Typography 
@@ -243,6 +243,45 @@ const Register = () => {
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 2,
+                      backgroundColor: 'transparent',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'transparent',
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                    },
+                    '& .MuiInputBase-input': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                      '&:-webkit-autofill': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                        '-webkit-text-fill-color': isDarkMode ? '#ffffff' : '#000000',
+                        'transition': 'background-color 5000s ease-in-out 0s',
+                      },
+                      '&:-webkit-autofill:hover': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                      },
+                      '&:-webkit-autofill:focus': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                      },
+                    },
+                    '& .MuiOutlinedInput-root.Mui-focused': {
+                      boxShadow: 'none',
+                    },
+                    '& .MuiOutlinedInput-root:hover': {
+                      boxShadow: 'none',
                     }
                   }}
                 />
@@ -266,6 +305,45 @@ const Register = () => {
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 2,
+                      backgroundColor: 'transparent',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'transparent',
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                    },
+                    '& .MuiInputBase-input': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                      '&:-webkit-autofill': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                        '-webkit-text-fill-color': isDarkMode ? '#ffffff' : '#000000',
+                        'transition': 'background-color 5000s ease-in-out 0s',
+                      },
+                      '&:-webkit-autofill:hover': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                      },
+                      '&:-webkit-autofill:focus': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                      },
+                    },
+                    '& .MuiOutlinedInput-root.Mui-focused': {
+                      boxShadow: 'none',
+                    },
+                    '& .MuiOutlinedInput-root:hover': {
+                      boxShadow: 'none',
                     }
                   }}
                 />
@@ -300,6 +378,45 @@ const Register = () => {
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 2,
+                      backgroundColor: 'transparent',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'transparent',
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                    },
+                    '& .MuiInputBase-input': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                      '&:-webkit-autofill': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                        '-webkit-text-fill-color': isDarkMode ? '#ffffff' : '#000000',
+                        'transition': 'background-color 5000s ease-in-out 0s',
+                      },
+                      '&:-webkit-autofill:hover': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                      },
+                      '&:-webkit-autofill:focus': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                      },
+                    },
+                    '& .MuiOutlinedInput-root.Mui-focused': {
+                      boxShadow: 'none',
+                    },
+                    '& .MuiOutlinedInput-root:hover': {
+                      boxShadow: 'none',
                     }
                   }}
                 />
@@ -359,6 +476,45 @@ const Register = () => {
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 2,
+                      backgroundColor: 'transparent',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'transparent',
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'transparent',
+                      },
+                    },
+                    '& .MuiInputLabel-root': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                    },
+                    '& .MuiInputLabel-root.Mui-focused': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                    },
+                    '& .MuiInputBase-input': {
+                      color: isDarkMode ? '#ffffff' : '#000000',
+                      '&:-webkit-autofill': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                        '-webkit-text-fill-color': isDarkMode ? '#ffffff' : '#000000',
+                        'transition': 'background-color 5000s ease-in-out 0s',
+                      },
+                      '&:-webkit-autofill:hover': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                      },
+                      '&:-webkit-autofill:focus': {
+                        '-webkit-box-shadow': '0 0 0 1000px transparent inset',
+                      },
+                    },
+                    '& .MuiOutlinedInput-root.Mui-focused': {
+                      boxShadow: 'none',
+                    },
+                    '& .MuiOutlinedInput-root:hover': {
+                      boxShadow: 'none',
                     }
                   }}
                 />
@@ -376,9 +532,9 @@ const Register = () => {
                     textTransform: 'none',
                     fontSize: '1.1rem',
                     fontWeight: 'bold',
-                    background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                    background: 'linear-gradient(45deg, #ff0000, #0066ff)',
                     '&:hover': {
-                      background: `linear-gradient(45deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
+                      background: 'linear-gradient(45deg, #cc0000, #0052cc)',
                     }
                   }}
                 >

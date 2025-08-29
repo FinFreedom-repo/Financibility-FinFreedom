@@ -12,6 +12,7 @@ import {
   Alert,
   LinearProgress,
   Chip,
+  CircularProgress,
   Avatar,
   List,
   ListItem,
@@ -75,6 +76,12 @@ function AccountsAndDebts() {
   const [deleteDebtDialogOpen, setDeleteDebtDialogOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState(null);
   const [debtToDelete, setDebtToDelete] = useState(null);
+  
+  // Loading states for CRUD operations
+  const [accountSubmitting, setAccountSubmitting] = useState(false);
+  const [debtSubmitting, setDebtSubmitting] = useState(false);
+  const [accountDeleting, setAccountDeleting] = useState(false);
+  const [debtDeleting, setDebtDeleting] = useState(false);
   
   // Default interest rates
   const defaultAccountRates = {
@@ -158,6 +165,10 @@ function AccountsAndDebts() {
 
   const handleAccountSubmit = async (e) => {
     e.preventDefault();
+    
+    // Set loading state immediately when user clicks Add/Update button
+    setAccountSubmitting(true);
+    
     try {
       const data = {
         ...accountForm,
@@ -194,11 +205,18 @@ function AccountsAndDebts() {
       } else {
         setSaveMessage('❌ Error saving account. Please try again.');
       }
+    } finally {
+      // Always clear loading state whether success or failure
+      setAccountSubmitting(false);
     }
   };
 
   const handleDebtSubmit = async (e) => {
     e.preventDefault();
+    
+    // Set loading state immediately when user clicks Add/Update button
+    setDebtSubmitting(true);
+    
     try {
       const data = {
         ...debtForm,
@@ -236,6 +254,9 @@ function AccountsAndDebts() {
       } else {
         setSaveMessage('❌ Error saving debt. Please try again.');
       }
+    } finally {
+      // Always clear loading state whether success or failure
+      setDebtSubmitting(false);
     }
   };
 
@@ -247,6 +268,9 @@ function AccountsAndDebts() {
 
   const confirmDeleteAccount = async () => {
     if (accountToDelete) {
+      // Set loading state for delete operation
+      setAccountDeleting(true);
+      
       try {
         console.log('🗑️ Attempting to delete account:', accountToDelete.id, accountToDelete.name);
         await accountsDebtsService.deleteAccount(accountToDelete.id);
@@ -268,6 +292,7 @@ function AccountsAndDebts() {
     }
     setDeleteAccountDialogOpen(false);
     setAccountToDelete(null);
+    setAccountDeleting(false);
   };
 
   const cancelDeleteAccount = () => {
@@ -283,6 +308,9 @@ function AccountsAndDebts() {
 
   const confirmDeleteDebt = async () => {
     if (debtToDelete) {
+      // Set loading state for delete operation
+      setDebtDeleting(true);
+      
       try {
         console.log('🗑️ Attempting to delete debt:', debtToDelete.id, debtToDelete.name);
         await accountsDebtsService.deleteDebt(debtToDelete.id);
@@ -304,6 +332,7 @@ function AccountsAndDebts() {
     }
     setDeleteDebtDialogOpen(false);
     setDebtToDelete(null);
+    setDebtDeleting(false);
   };
 
   const cancelDeleteDebt = () => {
@@ -597,7 +626,7 @@ function AccountsAndDebts() {
                       </Box>
                     }
                     secondary={
-                      <Box>
+                      <Box component="span">
                         <Typography variant="h6" sx={{ color: '#2e7d32', fontWeight: 'bold' }}>
                           ${account.balance.toLocaleString()}
                         </Typography>
@@ -675,7 +704,7 @@ function AccountsAndDebts() {
                       </Box>
                     }
                     secondary={
-                      <Box>
+                      <Box component="span">
                         <Typography variant="h6" sx={{ color: '#d32f2f', fontWeight: 'bold' }}>
                           ${debt.balance.toLocaleString()}
                         </Typography>
@@ -696,7 +725,7 @@ function AccountsAndDebts() {
                           
                           const { years, months, days, totalMonths } = payoffTime;
                           return (
-                            <Box sx={{ mt: 0.5 }}>
+                            <Box component="span" sx={{ mt: 0.5 }}>
                               <Typography variant="body2" sx={{ 
                                 fontWeight: 600,
                                 color: debt.payoff_date ? '#4caf50' : (totalMonths > 60 ? '#f44336' : totalMonths > 24 ? '#ff9800' : '#4caf50')
@@ -822,8 +851,23 @@ function AccountsAndDebts() {
             <Button onClick={() => setAccountDialogOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="contained">
-              {editingAccount ? 'Update' : 'Add'} Account
+            <Button 
+              type="submit" 
+              variant="contained"
+              disabled={accountSubmitting}
+              startIcon={accountSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
+              sx={{ 
+                minWidth: 140,
+                '&:disabled': {
+                  background: '#666',
+                  color: '#ccc'
+                }
+              }}
+            >
+              {accountSubmitting 
+                ? (editingAccount ? 'Updating...' : 'Adding...') 
+                : (editingAccount ? 'Update Account' : 'Add Account')
+              }
             </Button>
           </DialogActions>
         </form>
@@ -924,8 +968,23 @@ function AccountsAndDebts() {
             <Button onClick={() => setDebtDialogOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="contained">
-              {editingDebt ? 'Update' : 'Add'} Debt
+            <Button 
+              type="submit" 
+              variant="contained"
+              disabled={debtSubmitting}
+              startIcon={debtSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
+              sx={{ 
+                minWidth: 140,
+                '&:disabled': {
+                  background: '#666',
+                  color: '#ccc'
+                }
+              }}
+            >
+              {debtSubmitting 
+                ? (editingDebt ? 'Updating...' : 'Adding...') 
+                : (editingDebt ? 'Update Debt' : 'Add Debt')
+              }
             </Button>
           </DialogActions>
         </form>
@@ -952,9 +1011,18 @@ function AccountsAndDebts() {
             onClick={confirmDeleteAccount} 
             color="error" 
             variant="contained" 
-            endIcon={<DeleteIcon />}
+            disabled={accountDeleting}
+            startIcon={accountDeleting ? <CircularProgress size={20} color="inherit" /> : null}
+            endIcon={!accountDeleting ? <DeleteIcon /> : null}
+            sx={{ 
+              minWidth: 140,
+              '&:disabled': {
+                background: '#666',
+                color: '#ccc'
+              }
+            }}
           >
-            Delete Account
+            {accountDeleting ? 'Deleting...' : 'Delete Account'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -980,9 +1048,18 @@ function AccountsAndDebts() {
             onClick={confirmDeleteDebt} 
             color="error" 
             variant="contained" 
-            endIcon={<DeleteIcon />}
+            disabled={debtDeleting}
+            startIcon={debtDeleting ? <CircularProgress size={20} color="inherit" /> : null}
+            endIcon={!debtDeleting ? <DeleteIcon /> : null}
+            sx={{ 
+              minWidth: 140,
+              '&:disabled': {
+                background: '#666',
+                color: '#ccc'
+              }
+            }}
           >
-            Delete Debt
+            {debtDeleting ? 'Deleting...' : 'Delete Debt'}
           </Button>
         </DialogActions>
       </Dialog>

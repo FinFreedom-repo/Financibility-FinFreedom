@@ -342,6 +342,68 @@ class MongoDBService:
         except Exception as e:
             print(f"Error creating user in MongoDB: {e}")
             return None
+    
+    @staticmethod
+    def create_account(account_data):
+        """Create a new account in MongoDB"""
+        try:
+            mongo_account = MongoAccount(**account_data)
+            mongo_account.save()
+            return mongo_account
+        except Exception as e:
+            print(f"Error creating account in MongoDB: {e}")
+            return None
+    
+    @staticmethod
+    def create_debt(debt_data):
+        """Create a new debt in MongoDB"""
+        try:
+            mongo_debt = MongoDebt(**debt_data)
+            mongo_debt.save()
+            return mongo_debt
+        except Exception as e:
+            print(f"Error creating debt in MongoDB: {e}")
+            return None
+    
+    @staticmethod
+    def get_user_budget_by_month(user_id, month, year):
+        """Get user's budget for specific month from MongoDB"""
+        try:
+            budget = MongoBudget.objects.filter(user_id=user_id, month=month, year=year).first()
+            return budget
+        except Exception as e:
+            print(f"Error getting budget by month from MongoDB: {e}")
+            return None
+
+    @staticmethod
+    def get_all_accounts():
+        """Get all accounts from MongoDB"""
+        try:
+            accounts = MongoAccount.objects.all()
+            return list(accounts)
+        except Exception as e:
+            print(f"Error getting all accounts from MongoDB: {e}")
+            return []
+    
+    @staticmethod
+    def get_all_debts():
+        """Get all debts from MongoDB"""
+        try:
+            debts = MongoDebt.objects.all()
+            return list(debts)
+        except Exception as e:
+            print(f"Error getting all debts from MongoDB: {e}")
+            return []
+    
+    @staticmethod
+    def get_all_budgets():
+        """Get all budgets from MongoDB"""
+        try:
+            budgets = MongoBudget.objects.all()
+            return list(budgets)
+        except Exception as e:
+            print(f"Error getting all budgets from MongoDB: {e}")
+            return []
 
 # Hybrid Data Access
 class HybridDataService:
@@ -383,36 +445,6 @@ class HybridDataService:
             print(f"Error getting user data: {e}")
             return None
     
-    @staticmethod
-    def get_all_accounts():
-        """Get all accounts from MongoDB"""
-        try:
-            accounts = MongoAccount.objects.all()
-            return list(accounts)
-        except Exception as e:
-            print(f"Error getting all accounts from MongoDB: {e}")
-            return []
-    
-    @staticmethod
-    def get_all_debts():
-        """Get all debts from MongoDB"""
-        try:
-            debts = MongoDebt.objects.all()
-            return list(debts)
-        except Exception as e:
-            print(f"Error getting all debts from MongoDB: {e}")
-            return []
-    
-    @staticmethod
-    def get_all_budgets():
-        """Get all budgets from MongoDB"""
-        try:
-            budgets = MongoBudget.objects.all()
-            return list(budgets)
-        except Exception as e:
-            print(f"Error getting all budgets from MongoDB: {e}")
-            return []
-
 # Data Conversion Utilities
 class DataConverter:
     """Convert between Django ORM and MongoDB formats"""

@@ -4,11 +4,12 @@
 .env.development.local
 .env.test.local
 .env.production.local
+.env.backup
+.env.backup2
 
 # Dependencies
 /frontend/node_modules
-/frontend/.pnp
-/frontend/.pnp.js
+/frontend/package-lock.json
 
 # Python virtual environment
 venv/
@@ -17,44 +18,51 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-*.so
 
 # Django
 *.log
 local_settings.py
 db.sqlite3
+db.sqlite3.backup
 db.sqlite3-journal
+django_auth.db
 media/
 staticfiles/
-
-# Python
-*.egg-info/
-dist/
-build/
-*.egg
-.pytest_cache/
-.coverage
-htmlcov/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Testing
-/frontend/coverage
-
-# Production
+# Production builds
 /frontend/build
+/frontend/dist
 
-# Misc
+# Logs
+*.log
 /frontend/npm-debug.log*
-/frontend/yarn-debug.log*
-/frontend/yarn-error.log*
+
+# Testing and temporary files
+.coverage
+.pytest_cache/
+htmlcov/
+tmp/
+temp/
+
+# MongoDB Atlas test files (not needed for production)
+test_mongodb_connection.py
+test_all_endpoints.py
+test_api_endpoints.py
+test_django_integration.py
+migrate_to_atlas.py
+setup_atlas.sh
+find_cluster.py
+
+# Documentation files (optional)
+*_REPORT.md
+*_INTEGRATION_REPORT.md

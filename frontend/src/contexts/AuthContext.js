@@ -34,20 +34,22 @@ export const AuthProvider = ({ children }) => {
         
         // Verify token by making a request to a protected endpoint
         console.log('AuthContext: Verifying token with backend...');
-        const response = await axios.get('/api/profile/me/');
+        const response = await axios.get('/api/mongodb/auth/mongodb/profile/');
         console.log('AuthContext: Token verified successfully');
         
-        setUser({ id: response.data.id, username: response.data.username });
+        setUser({ id: response.data.user.id, username: response.data.user.username });
         
         // Cache user info for offline scenarios
-        localStorage.setItem('cached_username', response.data.username);
-        localStorage.setItem('cached_user_id', response.data.id.toString());
+        localStorage.setItem('cached_username', response.data.user.username);
+        localStorage.setItem('cached_user_id', response.data.user.id.toString());
       } catch (error) {
         console.error('AuthContext: Token verification failed:', error);
         
         // Only attempt refresh if we got a clear authentication error
+        // Also treat 500 errors during token verification as auth errors
         const isAuthError = error.response?.status === 401 || 
-                           error.response?.status === 403;
+                           error.response?.status === 403 ||
+                           (error.response?.status === 500 && error.config?.url?.includes('/profile/'));
         
         if (isAuthError) {
           // Try to refresh the token
@@ -55,7 +57,7 @@ export const AuthProvider = ({ children }) => {
           if (refreshToken) {
             try {
               console.log('AuthContext: Attempting to refresh token...');
-              const refreshResponse = await axios.post('/api/auth/token/refresh/', {
+              const refreshResponse = await axios.post('/api/mongodb/auth/mongodb/refresh/', {
                 refresh: refreshToken
               });
               
@@ -64,12 +66,12 @@ export const AuthProvider = ({ children }) => {
               axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
               
               // Retry getting user profile
-              const profileResponse = await axios.get('/api/profile/me/');
-              setUser({ id: profileResponse.data.id, username: profileResponse.data.username });
+              const profileResponse = await axios.get('/api/mongodb/auth/mongodb/profile/');
+              setUser({ id: profileResponse.data.user.id, username: profileResponse.data.user.username });
               
               // Update cached user info
-              localStorage.setItem('cached_username', profileResponse.data.username);
-              localStorage.setItem('cached_user_id', profileResponse.data.id.toString());
+              localStorage.setItem('cached_username', profileResponse.data.user.username);
+              localStorage.setItem('cached_user_id', profileResponse.data.user.id.toString());
               
               console.log('AuthContext: Token refreshed successfully');
             } catch (refreshError) {
@@ -92,18 +94,37 @@ export const AuthProvider = ({ children }) => {
             setUser(null);
           }
         } else {
-          // Network error or server error - keep user logged in with cached data
-          console.warn('AuthContext: Network/server error during token verification, keeping user logged in with cached data');
-          const cachedUsername = localStorage.getItem('cached_username');
-          const cachedUserId = localStorage.getItem('cached_user_id');
+          // Network error (not server error) - keep user logged in with cached data
+          // Only use cached data for actual network issues, not auth/server errors
+          const isNetworkError = !error.response || error.code === 'NETWORK_ERROR' || error.code === 'ECONNABORTED';
           
-          if (cachedUsername && cachedUserId) {
-            setUser({ id: parseInt(cachedUserId), username: cachedUsername });
-            console.log('AuthContext: Using cached user data:', { id: parseInt(cachedUserId), username: cachedUsername });
+          if (isNetworkError) {
+            console.warn('AuthContext: Network error during token verification, keeping user logged in with cached data');
+            const cachedUsername = localStorage.getItem('cached_username');
+            const cachedUserId = localStorage.getItem('cached_user_id');
+            
+            if (cachedUsername && cachedUserId) {
+              setUser({ id: parseInt(cachedUserId), username: cachedUsername });
+              console.log('AuthContext: Using cached user data:', { id: parseInt(cachedUserId), username: cachedUsername });
+            } else {
+              // No cached data available, clear everything
+              localStorage.removeItem('access_token');
+              localStorage.removeItem('refresh_token');
+              localStorage.removeItem('cached_username');
+              localStorage.removeItem('cached_user_id');
+              delete axios.defaults.headers.common['Authorization'];
+              setUser(null);
+              console.log('AuthContext: No cached data, clearing all auth data');
+            }
           } else {
-            // No cached data available, use generic fallback
-            setUser({ id: 1, username: 'cached_user' });
-            console.log('AuthContext: No cached data, using fallback user');
+            // Other server errors - clear auth data
+            console.error('AuthContext: Server error during token verification, clearing auth data');
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('cached_username');
+            localStorage.removeItem('cached_user_id');
+            delete axios.defaults.headers.common['Authorization'];
+            setUser(null);
           }
         }
       }
@@ -117,7 +138,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (username, email, password) => {
     try {
       console.log('Attempting registration for user:', username);
-      const response = await axios.post('/api/auth/register/', {
+      const response = await axios.post('/api/mongodb/auth/mongodb/register/', {
         username,
         email,
         password,
@@ -137,27 +158,21 @@ export const AuthProvider = ({ children }) => {
   const login = async (username, password) => {
     try {
       console.log('Attempting login for user:', username);
-      const response = await axios.post('/api/auth/token/', {
+      const response = await axios.post('/api/mongodb/auth/mongodb/login/', {
         username,
         password,
       });
-      const { access, refresh } = response.data;
+      const { access, refresh, user } = response.data;
       console.log('Login successful, received tokens');
       
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
       axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
       
-      // Get user profile after successful login
-      console.log('Fetching user profile...');
-      const profileResponse = await axios.get('/api/profile/me/');
-      console.log('Raw profile response:', profileResponse);
-      console.log('Profile data:', profileResponse.data);
-      
-      // Use the username from the login attempt if not in profile
+      // Use the user data from the login response
       const userData = { 
-        id: profileResponse.data.id, 
-        username: profileResponse.data.username || username // Fallback to login username
+        id: user.id, 
+        username: user.username
       };
       
       // Cache user info for persistence across reloads

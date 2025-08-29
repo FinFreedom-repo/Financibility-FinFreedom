@@ -1,86 +1,67 @@
-# Financability
+# Financability - Financial Management Application
 
-A comprehensive financial management application with a Django REST API backend and React frontend.
+A comprehensive financial management application with Django REST API backend and React frontend, powered by MongoDB Atlas.
 
-## Project Structure
 
-```
-financability/
-├── backend/                 # Django REST API backend
-│   ├── manage.py
-│   ├── requirements.txt
-│   ├── backend/            # Django project settings
-│   │   ├── settings.py
-│   │   ├── urls.py
-│   │   └── wsgi.py
-│   ├── api/               # API endpoints
-│   ├── budget/            # Budget management app
-│   ├── models/            # Database models
-│   └── schemas/           # Data schemas
-├── frontend/              # React frontend
-│   ├── package.json
-│   ├── public/
-│   └── src/
-│       ├── components/
-│       ├── pages/
-│       ├── services/
-│       └── App.js
-└── requirements.txt       # Backend dependencies
+### 2. Configure MongoDB Atlas
+1. Go to [MongoDB Atlas](https://www.mongodb.com/atlas)
+2. Create free account and cluster
+3. Get your connection string
+4. Edit `.env` file with your credentials:
+```bash
+MONGODB_ATLAS_URI=mongodb+srv://your_username:your_password@your_cluster.mongodb.net/?retryWrites=true&w=majority
+MONGODB_NAME=financability_db
+SECRET_KEY=your_django_secret_key_here
+DEBUG=true
+ALLOWED_HOSTS=localhost,127.0.0.1
 ```
 
-## Prerequisites
+### 3. Start the Application
+```bash
+# Terminal 1 - Backend
+cd backend
+source venv/bin/activate
+python3 manage.py runserver
+
+# Terminal 2 - Frontend
+cd frontend
+npm start
+```
+
+### 4. Access Your App
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+
+## 📋 Prerequisites
 
 - Python 3.8+
 - Node.js 16+
-- MongoDB
+- MongoDB Atlas Account (free)
 
-## Quick Start
+## 🔧 Manual Setup (if setup.sh fails)
 
-### 1. Setup MongoDB
-```bash
-chmod +x setup_mongodb.sh
-./setup_mongodb.sh
-```
-
-### 2. Backend Setup
+### Backend
 ```bash
 cd backend
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r ../requirements.txt
 python3 manage.py migrate
 python3 manage.py runserver
 ```
 
-### 3. Frontend Setup
+### Frontend
 ```bash
 cd frontend
 npm install
 npm start
 ```
 
-<<<<<<< debt-planning-page
-## Access Points
+**MongoDB connection issues?**
+- Check `.env` file has correct `MONGODB_ATLAS_URI`
+- Verify IP is whitelisted in MongoDB Atlas
+- Ensure database user has correct permissions
 
-- **Backend**: http://localhost:8000
-- **Frontend**: http://localhost:3000
-- **Admin**: http://localhost:8000/admin
-
-## API Endpoints
-=======
-### 5. Run the Backend Server
-```bash
-python3 manage.py runserver
-```
->>>>>>> master
-
-The backend will be available at: **http://localhost:8000**
-
-## Project Structure
-
-```
-
-### 2. Install Dependencies
-```bash
-npm install
-```
+**Module not found errors?**
+- Ensure virtual environment is activated
+- Run `pip install -r requirements.txt` again

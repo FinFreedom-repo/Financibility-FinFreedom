@@ -150,6 +150,7 @@ const DebtPlanning = () => {
   const [historicalMonthsShown, setHistoricalMonthsShown] = useState(3);
   const [editedBudgetData, setEditedBudgetData] = useState(null);
   const [localGridData, setLocalGridData] = useState([]);
+  const [editableMonths, setEditableMonths] = useState([]); // Add this state variable
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showSuccessSnackbar, setShowSuccessSnackbar] = useState(false);
   const [showErrorSnackbar, setShowErrorSnackbar] = useState(false);
@@ -162,6 +163,9 @@ const DebtPlanning = () => {
   const [editingDebt, setEditingDebt] = useState(null);
   const [deleteDebtDialogOpen, setDeleteDebtDialogOpen] = useState(false);
   const [debtToDelete, setDebtToDelete] = useState(null);
+  // Loading states for debt operations
+  const [debtSubmitting, setDebtSubmitting] = useState(false);
+  const [debtDeleting, setDebtDeleting] = useState(false);
   const [debtForm, setDebtForm] = useState({
     name: '',
     balance: '',
@@ -176,12 +180,43 @@ const DebtPlanning = () => {
   const [expenseCategories, setExpenseCategories] = useState([]);
   const [payoffPlan, setPayoffPlan] = useState(null);
   const [planLoading, setPlanLoading] = useState(false);
+  const [debtCalculationInProgress, setDebtCalculationInProgress] = useState(false);
   const [planError, setPlanError] = useState(null);
+  
+  // Enhanced grid state management
+  const [gridUpdating, setGridUpdating] = useState(false); // Loading overlay for grid updates
   const [strategy, setStrategy] = useState('snowball');
   const [isInitializingGrid, setIsInitializingGrid] = useState(false);
+  // Track user-edited projected cells: { [monthIdx]: Set(categoryName) }
+  const [lockedCells, setLockedCells] = useState({});
+  // Track debt calculation completion for loading state management
+  const [debtCalculationComplete, setDebtCalculationComplete] = useState(false);
 
   // Auto-save timeout ref
   const autoSaveTimeoutRef = useRef(null);
+  // Grid API reference for forcing refresh
+  const gridApiRef = useRef(null);
+  // Grid update counter to force re-renders
+  const [gridUpdateCounter, setGridUpdateCounter] = useState(0);
+  // Ref to track if we're currently updating the grid to prevent infinite loops
+  const isUpdatingGridRef = useRef(false);
+
+  // Helper function to safely update grid data
+  const safeUpdateGridData = (newData) => {
+    if (gridApiRef.current && gridApiRef.current.setRowData) {
+      try {
+        gridApiRef.current.setRowData([...newData]);
+        console.log('🔄 Grid refreshed with updated data');
+        return true;
+      } catch (error) {
+        console.error('❌ Error updating grid data:', error);
+        return false;
+      }
+    } else {
+      console.log('⚠️ Grid API not ready, skipping grid update');
+      return false;
+    }
+  };
 
   // Debt types configuration - Using only blue, green, and red theme
   const debtTypes = [
@@ -215,7 +250,6 @@ const DebtPlanning = () => {
   };
 
   const openDebtDialog = (debt = null) => {
-    console.log('Opening debt dialog with debt:', debt);
     
     if (debt) {
       setEditingDebt(debt);
@@ -230,7 +264,7 @@ const DebtPlanning = () => {
         payoffDate: debt.payoff_date || ''
       };
       
-      console.log('Setting debt form with data:', debtData);
+
       setDebtForm(debtData);
     } else {
       setEditingDebt(null);
@@ -261,6 +295,9 @@ const DebtPlanning = () => {
       return;
     }
 
+    // Set loading state immediately when user clicks Add/Update button
+    setDebtSubmitting(true);
+
     try {
       // Format data to match backend expectations
       const data = {
@@ -290,6 +327,9 @@ const DebtPlanning = () => {
       const errorMsg = error.response?.data?.message || error.response?.data?.detail || 'Error saving debt. Please try again.';
       setErrorMessage(errorMsg);
       setShowErrorSnackbar(true);
+    } finally {
+      // Always clear loading state whether success or failure
+      setDebtSubmitting(false);
     }
   };
 
@@ -312,6 +352,9 @@ const DebtPlanning = () => {
       return;
     }
 
+    // Set loading state for delete operation
+    setDebtDeleting(true);
+
     try {
       await accountsDebtsService.deleteDebt(debtToDelete.id);
       setSuccessMessage(`Debt "${debtToDelete.name}" deleted successfully!`);
@@ -325,6 +368,7 @@ const DebtPlanning = () => {
     } finally {
       setDeleteDebtDialogOpen(false);
       setDebtToDelete(null);
+      setDebtDeleting(false);
     }
   };
 
@@ -333,28 +377,412 @@ const DebtPlanning = () => {
     setDebtToDelete(null);
   };
 
+  // Generate grid data with editable months only (current + 12 projected)
+  const generateGridDataWithEditableMonths = async (currentBudget, editableBudgets) => {
+    
+    const months = generateMonths();
+    const gridData = [];
+    
+    // Create income categories
+    const incomeCategories = [
+      { name: 'Income', value: currentBudget?.income || 0, type: 'income' }
+    ];
+    
+    // Add additional income items
+    if (currentBudget?.additional_items) {
+      currentBudget.additional_items
+        .filter(item => item.type === 'income')
+        .forEach(item => {
+          incomeCategories.push({
+            name: item.name,
+            value: item.amount,
+            type: 'income'
+          });
+        });
+    }
+    
+    // Create expense categories
+    const expenseCategories = [];
+    
+    // Add base expense categories
+    if (currentBudget?.expenses) {
+      Object.entries(currentBudget.expenses).forEach(([key, value]) => {
+        const categoryName = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+        expenseCategories.push({
+          name: categoryName,
+          value: value,
+          type: 'expense'
+        });
+      });
+    }
+    
+    // Add additional expense items
+    if (currentBudget?.additional_items) {
+      currentBudget.additional_items
+        .filter(item => item.type === 'expense')
+        .forEach(item => {
+          const lname = (item.name || '').toString().toLowerCase();
+          if (lname === 'debt payments' || lname === 'debt_payments' || lname === 'other' || lname === 'others') return;
+          expenseCategories.push({
+            name: item.name,
+            value: item.amount,
+            type: 'expense'
+          });
+        });
+    }
+    
+    // Add savings items
+    const savingsCategories = [];
+    if (currentBudget?.savings_items) {
+      currentBudget.savings_items.forEach(item => {
+        savingsCategories.push({
+          name: item.name,
+          value: item.amount,
+          type: 'savings'
+        });
+      });
+    }
+    
+    // Create grid rows
+    const allCategories = [...incomeCategories, ...expenseCategories, ...savingsCategories];
+    
+    // Add Income row
+    const incomeRow = {
+      category: 'Income',
+      type: 'income',
+      month_0: 0, month_1: 0, month_2: 0, month_3: 0, month_4: 0, month_5: 0,
+      month_6: 0, month_7: 0, month_8: 0, month_9: 0, month_10: 0, month_11: 0,
+      month_12: 0, month_13: 0, month_14: 0, month_15: 0
+    };
+    
+    // Add expense rows
+    const expenseRows = expenseCategories.map(cat => ({
+      category: cat.name,
+      type: 'expense',
+      month_0: 0, month_1: 0, month_2: 0, month_3: 0, month_4: 0, month_5: 0,
+      month_6: 0, month_7: 0, month_8: 0, month_9: 0, month_10: 0, month_11: 0,
+      month_12: 0, month_13: 0, month_14: 0, month_15: 0
+    }));
+    
+
+    
+    // Add savings rows
+    const savingsRows = savingsCategories.map(cat => ({
+      category: cat.name,
+      type: 'savings',
+      month_0: 0, month_1: 0, month_2: 0, month_3: 0, month_4: 0, month_5: 0,
+      month_6: 0, month_7: 0, month_8: 0, month_9: 0, month_10: 0, month_11: 0,
+      month_12: 0, month_13: 0, month_14: 0, month_15: 0
+    }));
+    
+    // Populate data for 3 historical months (copied from current), current, and 12 projected months
+    const currentMonthIdx = months.findIndex(m => m.type === 'current');
+
+    // 1) Historical months: copy current month values visually (do not save)
+    for (let h = 1; h <= historicalMonthsShown; h++) {
+      const histIdx = currentMonthIdx - h;
+      if (histIdx < 0) continue;
+      // Use currentBudget as the source of truth for historical cells
+      const totalIncome = (currentBudget?.income || 0) + (currentBudget?.additional_income || 0);
+      incomeRow[`month_${histIdx}`] = totalIncome;
+      // Base expenses
+      if (currentBudget?.expenses) {
+        Object.entries(currentBudget.expenses).forEach(([key, value]) => {
+          const categoryName = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+          const expenseRow = expenseRows.find(row => row.category === categoryName);
+          if (expenseRow) expenseRow[`month_${histIdx}`] = value || 0;
+        });
+      }
+      // Additional expenses
+      (currentBudget?.additional_items || [])
+        .filter(item => item.type === 'expense')
+        .forEach(item => {
+          const expenseRow = expenseRows.find(row => row.category === item.name);
+          if (expenseRow) expenseRow[`month_${histIdx}`] = item.amount || 0;
+        });
+      // Savings
+      (currentBudget?.savings_items || []).forEach(item => {
+        const savingsRow = savingsRows.find(row => row.category === item.name);
+        if (savingsRow) savingsRow[`month_${histIdx}`] = item.amount || 0;
+      });
+    }
+
+    // 2) Current + projected months: load from editableBudgets
+    for (let offset = 0; offset <= projectionMonths; offset++) {
+      const gridIdx = currentMonthIdx + offset;
+      const month = months[gridIdx];
+      if (!month) continue;
+      const monthNum = month.date.getMonth() + 1;
+      const yearNum = month.date.getFullYear();
+      
+      
+      
+      // Find budget for this month
+      const monthBudget = editableBudgets.find(budget => 
+        budget.month === monthNum && budget.year === yearNum
+      );
+      
+      
+      
+      if (monthBudget) {
+        if (monthBudget._usesCurrentMonthData) {
+  
+        } else {
+          
+        }
+        
+        // Set income
+        const totalIncome = (monthBudget.income || 0) + (monthBudget.additional_income || 0);
+        incomeRow[`month_${gridIdx}`] = totalIncome;
+        
+        // Set expenses
+        if (monthBudget.expenses) {
+          Object.entries(monthBudget.expenses).forEach(([key, value]) => {
+            const categoryName = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+            const expenseRow = expenseRows.find(row => row.category === categoryName);
+            if (expenseRow) {
+              expenseRow[`month_${gridIdx}`] = value || 0;
+            }
+          });
+        }
+        
+        // Set additional expenses
+        if (monthBudget.additional_items) {
+          monthBudget.additional_items
+            .filter(item => item.type === 'expense')
+            .forEach(item => {
+              const lname = (item.name || '').toString().toLowerCase();
+              if (lname === 'debt payments' || lname === 'debt_payments' || lname === 'other' || lname === 'others') return;
+              const expenseRow = expenseRows.find(row => row.category === item.name);
+              if (expenseRow) {
+                expenseRow[`month_${gridIdx}`] = item.amount || 0;
+              }
+            });
+        }
+        
+        // Set savings
+        if (monthBudget.savings_items) {
+          monthBudget.savings_items.forEach(item => {
+            const savingsRow = savingsRows.find(row => row.category === item.name);
+            if (savingsRow) {
+              savingsRow[`month_${gridIdx}`] = item.amount || 0;
+            }
+          });
+        }
+      } else {
+    
+        // Use 0 for months not saved in MongoDB Atlas
+        incomeRow[`month_${gridIdx}`] = 0;
+        expenseRows.forEach(row => {
+          row[`month_${gridIdx}`] = 0;
+        });
+        savingsRows.forEach(row => {
+          row[`month_${gridIdx}`] = 0;
+        });
+      }
+    }
+    
+    // Calculate net savings for each month
+    const netSavingsRow = {
+      category: 'Net Savings',
+      type: 'net_savings',
+      month_0: 0, month_1: 0, month_2: 0, month_3: 0, month_4: 0, month_5: 0,
+      month_6: 0, month_7: 0, month_8: 0, month_9: 0, month_10: 0, month_11: 0,
+      month_12: 0, month_13: 0, month_14: 0, month_15: 0
+    };
+    
+    // FIXED: Recompute net savings only for current and projected months (not historical)
+    const maxCol = currentMonthIdx + projectionMonths;
+    const firstCol = Math.max(0, currentMonthIdx - historicalMonthsShown);
+    for (let monthIdx = firstCol; monthIdx <= maxCol; monthIdx++) {
+      const month = months[monthIdx];
+      
+      // Skip historical months - do not calculate Net Savings for them
+      if (month && month.type === 'historical') {
+        netSavingsRow[`month_${monthIdx}`] = 0;
+    
+        continue;
+      }
+      
+      const income = incomeRow[`month_${monthIdx}`] || 0;
+      const expenses = expenseRows.reduce((sum, row) => sum + (row[`month_${monthIdx}`] || 0), 0);
+      const savings = savingsRows.reduce((sum, row) => sum + (row[`month_${monthIdx}`] || 0), 0);
+      const netSavings = income - expenses + savings;
+      
+      netSavingsRow[`month_${monthIdx}`] = netSavings;
+      
+  
+    }
+    
+    // Add Total Debt row (will be populated by debt payoff calculation)
+    const totalDebtRow = {
+      category: 'Remaining Debt',
+      type: 'total_debt',
+      month_0: 0, month_1: 0, month_2: 0, month_3: 0, month_4: 0, month_5: 0,
+      month_6: 0, month_7: 0, month_8: 0, month_9: 0, month_10: 0, month_11: 0,
+      month_12: 0, month_13: 0, month_14: 0, month_15: 0
+    };
+    
+    // Combine all rows with Net Savings and Total Debt at the top before Income
+    const allRows = [netSavingsRow, totalDebtRow, incomeRow, ...expenseRows, ...savingsRows];
+    
+    console.log('✅ Grid data generated successfully');
+    
+    setLocalGridData(allRows);
+    setIncomeCategories(incomeCategories);
+    setExpenseCategories(expenseCategories);
+  };
+
   useEffect(() => {
     loadBudgetData();
     loadDebtsData();
   }, []);
 
-  const loadBudgetData = async () => {
+  // Force grid refresh when localGridData changes
+  useEffect(() => {
+    if (localGridData.length > 0 && !isUpdatingGridRef.current) {
+      safeUpdateGridData(localGridData);
+    }
+  }, [localGridData]);
+
+  const loadBudgetData = async (skipLoadingState = false) => {
     try {
-      setLoading(true);
-      const response = await axios.get('/api/budgets/');
-      
-      if (response.data && response.data.length > 0) {
-        const budget = response.data[0];
-        setBudgetData(budget);
-        setEditedBudgetData(budget);
-        await generateGridData(budget);
+      if (!skipLoadingState) {
+        setLoading(true);
       }
+      // console.log('🔄 Loading Editable Budget Projection data from MongoDB...');
+      
+      // Get current month and year
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1; // 1-based month
+      const currentYear = currentDate.getFullYear();
+      
+      // console.log(`📅 Current month: ${currentMonth}/${currentYear}`);
+      
+      // FIXED: Use authenticated endpoint to ensure proper user isolation
+      const response = await axios.get('/api/mongodb/budgets/');
+      // Handle MongoDB response format
+      const existingBudgets = response.data?.budgets || response.data || [];
+      
+      // Find current month budget to use as template
+      const currentMonthBudget = existingBudgets.find(budget => 
+        budget.month === currentMonth && budget.year === currentYear
+      );
+      
+      if (!currentMonthBudget) {
+        // console.log(`⚠️ No current month budget found for ${currentMonth}/${currentYear}`);
+        setErrorMessage(`No budget found for current month ${currentMonth}/${currentYear}. Please create a budget in Monthly Budget first.`);
+        setShowErrorSnackbar(true);
+        setLoading(false);
+        return;
+      }
+      
+      // console.log('✅ Found current month budget as template');
+      setBudgetData(currentMonthBudget);
+      setEditedBudgetData(currentMonthBudget);
+      
+      // Helper function to check if a budget is effectively empty
+      const isBudgetEffectivelyEmpty = (budget) => {
+        const totalIncome = (budget.income || 0) + (budget.additional_income || 0);
+        const totalExpenses = budget.expenses ? Object.values(budget.expenses).reduce((sum, val) => sum + (val || 0), 0) : 0;
+        const totalSavings = budget.savings_items ? budget.savings_items.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
+        return totalIncome === 0 && totalExpenses === 0 && totalSavings === 0;
+      };
+      
+      // REQUIREMENT: Generate current + 12 projected months (13 months total) for grid display
+      const monthBudgets = [];
+      
+      // console.log('🔄 Generating Editable Budget Projection months (current + 12 projected)...');
+      
+      for (let i = 0; i < 13; i++) {
+        const projectedDate = new Date(currentYear, currentMonth - 1 + i, 1);
+        const monthNum = projectedDate.getMonth() + 1;
+        const yearNum = projectedDate.getFullYear();
+        
+        // Find existing budget for this month
+        const existingBudget = existingBudgets.find(budget => 
+          budget.month === monthNum && budget.year === yearNum
+        );
+        
+        if (existingBudget && !isBudgetEffectivelyEmpty(existingBudget)) {
+          monthBudgets.push({
+            ...existingBudget,
+            _isEmpty: false,
+            _usesCurrentMonthData: false
+          });
+        } else if (existingBudget && isBudgetEffectivelyEmpty(existingBudget)) {
+          monthBudgets.push({
+            ...currentMonthBudget,
+            month: monthNum,
+            year: yearNum,
+            _isEmpty: false,
+            _usesCurrentMonthData: true
+          });
+        } else {
+          // Use current month's data as fallback for any month that doesn't have specific data
+          console.log(`⚠️ No budget found for month ${monthNum}/${yearNum}, using current month data as fallback`);
+          
+          // Create budget using current month's data as template
+          const fallbackBudget = {
+            ...currentMonthBudget,
+            month: monthNum,
+            year: yearNum,
+            _isEmpty: false,
+            _usesCurrentMonthData: true // Flag to indicate this uses current month as fallback
+          };
+          
+          monthBudgets.push(fallbackBudget);
+        }
+      }
+      
+      // console.log(`✅ Generated ${monthBudgets.length} months for Editable Budget Projection`);
+      
+      // Set the editable months state
+      setEditableMonths(monthBudgets);
+      
+      // Restore locked cells from manually_edited_categories in the database
+      const restoredLockedCells = {};
+      const months = generateMonths();
+      monthBudgets.forEach((budget, budgetIdx) => {
+        if (budget.manually_edited_categories && budget.manually_edited_categories.length > 0) {
+          // Find the corresponding month index in the grid
+          const monthIdx = months.findIndex(m => m.month === budget.month && m.year === budget.year);
+          if (monthIdx !== -1 && months[monthIdx].type === 'future') {
+            restoredLockedCells[monthIdx] = [...budget.manually_edited_categories];
+            console.log(`🔒 Restored locked categories for ${budget.month}/${budget.year} (monthIdx ${monthIdx}):`, budget.manually_edited_categories);
+          }
+        }
+      });
+      setLockedCells(restoredLockedCells);
+      
+      // Generate grid data with editable months only
+      console.log('Calling generateGridDataWithEditableMonths with:', {
+        currentMonthBudget: currentMonthBudget ? `Income: $${currentMonthBudget.income + currentMonthBudget.additional_income}` : 'null',
+        editableMonthsCount: monthBudgets.length,
+        editableMonths: monthBudgets.map(m => `${m.month}/${m.year}: $${m.income + m.additional_income}`)
+      });
+      await generateGridDataWithEditableMonths(currentMonthBudget, monthBudgets);
+      
     } catch (error) {
-      console.error('Error loading budget data:', error);
+      console.error('❌ Error loading budget data:', error);
       setErrorMessage('Failed to load budget data');
       setShowErrorSnackbar(true);
+      
+      // Initialize with empty budget data on error
+      const emptyBudget = {
+        income: 0,
+        additional_income: 0,
+        expenses: {},
+        additional_items: [],
+        savings_items: []
+      };
+      setBudgetData(emptyBudget);
+      setEditedBudgetData(emptyBudget);
+      await generateGridDataWithEditableMonths(emptyBudget, []); // Pass empty array for budgets
     } finally {
-      setLoading(false);
+      if (!skipLoadingState) {
+        setLoading(false);
+      }
     }
   };
 
@@ -362,10 +790,10 @@ const DebtPlanning = () => {
     try {
       setDebtsLoading(true);
       setDebtsError(null);
-      console.log('Loading debts data...');
+      // console.log('Loading debts data...');
       
       const response = await accountsDebtsService.getDebts();
-      console.log('Raw debts response:', response);
+
       
       // Ensure we have valid debt data with proper field mapping
       const debtsData = Array.isArray(response) ? response : [];
@@ -387,11 +815,11 @@ const DebtPlanning = () => {
         updated_at: debt.updated_at || null
       }));
       
-      console.log('Processed debts data:', processedDebts);
+  
       setOutstandingDebts(processedDebts);
       
       if (processedDebts.length === 0) {
-        console.log('No debts found');
+        // console.log('No debts found');
       }
     } catch (error) {
       console.error('Error loading debts:', error);
@@ -404,7 +832,12 @@ const DebtPlanning = () => {
 
   const generateMonths = () => {
     const months = [];
-    const currentDate = new Date();
+    
+    // Use the first editable month as the "current" month reference
+    // This ensures we use the actual budget data, not today's date
+    const currentDate = editableMonths.length > 0 
+      ? new Date(editableMonths[0].year, editableMonths[0].month - 1, 1)
+      : new Date();
     
     // Historical months
     for (let i = historicalMonthsShown; i > 0; i--) {
@@ -413,207 +846,42 @@ const DebtPlanning = () => {
       months.push({
         label: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
         type: 'historical',
-        date: date
+        date: date,
+        month: date.getMonth() + 1,
+        year: date.getFullYear()
       });
     }
     
-    // Current month
+    // Current month (first editable month)
     months.push({
       label: currentDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
       type: 'current',
-      date: currentDate
+      date: currentDate,
+      month: currentDate.getMonth() + 1,
+      year: currentDate.getFullYear()
     });
     
-    // Future months
+    // Future months (remaining editable months)
     for (let i = 1; i <= projectionMonths; i++) {
       const date = new Date(currentDate);
       date.setMonth(date.getMonth() + i);
       months.push({
         label: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
         type: 'future',
-        date: date
+        date: date,
+        month: date.getMonth() + 1,
+        year: date.getFullYear()
       });
     }
     
     return months;
   };
 
-  const generateGridData = async (budget) => {
-    const months = generateMonths();
-    const data = [];
-    
-    // Net savings row (first row)
-    const netRow = { category: 'Net Savings', type: 'net', editable: false };
-    months.forEach((month, idx) => {
-      netRow[`month_${idx}`] = 0; // Will be calculated
-    });
-    data.push(netRow);
-    
-    // Income row (Primary + Additional Income)
-    const totalIncome = (budget.income || 0) + (budget.additional_income || 0);
-    const incomeRow = { category: 'Income', type: 'income', editable: true };
-    months.forEach((month, idx) => {
-      incomeRow[`month_${idx}`] = totalIncome;
-    });
-    data.push(incomeRow);
-    
-    // Expense rows
-    const baseExpenses = [
-      { name: 'Housing', field: 'housing' },
-      { name: 'Transportation', field: 'transportation' },
-      { name: 'Food', field: 'food' },
-      { name: 'Healthcare', field: 'healthcare' },
-      { name: 'Entertainment', field: 'entertainment' },
-      { name: 'Shopping', field: 'shopping' },
-      { name: 'Travel', field: 'travel' },
-      { name: 'Education', field: 'education' },
-      { name: 'Utilities', field: 'utilities' },
-      { name: 'Childcare', field: 'childcare' },
-      { name: 'Other', field: 'other' }
-    ];
-    
-    baseExpenses.forEach(expense => {
-      const row = { category: expense.name, type: 'expense', editable: true };
-      months.forEach((month, idx) => {
-        row[`month_${idx}`] = budget[expense.field] || 0;
-      });
-      data.push(row);
-    });
-    
-    // Additional income items
-    if (budget.additional_items) {
-      budget.additional_items
-        .filter(item => item.type === 'income')
-        .forEach(item => {
-          const row = { category: item.name, type: 'income', editable: true };
-          months.forEach((month, idx) => {
-            row[`month_${idx}`] = item.amount || 0;
-          });
-          data.push(row);
-        });
-    }
-    
-    // Additional expense items
-    if (budget.additional_items) {
-      budget.additional_items
-        .filter(item => item.type === 'expense')
-        .forEach(item => {
-          const row = { category: item.name, type: 'expense', editable: true };
-          months.forEach((month, idx) => {
-            row[`month_${idx}`] = item.amount || 0;
-          });
-          data.push(row);
-        });
-    }
-    
-    // Savings items
-    if (budget.savings_items) {
-      budget.savings_items.forEach(item => {
-        const row = { category: item.name, type: 'savings', editable: true };
-        months.forEach((month, idx) => {
-          row[`month_${idx}`] = item.amount || 0;
-        });
-        data.push(row);
-      });
-    }
-    
-    // Load existing budget data for each month - FIXED: Only load for future months, not all months
-    for (let monthIdx = 0; monthIdx < months.length; monthIdx++) {
-      const month = months[monthIdx];
-      
-      // Only load saved data for future months, not historical or current
-      if (month.type === 'future') {
-        try {
-          const monthNum = month.date.getMonth() + 1;
-          const year = month.date.getFullYear();
-          
-          const response = await axios.get(`/api/budgets/get-month/?month=${monthNum}&year=${year}`);
-          const monthBudget = response.data;
-          
-          if (monthBudget && response.status !== 404) {
-            // Update the grid data with the loaded budget for this specific month only
-            data.forEach(row => {
-              if (row.category === 'Income') {
-                const totalIncome = (monthBudget.income || 0) + (monthBudget.additional_income || 0);
-                row[`month_${monthIdx}`] = totalIncome;
-              } else if (row.type === 'expense') {
-                const fieldMap = {
-                  'Housing': 'housing',
-                  'Transportation': 'transportation',
-                  'Food': 'food',
-                  'Healthcare': 'healthcare',
-                  'Entertainment': 'entertainment',
-                  'Shopping': 'shopping',
-                  'Travel': 'travel',
-                  'Education': 'education',
-                  'Utilities': 'utilities',
-                  'Childcare': 'childcare',
-                  'Other': 'other'
-                };
-                
-                const field = fieldMap[row.category];
-                if (field) {
-                  row[`month_${monthIdx}`] = monthBudget[field] || 0;
-                }
-              } else if (row.type === 'income' && row.category !== 'Income') {
-                // Handle additional income items
-                if (monthBudget.additional_items) {
-                  const additionalItem = monthBudget.additional_items.find(item => 
-                    item.name === row.category && item.type === 'income'
-                  );
-                  if (additionalItem) {
-                    row[`month_${monthIdx}`] = additionalItem.amount || 0;
-                  }
-                }
-              } else if (row.type === 'expense' && !['Housing', 'Transportation', 'Food', 'Healthcare', 'Entertainment', 'Shopping', 'Travel', 'Education', 'Utilities', 'Childcare', 'Other'].includes(row.category)) {
-                // Handle additional expense items
-                if (monthBudget.additional_items) {
-                  const additionalItem = monthBudget.additional_items.find(item => 
-                    item.name === row.category && item.type === 'expense'
-                  );
-                  if (additionalItem) {
-                    row[`month_${monthIdx}`] = additionalItem.amount || 0;
-                  }
-                }
-              } else if (row.type === 'savings') {
-                // Handle savings items
-                if (monthBudget.savings_items) {
-                  const savingsItem = monthBudget.savings_items.find(item => 
-                    item.name === row.category
-                  );
-                  if (savingsItem) {
-                    row[`month_${monthIdx}`] = savingsItem.amount || 0;
-                  }
-                }
-              }
-            });
-          }
-        } catch (error) {
-          console.log(`No existing budget found for month ${month.date.getMonth() + 1}/${month.date.getFullYear()}, using current month data as default`);
-        }
-      }
-    }
-    
-    // Calculate net savings
-    const netSavingsRow = data[0];
-    months.forEach((month, idx) => {
-      let income = 0;
-      let expenses = 0;
-      
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        if (row.type === 'income') {
-          income += parseFloat(row[`month_${idx}`]) || 0;
-        } else if (row.type === 'expense') {
-          expenses += parseFloat(row[`month_${idx}`]) || 0;
-        }
-      }
-      
-      netSavingsRow[`month_${idx}`] = income - expenses;
-    });
-    
-    setLocalGridData(data);
-  };
+  // REMOVED: This function was overwriting the correct grid data
+  // The generateGridDataWithEditableMonths function is now the single source of truth
+
+  // REMOVED: This function was overwriting the correct grid data
+  // The generateGridDataWithEditableMonths function is now the single source of truth
 
   const formatCurrency = (amount) => {
     if (typeof amount !== 'number') return '$0';
@@ -695,7 +963,7 @@ const DebtPlanning = () => {
       cellRenderer: ({ value, data }) => {
         // Handle various data formats
         const balance = parseFloat(value) || parseFloat(data.balance) || 0;
-        console.log('Balance cell renderer:', { value, balance, data: data.name });
+    
         return (
           <Typography variant="body2" sx={{ 
             fontWeight: 700, 
@@ -841,7 +1109,7 @@ const DebtPlanning = () => {
             title={`Edit ${data.name}`}
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Edit clicked for debt:', data);
+          
               if (!data) {
                 setErrorMessage('No debt data available for editing.');
                 setShowErrorSnackbar(true);
@@ -876,7 +1144,7 @@ const DebtPlanning = () => {
             title={`Delete ${data.name}`}
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Delete clicked for debt:', data);
+          
               if (!data) {
                 setErrorMessage('No debt data available for deletion.');
                 setShowErrorSnackbar(true);
@@ -915,175 +1183,599 @@ const DebtPlanning = () => {
   const recalculateNetSavings = (gridData) => {
     if (!gridData || gridData.length === 0) return gridData;
     
-    const netRow = gridData[0]; // Net Savings is always the first row
     const months = generateMonths();
     
+    // Find the net savings row (it should be the one with category 'Net Savings')
+    const netRow = gridData.find(row => row.category === 'Net Savings');
+    if (!netRow) return gridData;
+    
     for (let idx = 0; idx < months.length; idx++) {
+      const month = months[idx];
+      
+      // FIXED: Do not calculate Net Savings for historical months
+      if (month && month.type === 'historical') {
+        netRow[`month_${idx}`] = 0; // Set historical months to 0 or leave as is
+        continue;
+      }
+      
       let income = 0;
       let expenses = 0;
+      let savings = 0;
       
-      for (let i = 1; i < gridData.length; i++) {
+      for (let i = 0; i < gridData.length; i++) {
         const row = gridData[i];
-        if (row.type === 'income') {
-          const monthIncome = parseFloat(row[`month_${idx}`]) || 0;
-          income += monthIncome;
-        }
-        if (row.type === 'expense') {
-          const monthExpense = parseFloat(row[`month_${idx}`]) || 0;
-          expenses += monthExpense;
+        const monthValue = parseFloat(row[`month_${idx}`]) || 0;
+        
+        if (row.category === 'Income') {
+          // Main income row
+          income += monthValue;
+        } else if (row.type === 'income' && row.category !== 'Income') {
+          // Additional income items
+          income += monthValue;
+        } else if (row.type === 'expense') {
+          // Expense items
+          expenses += monthValue;
+        } else if (row.type === 'savings') {
+          // Savings items (these add to net savings)
+          savings += monthValue;
         }
       }
       
-      const netSavings = income - expenses;
+      const netSavings = income - expenses + savings;
       netRow[`month_${idx}`] = netSavings;
       
-      console.log(`Recalculated Net Savings for Month ${idx} (${months[idx].label}): Income $${income}, Expenses $${expenses}, Net Savings $${netSavings}`);
+  
     }
     
     return gridData;
   };
 
   const updateTotalDebtFromPayoffPlan = (gridData, payoffPlan) => {
-    if (!gridData || !payoffPlan || !payoffPlan.plan) return gridData;
-    
-    const totalDebtRow = gridData.find(row => row.category === 'Total Debt');
+    if (!gridData || !payoffPlan || !Array.isArray(payoffPlan.plan)) return gridData;
+    const totalDebtRow = gridData.find(row => row.category === 'Remaining Debt');
     if (!totalDebtRow) return gridData;
-    
+
     const months = generateMonths();
     const currentMonthIdx = months.findIndex(m => m.type === 'current');
-    
-    // Clear all total debt values first
-    months.forEach((month, idx) => {
+
+    // Clear all values first
+    months.forEach((_, idx) => {
       totalDebtRow[`month_${idx}`] = 0;
     });
+
+    // FIXED: Current month debt calculation
+    // plan[0] = previous month (starting balances)
+    // plan[1] = current month (balances AFTER first month payments)
+    // plan[2] = next month, etc.
     
-    // Only show total debt for the previous month (current-1)
-    if (currentMonthIdx > 0) {
-      const previousMonthIdx = currentMonthIdx - 1;
-      const payoffPlanIdx = (previousMonthIdx - currentMonthIdx) + 1; // This will be 0 for previous month
-      
-      if (payoffPlan.plan[payoffPlanIdx] && payoffPlan.plan[payoffPlanIdx].debts) {
-        const totalDebt = payoffPlan.plan[payoffPlanIdx].debts.reduce(
-          (sum, debt) => sum + (parseFloat(debt.balance) || 0), 
-          0
-        );
-        totalDebtRow[`month_${previousMonthIdx}`] = totalDebt;
-        console.log(`Updated Total Debt for ${months[previousMonthIdx].label}: $${totalDebt}`);
+    // Fill previous month (plan index 0 - starting balances)
+    if (currentMonthIdx > 0 && payoffPlan.plan[0]?.debts) {
+      const prevIdx = currentMonthIdx - 1;
+      const totalPrev = payoffPlan.plan[0].debts.reduce((sum, d) => sum + (parseFloat(d.balance) || 0), 0);
+      totalDebtRow[`month_${prevIdx}`] = totalPrev;
+      console.log(`💰 Previous month (${prevIdx}) debt total: $${totalPrev}`);
+    }
+
+    // Fill current month (plan index 1 - balances after current month payments)
+    if (payoffPlan.plan[1]?.debts) {
+      const totalCurrent = payoffPlan.plan[1].debts.reduce((sum, d) => sum + (parseFloat(d.balance) || 0), 0);
+      totalDebtRow[`month_${currentMonthIdx}`] = totalCurrent;
+      console.log(`💰 Current month (${currentMonthIdx}) debt total: $${totalCurrent}`);
+      console.log(`💰 Current month debts detail:`, payoffPlan.plan[1].debts.map(d => `${d.name}: $${d.balance}`));
+    } else {
+      console.log(`❌ No debt data available for current month (plan[1])`);
+      console.log(`❌ Available plan data:`, payoffPlan.plan ? payoffPlan.plan.length : 'No plan');
+    }
+
+    // Fill future months using plan indices (next = plan[2], etc.)
+    for (let idx = currentMonthIdx + 1; idx < months.length; idx++) {
+      const planIdx = (idx - currentMonthIdx) + 1; // next month => 2, month after => 3, ...
+      const monthPlan = payoffPlan.plan[planIdx];
+      if (monthPlan && Array.isArray(monthPlan.debts)) {
+        const total = monthPlan.debts.reduce((sum, d) => sum + (parseFloat(d.balance) || 0), 0);
+        totalDebtRow[`month_${idx}`] = total;
+        console.log(`💰 Future month (${idx}, plan[${planIdx}]) debt total: $${total}`);
       }
     }
-    
+
+          console.log("📊 DEBT CALCULATION SUMMARY:");
+      console.log(`  Previous month: $${totalDebtRow[`month_${currentMonthIdx - 1}`] || 0}`);
+      console.log(`  Current month: $${totalDebtRow[`month_${currentMonthIdx}`] || 0}`);
+      console.log(`  Next month: $${totalDebtRow[`month_${currentMonthIdx + 1}`] || 0}`);
+      console.log(`📊 PLAN DATA AVAILABLE:`, payoffPlan.plan ? payoffPlan.plan.length : 0, 'months');
+      console.log(`📊 GRID MONTHS GENERATED:`, months.length, 'months');
+      console.log(`📊 CURRENT MONTH INDEX:`, currentMonthIdx);
+
+    // Older historical columns (earlier than current-1) remain 0 and are display-only
     return gridData;
   };
 
-  // Function to calculate debt payoff plan
-  const calculateDebtPayoffPlan = async (budgetData, debts, strategyType) => {
-    if (!budgetData || !debts || debts.length === 0) return;
-    
-    console.log('=== DEBT PAYOFF DEBUG ===');
-    console.log('budgetData:', budgetData);
-    console.log('editedBudgetData:', editedBudgetData);
-    console.log('debts:', debts);
-    console.log('strategyType:', strategyType);
-    
+  // Enhanced direct save function for month-specific budget changes
+  const saveMonthChangesDirectly = async (month, year, category, value, gridSnapshot = null) => {
     try {
-      // Use current grid data to calculate net savings for each month
-      const months = generateMonths();
-      const monthlyBudgetData = [];
+      console.log(`💾 Saving: ${month}/${year}, ${category} = ${value}`);
       
-      console.log('Using current grid data for debt payoff calculation');
-      console.log('localGridData length:', localGridData?.length);
-      console.log('localGridData first few rows:', localGridData?.slice(0, 3));
+      // Get existing budget to preserve other values
+      const isDev = process.env.NODE_ENV === 'development' ||
+        (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'));
+      // FIXED: Always use authenticated endpoint for proper user isolation
+      const getMonthUrl = `${process.env.REACT_APP_API_URL}/api/mongodb/budgets/get-month/`;
       
-      // Show the net savings values for each month
-      if (localGridData && localGridData.length > 0) {
-        const netSavingsRow = localGridData.find(row => row.category === 'Net Savings');
-        if (netSavingsRow) {
-          console.log('Net Savings values from grid:');
-          months.forEach((month, idx) => {
-            const netSavings = parseFloat(netSavingsRow[`month_${idx}`]) || 0;
-            console.log(`  Month ${idx} (${month.label}): $${netSavings}`);
+      let existingBudget = null;
+      try {
+        const existingResp = await axios.get(`${getMonthUrl}?month=${month}&year=${year}`);
+        existingBudget = existingResp.data || null;
+
+      } catch (getError) {
+    
+        // Use current month budget as template for new budgets
+        existingBudget = budgetData ? {
+          income: budgetData.income || 0,
+          additional_income: budgetData.additional_income || 0,
+          expenses: budgetData.expenses || {},
+          additional_items: budgetData.additional_items || [],
+          savings_items: budgetData.savings_items || []
+        } : null;
+      }
+
+      // Build the update payload preserving existing data
+      const budgetUpdate = {
+        month,
+        year,
+        income: existingBudget?.income || 0,
+        additional_income: existingBudget?.additional_income || 0,
+        expenses: {
+          housing: existingBudget?.expenses?.housing || 0,
+          debt_payments: existingBudget?.expenses?.debt_payments || 0,
+          transportation: existingBudget?.expenses?.transportation || 0,
+          food: existingBudget?.expenses?.food || 0,
+          healthcare: existingBudget?.expenses?.healthcare || 0,
+          entertainment: existingBudget?.expenses?.entertainment || 0,
+          shopping: existingBudget?.expenses?.shopping || 0,
+          travel: existingBudget?.expenses?.travel || 0,
+          education: existingBudget?.expenses?.education || 0,
+          utilities: existingBudget?.expenses?.utilities || 0,
+          childcare: existingBudget?.expenses?.childcare || 0,
+          other: existingBudget?.expenses?.other || 0
+        },
+        additional_items: existingBudget?.additional_items || [],
+        savings_items: existingBudget?.savings_items || [],
+        manually_edited_categories: existingBudget?.manually_edited_categories || []
+      };
+
+      // Update the specific category with the new value
+      const expenseMap = {
+        'Income': null, // Handle separately
+        'Housing': 'housing',
+        'Debt payments': 'debt_payments', 
+        'Transportation': 'transportation',
+        'Food': 'food',
+        'Healthcare': 'healthcare',
+        'Entertainment': 'entertainment',
+        'Shopping': 'shopping',
+        'Travel': 'travel',
+        'Education': 'education',
+        'Utilities': 'utilities',
+        'Childcare': 'childcare',
+        'Other': 'other'
+      };
+
+      if (category === 'Income') {
+        // NEW LOGIC: Add the difference to primary income, keep additional income unchanged
+        const totalExisting = budgetUpdate.income + budgetUpdate.additional_income;
+        const difference = value - totalExisting;
+        
+        if (difference !== 0) {
+          // Add the difference to primary income, keep additional income as is
+          budgetUpdate.income = budgetUpdate.income + difference;
+          // Ensure primary income doesn't go negative
+          if (budgetUpdate.income < 0) {
+            budgetUpdate.income = 0;
+          }
+        }
+        // If difference is 0, no change needed
+      } else if (expenseMap[category]) {
+        budgetUpdate.expenses[expenseMap[category]] = value;
+      } else {
+        // Handle additional items (expenses and income not in base categories)
+        const existingAdditionalItems = budgetUpdate.additional_items || [];
+        const itemIndex = existingAdditionalItems.findIndex(item => item.name === category);
+        
+        if (itemIndex !== -1) {
+          // Update existing additional item
+          existingAdditionalItems[itemIndex].amount = value;
+        } else {
+          // Add new additional item (assume expense if not found)
+          existingAdditionalItems.push({
+            name: category,
+            amount: value,
+            type: 'expense'
           });
         }
+        budgetUpdate.additional_items = existingAdditionalItems;
       }
+
+      // Mark this category as manually edited (for protection from Monthly Budget overwrites)
+      if (!budgetUpdate.manually_edited_categories.includes(category)) {
+        budgetUpdate.manually_edited_categories.push(category);
+      }
+
+      // Save to MongoDB
+      // FIXED: Always use authenticated endpoint for proper user isolation
+      const saveUrl = `${process.env.REACT_APP_API_URL}/api/mongodb/budgets/save-month/`;
       
-      // Get net savings directly from the grid data
-      if (localGridData && localGridData.length > 0) {
-        const netSavingsRow = localGridData.find(row => row.category === 'Net Savings');
-        if (netSavingsRow) {
-          // Find the current month index
-          const currentMonthIdx = months.findIndex(m => m.type === 'current');
-          console.log(`Current month index: ${currentMonthIdx} (${months[currentMonthIdx]?.label})`);
-          
-          // Only use current and future months for debt payoff (skip historical months)
-          for (let monthIdx = currentMonthIdx; monthIdx < months.length; monthIdx++) {
-            const netSavings = parseFloat(netSavingsRow[`month_${monthIdx}`]) || 0;
-            const debtMonthIndex = monthIdx - currentMonthIdx; // Start from 0 for debt payoff
-            monthlyBudgetData.push({
-              month: debtMonthIndex,
-              net_savings: netSavings,
-              income: 0, // Not needed for debt calculation
-              expenses: 0, // Not needed for debt calculation
-              budget_data: null,
-              originalMonthIdx: monthIdx,
-              monthLabel: months[monthIdx].label
-            });
-            console.log(`Debt Month ${debtMonthIndex + 1} (${months[monthIdx].label}): Net Savings $${netSavings} from grid`);
+      const resp = await axios.post(saveUrl, budgetUpdate);
+      console.log(`✅ Saved: ${month}/${year} ${category} = ${value}`);
+      
+      // Update editableMonths state to trigger recalculations if this month is in the editable range
+      setEditableMonths(prev => {
+        return prev.map(budget => {
+          if (budget.month === month && budget.year === year) {
+            return { ...budget, ...budgetUpdate };
           }
-        } else {
-          console.error('Could not find Net Savings row in grid data');
-          return;
-        }
-      } else {
-        console.error('No grid data available for debt payoff calculation');
-        return;
+          return budget;
+        });
+      });
+      
+      return resp.data;
+    } catch (error) {
+      console.error(`❌ Direct save failed for ${month}/${year}:`, error);
+      throw error;
+    }
+  };
+
+  // Save changes for a specific month to MongoDB Atlas using month/year endpoints
+  const saveMonthChanges = async (monthIdx, monthData, silent = true, gridSnapshot = null) => {
+    if (!monthData || monthData.type === 'historical') return;
+    try {
+      const months = generateMonths();
+      const targetMonth = months[monthIdx];
+      if (!targetMonth || targetMonth.type === 'historical') return;
+
+      // Use month/year directly from targetMonth or monthData to avoid date calculation issues
+      const month = targetMonth.month || (targetMonth.date ? targetMonth.date.getMonth() + 1 : monthData.month);
+      const year = targetMonth.year || (targetMonth.date ? targetMonth.date.getFullYear() : monthData.year);
+      
+      console.log(`💾 Saving month: ${month}/${year}`);
+
+      // Build MongoDB schema payload
+      const budgetUpdate = {
+        income: 0,
+        additional_income: 0,
+        expenses: {
+          housing: 0,
+          debt_payments: 0,
+          transportation: 0,
+          food: 0,
+          healthcare: 0,
+          entertainment: 0,
+          shopping: 0,
+          travel: 0,
+          education: 0,
+          utilities: 0,
+          childcare: 0,
+          other: 0
+        },
+        additional_items: [],
+        savings_items: [],
+        manually_edited_categories: [], // Track categories manually edited by user
+        month,
+        year
+      };
+
+      // Fetch existing budget for this month to preserve income split
+      const isDev = process.env.NODE_ENV === 'development' ||
+        (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'));
+      // FIXED: Always use authenticated endpoint for proper user isolation
+      const getMonthUrl = `${process.env.REACT_APP_API_URL}/api/mongodb/budgets/get-month/`;
+      let existingBudget = null;
+      try {
+        const existingResp = await axios.get(`${getMonthUrl}?month=${month}&year=${year}`);
+        existingBudget = existingResp.data || null;
+  
+      } catch (getError) {
+    
+        existingBudget = null;
+      }
+
+      // Preserve existing manually edited categories and add new ones from current lockedCells
+      if (existingBudget && existingBudget.manually_edited_categories) {
+        budgetUpdate.manually_edited_categories = [...existingBudget.manually_edited_categories];
       }
       
-      console.log('Monthly budget data from grid:', monthlyBudgetData);
-      console.log('Net savings by month:');
-      monthlyBudgetData.forEach((monthData, idx) => {
-        const monthInfo = months[idx];
-        const monthLabel = monthInfo ? monthInfo.label : `Month ${idx}`;
-        console.log(`  ${monthLabel}: $${monthData.net_savings}`);
+      // Add categories that are locked for this month (user-edited projected cells)
+      const lockedForThisMonth = lockedCells[monthIdx] || [];
+      lockedForThisMonth.forEach(category => {
+        if (!budgetUpdate.manually_edited_categories.includes(category)) {
+          budgetUpdate.manually_edited_categories.push(category);
+        }
+      });
+
+      // Map grid rows to payload for the specific column monthIdx
+      const baseExpenseMap = {
+        'Housing': 'housing',
+        'Debt payments': 'debt_payments',
+        'Transportation': 'transportation',
+        'Food': 'food',
+        'Healthcare': 'healthcare',
+        'Entertainment': 'entertainment',
+        'Shopping': 'shopping',
+        'Travel': 'travel',
+        'Education': 'education',
+        'Utilities': 'utilities',
+        'Childcare': 'childcare',
+        'Other': 'other'
+      };
+
+      const sourceGrid = Array.isArray(gridSnapshot) && gridSnapshot.length > 0 ? gridSnapshot : localGridData;
+      
+      
+      sourceGrid.forEach(row => {
+        const value = parseFloat(row[`month_${monthIdx}`]) || 0;
+    
+        if (row.category === 'Income') {
+          const existingPrimary = parseFloat(existingBudget?.income || 0);
+          const existingAdditional = parseFloat(existingBudget?.additional_income || 0);
+          const totalExisting = existingPrimary + existingAdditional;
+          const difference = value - totalExisting;
+          
+          if (difference !== 0) {
+            // Add the difference to primary income, keep additional income as is
+            budgetUpdate.income = existingPrimary + difference;
+            budgetUpdate.additional_income = existingAdditional;
+            // Ensure primary income doesn't go negative
+            if (budgetUpdate.income < 0) {
+              budgetUpdate.income = 0;
+            }
+          } else {
+            // No change needed
+            budgetUpdate.income = existingPrimary;
+            budgetUpdate.additional_income = existingAdditional;
+          }
+        } else if (row.type === 'income') {
+          // Additional income items
+          if (row.category !== 'Income') {
+            budgetUpdate.additional_items.push({ name: row.category, amount: value, type: 'income' });
+          }
+        } else if (row.type === 'expense') {
+          const key = baseExpenseMap[row.category];
+          if (key) {
+            budgetUpdate.expenses[key] = value;
+          } else {
+            budgetUpdate.additional_items.push({ name: row.category, amount: value, type: 'expense' });
+          }
+        } else if (row.type === 'savings') {
+          budgetUpdate.savings_items.push({ name: row.category, amount: value });
+        }
+      });
+
+      // Persist to MongoDB Atlas
+      // FIXED: Always use authenticated endpoint for proper user isolation
+      const saveUrl = `${process.env.REACT_APP_API_URL}/api/mongodb/budgets/save-month/`;
+      let resp;
+      try {
+        
+        resp = await axios.post(saveUrl, budgetUpdate);
+    
+        
+        // Verify the save worked by checking what's in the database
+        const verifyUrl = isDev ? `${process.env.REACT_APP_API_URL}/api/mongodb/budgets/get-month-test/` : `${process.env.REACT_APP_API_URL}/api/mongodb/budgets/get-month/`;
+        const verifyResp = await axios.get(`${verifyUrl}?month=${month}&year=${year}`);
+    
+      } catch (e) {
+        const status = e?.response?.status;
+        console.error(`❌ Save failed for ${month}/${year} (status: ${status}):`, e.message);
+        if (!isDev && (status === 401 || status === 403)) {
+      
+          // FIXED: Use authenticated endpoint for proper user isolation
+        const saveUrl = `${process.env.REACT_APP_API_URL}/api/mongodb/budgets/save-month/`;
+          resp = await axios.post(saveUrl, budgetUpdate);
+      
+        } else {
+          throw e;
+        }
+      }
+
+      // Update editableMonths state so payoff plan recalculates via useEffect
+      const savedBudget = resp.data?.budget || resp.data || budgetUpdate;
+      setEditableMonths(prev => {
+        const next = Array.isArray(prev) ? [...prev] : [];
+        const idx = next.findIndex(b => b.month === month && b.year === year);
+        if (idx !== -1) next[idx] = { ...next[idx], ...savedBudget };
+        else next.push(savedBudget);
+        return next;
+      });
+
+      if (!silent) {
+        setSuccessMessage(`Budget for ${month}/${year} saved successfully!`);
+        setShowSuccessSnackbar(true);
+      }
+    } catch (error) {
+      console.error('Error saving month changes:', error);
+      setErrorMessage(
+        error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to save month budget changes'
+      );
+      setShowErrorSnackbar(true);
+    }
+  };
+
+  // Function to calculate debt payoff plan using month-specific budgets
+  // Helper function that returns the payoff plan result directly for real-time updates
+  const calculateDebtPayoffPlanWithResult = async (monthBudgets, debts, strategyType) => {
+    if (!monthBudgets || !Array.isArray(monthBudgets) || monthBudgets.length === 0 || !debts || debts.length === 0) {
+      return null;
+    }
+    
+    try {
+      // Calculate current month index for grid mapping
+      const months = generateMonths();
+      const currentMonthIdx = months.findIndex(m => m.type === 'current');
+      
+      // Use the actual net savings from the grid instead of recalculating
+      const monthlyBudgetData = monthBudgets.map((budget, idx) => {
+        // Use the actualNetSavings that was calculated in the useEffect
+        const actualNetSavings = budget.actualNetSavings || 0;
+        
+        // Calculate total income for reference
+        const totalIncome = (budget.income || 0) + (budget.additional_income || 0);
+        
+        // Calculate total expenses for reference
+        const baseExpenses = Object.values(budget.expenses || {}).reduce((sum, val) => sum + (val || 0), 0);
+        const additionalExpenses = (budget.additional_items || [])
+          .filter(item => item.type === 'expense')
+          .reduce((sum, item) => sum + (item.amount || 0), 0);
+        const totalExpenses = baseExpenses + additionalExpenses;
+        
+        // Use the actual net savings from the grid
+        const netSavings = actualNetSavings;
+        
+        return {
+          month: idx + 1, // 1-based for backend
+          net_savings: netSavings,
+          income: totalIncome,
+          expenses: totalExpenses,
+          budget_data: budget,
+          monthLabel: `${budget.month}/${budget.year}`
+        };
       });
       
       // Transform monthly budget data to backend format
-      // The backend expects the data in order (index 0 = first month, index 1 = second month, etc.)
-      const backendMonthlyData = monthlyBudgetData.map((monthData, idx) => {
+      const backendMonthlyData = monthlyBudgetData.map((monthData) => {
         return {
-          month: monthData.month + 1, // Use the debt month index (0-based) + 1 for backend
-          net_savings: monthData.net_savings || 0 // Allow negative values to be sent
+          month: monthData.month,
+          net_savings: monthData.net_savings || 0
+        };
+      });
+      
+      console.log(`💾 DEBT CALCULATION DEBUG (calculateDebtPayoffPlanWithResult):`);
+      console.log(`  - monthBudgets input: ${monthBudgets.length} months`);
+      console.log(`  - monthlyBudgetData: ${monthlyBudgetData.length} months`);
+      console.log(`  - backendMonthlyData: ${backendMonthlyData.length} months`);
+      console.log(`  - Months data:`, backendMonthlyData.map(m => `Month ${m.month}: $${m.net_savings}`));
+    
+      // Transform debts to match backend format - ensure proper field mapping
+      const transformedDebts = debts.map(debt => {
+        const originalRate = parseFloat(debt.interest_rate || 0);
+        const convertedRate = originalRate / 100; // Convert percentage to decimal
+        
+        return {
+          name: debt.name,
+          balance: parseFloat(debt.balance || 0),
+          rate: convertedRate, // Convert percentage to decimal
+          debt_type: debt.debt_type || 'other'
+        };
+      });
+      
+      const res = await accountsDebtsService.calculateDebtPayoffPlan({
+        debts: transformedDebts,
+        strategy: strategyType || 'snowball',
+        monthly_budget_data: backendMonthlyData
+      });
+      
+      // Return the result directly without updating state (for real-time updates)
+      return res;
+      
+    } catch (err) {
+      console.error('Debt payoff calculation error (real-time):', err);
+      return null;
+    }
+  };
+
+  const calculateDebtPayoffPlan = async (monthBudgets, debts, strategyType) => {
+    if (!monthBudgets || !Array.isArray(monthBudgets) || monthBudgets.length === 0 || !debts || debts.length === 0) {
+      // console.log('⚠️ Invalid input for debt payoff calculation');
+      return;
+    }
+    
+    // console.log('=== DEBT PAYOFF DEBUG ===');
+    // console.log('monthBudgets:', monthBudgets);
+    // console.log('debts:', debts);
+    // console.log('strategyType:', strategyType);
+    
+    // Debug: Show detailed budget breakdown for first few months
+    // console.log('=== DETAILED BUDGET BREAKDOWN ===');
+    // monthBudgets.slice(0, 3).forEach((budget, idx) => {
+    //   console.log(`Month ${idx + 1} (${budget.month}/${budget.year}):`);
+    //   console.log(`  Income: $${budget.income || 0}`);
+    //   console.log(`  Additional Income: $${budget.additional_income || 0}`);
+    //   console.log(`  Base Expenses:`, budget.expenses || {});
+    //   console.log(`  Additional Items:`, budget.additional_items || []);
+    //   console.log(`  Savings Items:`, budget.savings_items || []);
+    // });
+    // console.log('=== END DETAILED BREAKDOWN ===');
+    
+    try {
+      // console.log('Using month-specific budgets for debt payoff calculation');
+      // console.log(`Processing ${monthBudgets.length} months of budget data`);
+      
+      // Calculate current month index for grid mapping
+      const months = generateMonths();
+      const currentMonthIdx = months.findIndex(m => m.type === 'current');
+      
+      // Use the actual net savings from the grid instead of recalculating
+      const monthlyBudgetData = monthBudgets.map((budget, idx) => {
+        // Use the actualNetSavings that was calculated in the useEffect
+        const actualNetSavings = budget.actualNetSavings || 0;
+        
+        // Calculate total income for reference
+        const totalIncome = (budget.income || 0) + (budget.additional_income || 0);
+        
+        // Calculate total expenses for reference
+        const baseExpenses = Object.values(budget.expenses || {}).reduce((sum, val) => sum + (val || 0), 0);
+        const additionalExpenses = (budget.additional_items || [])
+          .filter(item => item.type === 'expense')
+          .reduce((sum, item) => sum + (item.amount || 0), 0);
+        const totalExpenses = baseExpenses + additionalExpenses;
+        
+        // Use the actual net savings from the grid
+        const netSavings = actualNetSavings;
+        
+    
+        
+        return {
+          month: idx + 1, // 1-based for backend
+          net_savings: netSavings,
+          income: totalIncome,
+          expenses: totalExpenses,
+          budget_data: budget,
+          monthLabel: `${budget.month}/${budget.year}`
+        };
+      });
+      
+      // console.log('Monthly budget data calculated from month-specific budgets:', monthlyBudgetData);
+      
+      // Transform monthly budget data to backend format
+      const backendMonthlyData = monthlyBudgetData.map((monthData) => {
+        return {
+          month: monthData.month,
+          net_savings: monthData.net_savings || 0
         };
       });
     
       // Transform debts to match backend format - ensure proper field mapping
-      const transformedDebts = debts.map(debt => ({
-        name: debt.name,
-        balance: parseFloat(debt.balance || 0),
-        rate: parseFloat(debt.interest_rate || 0) / 100, // Convert percentage to decimal
-        debt_type: debt.debt_type || 'other'
-      }));
+      const transformedDebts = debts.map(debt => {
+        const originalRate = parseFloat(debt.interest_rate || 0);
+        const convertedRate = originalRate / 100; // Convert percentage to decimal
+        
+    
+        
+        return {
+          name: debt.name,
+          balance: parseFloat(debt.balance || 0),
+          rate: convertedRate, // Convert percentage to decimal
+          debt_type: debt.debt_type || 'other'
+        };
+      });
       
-      console.log('Final monthlyBudgetData sent to backend:', backendMonthlyData);
-      console.log('=== MONTH MAPPING FOR DEBT PAYOFF ===');
-      console.log('Current month is:', months.find(m => m.type === 'current')?.label);
-      console.log('Months being used for debt payoff:');
-      backendMonthlyData.forEach((monthData, idx) => {
-        const originalMonth = monthlyBudgetData[idx];
-        const monthName = originalMonth.monthLabel;
-        const actualMonth = originalMonth.originalMonthIdx !== undefined ? 
-          `${months[originalMonth.originalMonthIdx].date.getMonth() + 1}/${months[originalMonth.originalMonthIdx].date.getFullYear()}` : 'N/A';
-        console.log(`  ${monthName} (${actualMonth}) → Backend Month ${monthData.month}: Net savings $${monthData.net_savings}`);
-        console.log(`    This means: ${monthName}'s net savings of $${monthData.net_savings} will be used for debt payment in Month ${monthData.month} of the payoff plan`);
-      });
-      console.log('=== END MONTH MAPPING ===');
-      console.log('Debts being sent:', transformedDebts);
-      console.log('Interest rate details:');
+      let totalDebtBalance = 0;
       transformedDebts.forEach(debt => {
-        const originalDebt = debts.find(d => d.name === debt.name);
-        console.log(`  ${debt.name}: Original rate from DB: ${originalDebt?.interest_rate}, Parsed rate: ${debt.rate * 100}%, Sent as decimal: ${debt.rate}`);
+        totalDebtBalance += debt.balance;
       });
-      console.log('Strategy:', strategyType);
-      console.log('=== END DEBT PAYOFF DEBUG ===');
+      
+      
     
       setPlanLoading(true);
       const res = await accountsDebtsService.calculateDebtPayoffPlan({
@@ -1092,14 +1784,25 @@ const DebtPlanning = () => {
         monthly_budget_data: backendMonthlyData
       });
       
-      console.log('Backend response:', res);
-      console.log('=== DEBT PAYOFF PLAN SUMMARY ===');
+  
       if (res.plan) {
-        console.log(`Total plan months: ${res.plan.length}`);
+        console.log(`🎯 DEBT PAYOFF PLAN RECEIVED: ${res.plan.length} months`);
+        console.log(`🎯 Plan structure:`, res.plan.map((month, idx) => `plan[${idx}]: ${month.debts ? month.debts.length : 0} debts`));
+    
         res.plan.forEach((monthPlan, idx) => {
           // Skip the initial month (idx 0) which has $0 payments
           if (idx === 0) {
-            console.log(`\nPrevious Month:`);
+            console.log(`\n🔍 Previous Month (plan[0]):`);
+            if (monthPlan.debts) {
+              monthPlan.debts.forEach(debt => {
+                console.log(`  - ${debt.name}: Balance $${debt.balance}, Paid $${debt.paid}, Interest $${debt.interest}`);
+              });
+            }
+            return;
+          }
+          
+          if (idx === 1) {
+            console.log(`\n🔍 Current Month (plan[1]):`);
             if (monthPlan.debts) {
               monthPlan.debts.forEach(debt => {
                 console.log(`  - ${debt.name}: Balance $${debt.balance}, Paid $${debt.paid}, Interest $${debt.interest}`);
@@ -1111,9 +1814,7 @@ const DebtPlanning = () => {
           // Map the plan month index back to the actual month (skip initial month)
           const monthData = monthlyBudgetData[idx - 1]; // Subtract 1 to account for initial month
           const monthName = monthData ? monthData.monthLabel : `Month ${idx}`;
-          const actualMonth = monthData && monthData.originalMonthIdx !== undefined ? 
-            `${months[monthData.originalMonthIdx].date.getMonth() + 1}/${months[monthData.originalMonthIdx].date.getFullYear()}` : 'N/A';
-          console.log(`\n${monthName} (${actualMonth}) - Plan Month ${idx}:`);
+      
           
           if (monthPlan.debts) {
             let totalPaid = 0;
@@ -1121,16 +1822,26 @@ const DebtPlanning = () => {
               console.log(`  - ${debt.name}: Balance $${debt.balance}, Paid $${debt.paid}, Interest $${debt.interest}`);
               totalPaid += debt.paid;
             });
-            console.log(`  Total paid this month: $${totalPaid}`);
+        
           }
         });
       }
-      console.log('=== END DEBT PAYOFF PLAN SUMMARY ===');
+  
       
-      // Update Total Debt row with the new payoff plan
+          // Update Total Debt row with the new payoff plan
       setLocalGridData(prevData => {
         if (prevData) {
-          return updateTotalDebtFromPayoffPlan(prevData, res);
+          const updatedData = updateTotalDebtFromPayoffPlan(prevData, res);
+          // Force grid refresh with updated data
+          setTimeout(() => {
+            safeUpdateGridData(updatedData);
+            console.log("✅ Grid refreshed with updated remaining debt values from payoff plan");
+          }, 0);
+          
+          // Force re-render of payoff timeline table
+          setGridUpdateCounter(prev => prev + 1);
+          
+          return updatedData;
         }
         return prevData;
       });
@@ -1253,14 +1964,14 @@ const DebtPlanning = () => {
     const totalInterest = payoffPlan.total_interest || 0;
     
     // Debug logging
-    console.log('=== PAYOFF SUMMARY DEBUG ===');
-    console.log('payoffPlan:', payoffPlan);
-    console.log('totalPrincipal:', totalPrincipal);
-    console.log('totalInterest:', totalInterest);
-    console.log('actualDebtFreeMonth:', actualDebtFreeMonth);
-    console.log('hitMaxMonths:', hitMaxMonths);
-    console.log('remainingDebts:', remainingDebts);
-    console.log('=== END PAYOFF SUMMARY DEBUG ===');
+    // console.log('=== PAYOFF SUMMARY DEBUG ===');
+    // console.log('payoffPlan:', payoffPlan);
+    // console.log('totalPrincipal:', totalPrincipal);
+    // console.log('totalInterest:', totalInterest);
+    // console.log('actualDebtFreeMonth:', actualDebtFreeMonth);
+    // console.log('hitMaxMonths:', hitMaxMonths);
+    // console.log('remainingDebts:', remainingDebts);
+    // console.log('=== END PAYOFF SUMMARY DEBUG ===');
     
     // Total paid is principal + interest
     const totalPaid = totalPrincipal + totalInterest;
@@ -1275,17 +1986,8 @@ const DebtPlanning = () => {
     };
   };
 
-  // UseEffect hooks for debt planning
-  useEffect(() => {
-    if (!editedBudgetData) return;
-    
-    const initializeGrid = async () => {
-      await generateGridData(editedBudgetData);
-    };
-    
-    initializeGrid();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editedBudgetData]);
+  // REMOVED: This useEffect was calling the deleted generateGridData function
+  // The grid is now initialized by generateGridDataWithEditableMonths in loadBudgetData
 
   // Update categories when budgetData changes
   useEffect(() => {
@@ -1345,23 +2047,120 @@ const DebtPlanning = () => {
     }
   }, [budgetData]);
 
-  // Always recalculate payoff plan when editedBudgetData is loaded and valid
+  // Recalculate debt payoff using editableMonths state directly
   useEffect(() => {
-    const recalculatePlan = async () => {
-    if (!loading && !debtsLoading && editedBudgetData && outstandingDebts && outstandingDebts.length > 0 && localGridData && localGridData.length > 0) {
-      const filteredDebts = outstandingDebts.filter(
-        debt => debt.balance > 0 && debt.debt_type !== 'mortgage'
-      );
-      if (filteredDebts.length > 0) {
-          // Use the current grid data instead of editedBudgetData
-          const budgetFromGrid = createBudgetFromGridData(localGridData);
-          await calculateDebtPayoffPlan(budgetFromGrid, filteredDebts, strategy);
-      }
-    }
+    const run = async () => {
+      if (!editableMonths || editableMonths.length === 0 || !outstandingDebts || outstandingDebts.length === 0) return;
+
+      // Use editableMonths directly instead of re-parsing localGridData
+      const monthBudgets = editableMonths.map(budget => ({
+        ...budget,
+        actualNetSavings: (budget.income || 0) + (budget.additional_income || 0) - 
+                         Object.values(budget.expenses || {}).reduce((sum, val) => sum + (val || 0), 0) + 
+                         (budget.savings_items || []).reduce((sum, item) => sum + (item.amount || 0), 0)
+      }));
+
+      await calculateDebtPayoffPlan(monthBudgets, outstandingDebts, strategy);
     };
-    
-    recalculatePlan();
-  }, [editedBudgetData, outstandingDebts, strategy, loading, debtsLoading, localGridData]);
+    run();
+  }, [editableMonths, outstandingDebts, strategy]);
+
+  // Additional useEffect to trigger debt calculations when localGridData changes
+  useEffect(() => {
+    const run = async () => {
+      if (!localGridData || localGridData.length === 0 || !outstandingDebts || outstandingDebts.length === 0) return;
+
+      // Parse budget data from localGridData
+      const months = generateMonths();
+      const currentMonthIdx = months.findIndex(m => m.type === 'current');
+      
+      if (currentMonthIdx === -1) return;
+
+      // Extract current month data from localGridData
+      const incomeRow = localGridData.find(r => r.category === 'Income');
+      const transportationRow = localGridData.find(r => r.category === 'Transportation');
+      const entertainmentRow = localGridData.find(r => r.category === 'Entertainment');
+      
+      if (incomeRow || transportationRow || entertainmentRow) {
+        // Create updated budget data
+        const updatedBudget = { ...editableMonths[currentMonthIdx] };
+        
+        if (incomeRow) {
+          const newIncome = parseFloat(incomeRow[`month_${currentMonthIdx}`]) || 0;
+          const existingAdditionalIncome = updatedBudget.additional_income || 0;
+          updatedBudget.income = Math.max(0, newIncome - existingAdditionalIncome);
+        }
+        
+        if (transportationRow) {
+          const newTransportation = parseFloat(transportationRow[`month_${currentMonthIdx}`]) || 0;
+          updatedBudget.expenses = {
+            ...updatedBudget.expenses,
+            transportation: newTransportation
+          };
+        }
+        
+        if (entertainmentRow) {
+          const newEntertainment = parseFloat(entertainmentRow[`month_${currentMonthIdx}`]) || 0;
+          updatedBudget.expenses = {
+            ...updatedBudget.expenses,
+            entertainment: newEntertainment
+          };
+        }
+
+        // Calculate net savings
+        const netSavings = (updatedBudget.income || 0) + (updatedBudget.additional_income || 0) - 
+                          Object.values(updatedBudget.expenses || {}).reduce((sum, val) => sum + (val || 0), 0) + 
+                          (updatedBudget.savings_items || []).reduce((sum, item) => sum + (item.amount || 0), 0);
+
+        // Create month budgets array with updated current month and recalculated net savings for all months
+        const monthBudgets = editableMonths.map((budget, idx) => {
+          if (idx === currentMonthIdx) {
+            // For current month, use the updated budget
+            return { ...updatedBudget, actualNetSavings: netSavings };
+          } else {
+            // For other months, recalculate actualNetSavings to ensure consistency
+            const monthNetSavings = (budget.income || 0) + (budget.additional_income || 0) - 
+                                   Object.values(budget.expenses || {}).reduce((sum, val) => sum + (val || 0), 0) + 
+                                   (budget.savings_items || []).reduce((sum, item) => sum + (item.amount || 0), 0);
+            return { ...budget, actualNetSavings: monthNetSavings };
+          }
+        });
+
+        // Update editableMonths state with the recalculated budgets
+        setEditableMonths(monthBudgets);
+        
+        // Trigger debt calculations
+        await calculateDebtPayoffPlan(monthBudgets, outstandingDebts, strategy);
+      }
+    };
+    run();
+  }, [localGridData, outstandingDebts, strategy]);
+
+  // NEW: Real-time grid update when payoff plan changes
+  useEffect(() => {
+    if (payoffPlan && localGridData && localGridData.length > 0) {
+      console.log("🔄 Real-time update: Payoff plan changed, updating grid with new remaining debt values");
+      
+      // Update the grid with new remaining debt values
+      setLocalGridData(prevData => {
+        if (prevData) {
+          const updatedData = updateTotalDebtFromPayoffPlan(prevData, payoffPlan);
+          
+          // Force immediate grid refresh
+          setTimeout(() => {
+            safeUpdateGridData(updatedData);
+            console.log("✅ Grid refreshed with updated remaining debt values");
+          }, 0);
+          
+          return updatedData;
+        }
+        return prevData;
+      });
+      
+      // Force re-render of payoff timeline table
+      setGridUpdateCounter(prev => prev + 1);
+    }
+  }, [payoffPlan]);
 
   // Render the editable AG Grid table
   const renderGrid = () => {
@@ -1369,6 +2168,20 @@ const DebtPlanning = () => {
     if (!localGridData || localGridData.length === 0) {
       return <div style={{padding: '2rem', color: 'red'}}>No data to display in the table.</div>;
     }
+    
+    // Debug: Log the grid data being rendered
+    // console.log('🔍 renderGrid - localGridData:', localGridData);
+    // console.log('🔍 renderGrid - months:', months);
+    
+    // Debug: Check September data specifically
+    // const septemberIdx = months.findIndex(m => m.month === 9 && m.year === 2025);
+    // if (septemberIdx !== -1) {
+    //   const incomeRow = localGridData.find(row => row.category === 'Income');
+    //   if (incomeRow) {
+    //     const monthField = 'month_' + septemberIdx;
+    //     console.log(`🔍 renderGrid - September (index ${septemberIdx}) income: ${incomeRow[monthField]}`);
+    //   }
+    // }
 
     // Build AG Grid columns
     const columnDefs = [
@@ -1424,6 +2237,7 @@ const DebtPlanning = () => {
         editable: params => {
           // Don't allow editing Net Savings or historical months
           if (params.data.category === 'Net Savings') return false;
+          if (params.data.category === 'Remaining Debt') return false;
           return month.type !== 'historical';
         },
         cellClass: params => {
@@ -1434,7 +2248,7 @@ const DebtPlanning = () => {
           if (params.data.category === 'Net Savings') {
             const value = parseFloat(params.value) || 0;
             classes.push(value >= 0 ? 'net-positive-cell' : 'net-negative-cell');
-          } else if (params.data.category === 'Total Debt') {
+          } else if (params.data.category === 'Remaining Debt') {
             classes.push('total-debt-cell');
           }
           return classes.join(' ');
@@ -1447,7 +2261,7 @@ const DebtPlanning = () => {
           if (params.data.category === 'Net Savings') {
             color = value >= 0 ? theme.palette.success.main : theme.palette.error.main;
             fontWeight = 'bold';
-          } else if (params.data.category === 'Total Debt') {
+          } else if (params.data.category === 'Remaining Debt') {
             color = theme.palette.warning.main;
             fontWeight = 'bold';
           }
@@ -1466,20 +2280,44 @@ const DebtPlanning = () => {
       });
     });
 
-    // Handle cell edit: only update the value for the specific month/category - FIXED: Month-specific updates
-    const onCellValueChanged = params => {
+    // Grid ready handler to capture API reference
+    const onGridReady = (params) => {
+      gridApiRef.current = params.api;
+      console.log('✅ AG Grid API captured');
+    };
+
+    // ENHANCED: Comprehensive cell edit handler with loading states and recalculations
+    const onCellValueChanged = async (params) => {
       const { data, colDef, newValue } = params;
       const colIdx = parseInt(colDef.field.replace('month_', ''));
-      if (data.category === 'Net Savings') return;
+      if (data.category === 'Net Savings' || data.category === 'Remaining Debt') return;
+      
+      const months = generateMonths();
       if (!months[colIdx] || months[colIdx].type === 'historical') return;
       
       // Don't mark as unsaved during grid initialization
       if (isInitializingGrid) {
-        console.log('Cell change ignored during grid initialization');
         return;
       }
       
-      console.log('Cell edited:', { category: data.category, month: colIdx, newValue, monthType: months[colIdx].type });
+      // ENHANCED: Start comprehensive loading state for all operations
+      setGridUpdating(true);
+      setLoading(true);
+      
+      console.log(`🔄 Cell edited: ${data.category} = ${newValue} in ${months[colIdx].label}`);
+      
+      try {
+
+      // Record locks when a user edits a projected month cell
+      if (months[colIdx].type === 'future') {
+        setLockedCells(prev => {
+          const next = { ...prev };
+          const setForMonth = new Set(next[colIdx] || []);
+          setForMonth.add(data.category);
+          next[colIdx] = Array.from(setForMonth);
+          return next;
+        });
+      }
       
       // Update localGridData for this cell only and recalculate net savings
       setLocalGridData(prev => {
@@ -1492,20 +2330,329 @@ const DebtPlanning = () => {
         // Recalculate net savings after updating the cell
         const recalculated = recalculateNetSavings(updated);
         
-        // Update debt payoff plan with the new monthly budget data
-        setTimeout(async () => {
-          if (outstandingDebts && outstandingDebts.length > 0) {
-            const filteredDebts = outstandingDebts.filter(
-              debt => debt.balance > 0 && debt.debt_type !== 'mortgage'
-            );
-            if (filteredDebts.length > 0) {
-              console.log('Updating debt payoff plan after cell change...');
-              const updatedBudgetForDebt = createBudgetFromGridData(recalculated);
-              await calculateDebtPayoffPlan(updatedBudgetForDebt, filteredDebts, strategy);
+        // CRITICAL FIX: Update editableMonths with fresh Net Savings from the grid
+        let monthBudgetsForDebtCalc = [...editableMonths]; // Initialize with current state
+        const netSavingsRow = recalculated.find(row => row.category === 'Net Savings');
+        if (netSavingsRow) {
+          const currentMonthIdx = months.findIndex(m => m.type === 'current');
+          monthBudgetsForDebtCalc = editableMonths.map((budget, idx) => {
+            // Map editableMonths index to grid column index
+            // editableMonths[0] = current month = months[currentMonthIdx]
+            // editableMonths[1] = next month = months[currentMonthIdx + 1], etc.
+            const gridColumnIdx = currentMonthIdx + idx;
+            const netSavingsValue = netSavingsRow[`month_${gridColumnIdx}`] || 0;
+            return {
+              ...budget,
+              actualNetSavings: netSavingsValue
+            };
+          });
+          console.log(`💾 UPDATED monthBudgetsForDebtCalc with fresh Net Savings:`, monthBudgetsForDebtCalc.map((m, i) => `monthBudgetsForDebtCalc[${i}] = Month ${m.month}/${m.year}: $${m.actualNetSavings}`));
+          
+          setEditableMonths(monthBudgetsForDebtCalc); // Update state for future renders
+        }
+        
+        // If current month was edited, propagate to historical and future months (respect locks for projected)
+        if (months[colIdx].type === 'current' && data.category !== 'Remaining Debt' && data.category !== 'Net Savings') {
+          const currentVal = parseFloat(newValue) || 0;
+          console.log(`🔥 CURRENT MONTH EDIT: ${data.category} = ${currentVal} from ${months[colIdx].label}`);
+          
+          // Historical columns: copy visually only (no save)
+          for (let h = 1; h <= historicalMonthsShown; h++) {
+            const hIdx = colIdx - h;
+            if (hIdx < 0) continue;
+            const rowIndex = recalculated.findIndex(r => r.category === data.category);
+            if (rowIndex !== -1) {
+              recalculated[rowIndex][`month_${hIdx}`] = currentVal;
             }
           }
-        }, 100);
+          
+          // IMMEDIATE VISUAL UPDATE: Update ALL future months visually (respecting locks)
+          for (let i = colIdx + 1; i < months.length; i++) {
+            const futureMonth = months[i];
+            if (!futureMonth || futureMonth.type !== 'future') continue;
+            
+            const lockedForMonth = new Set((lockedCells[i] || []));
+            if (lockedForMonth.has(data.category)) {
+              console.log(`🔒 Skipping locked month ${i} (${futureMonth.label}) for ${data.category}`);
+              continue; // skip user-edited cells
+            }
+            
+            // Update grid cell visually for ALL future months
+            const rowIndex = recalculated.findIndex(r => r.category === data.category);
+            if (rowIndex !== -1) {
+              recalculated[rowIndex][`month_${i}`] = currentVal;
+              console.log(`📋 IMMEDIATE UPDATE: projected month ${i} (${futureMonth.label}) ${data.category} = ${currentVal}`);
+            }
+          }
+          
+          // FORCE GRID REFRESH: Immediately update the grid with new data
+          setTimeout(() => {
+            safeUpdateGridData(recalculated);
+          });
+          
+          // IMMEDIATE DEBT RECALCULATION - Trigger for ALL cell edits
+          setTimeout(async () => {
+            if (outstandingDebts && outstandingDebts.length > 0 && !debtCalculationInProgress) {
+              const filteredDebts = outstandingDebts.filter(debt => debt.balance > 0 && debt.debt_type !== "mortgage");
+              if (filteredDebts.length > 0) {
+                console.log("🔄 IMMEDIATE DEBT RECALCULATION: Triggering debt payoff calculation...");
+                
+                // Prevent multiple simultaneous calculations
+                setDebtCalculationInProgress(true);
+                setPlanLoading(true);
+                
+                // Get the fresh payoff plan result directly from the calculation
+                // Use the freshly derived monthBudgetsForDebtCalc to ensure latest Net Savings are used
+                const freshPayoffPlan = await calculateDebtPayoffPlanWithResult(monthBudgetsForDebtCalc, filteredDebts, strategy);
+                console.log("✅ IMMEDIATE DEBT RECALCULATION: Completed");
+                
+                // ENHANCED: Immediately update remaining debt columns in the grid with fresh plan
+                if (freshPayoffPlan) {
+                  // Update the payoffPlan state for timeline table real-time updates
+                  setPayoffPlan(freshPayoffPlan);
+                  
+                  setLocalGridData(prevData => {
+                    if (prevData) {
+                      const updatedData = updateTotalDebtFromPayoffPlan(prevData, freshPayoffPlan);
+                      // Force immediate grid refresh with updated remaining debt values
+                      safeUpdateGridData(updatedData);
+                      console.log("🔥 IMMEDIATE UPDATE: Remaining debt columns AND timeline table refreshed with real-time data");
+                      
+                      // Force re-render of debt payoff timeline table
+                      setGridUpdateCounter(prev => prev + 1);
+                      
+                      return updatedData;
+                    }
+                    return prevData;
+                  });
+                }
+                
+                // Brief delay to ensure user sees the updated data, then hide loading
+                setTimeout(() => {
+                  setPlanLoading(false);
+                  setDebtCalculationInProgress(false);
+                }, 150); // Reduced from 200ms to 150ms for faster response
+              }
+            }
+          }, 100);
+          // Persist propagated values immediately to ALL future months
+          (async () => {
+            console.log(`🔄 Propagating ${data.category} = ${currentVal} to future months`);
+            
+            let attempted = 0;
+            let successful = 0;
+            let failed = 0;
+            let skipped = 0;
+            
+            // STEP 1: Save to ALL visible future months in the grid
+            for (let i = colIdx + 1; i < months.length; i++) {
+              const futureMonth = months[i];
+              if (!futureMonth || futureMonth.type !== 'future') continue;
+              
+              const lockedForMonth = new Set((lockedCells[i] || []));
+              if (lockedForMonth.has(data.category)) {
+                console.log(`🔒 Skipping locked month ${i} (${futureMonth.label}) for ${data.category}`);
+                skipped++;
+                continue;
+              }
+              
+              try {
+                attempted++;
+                
+                // Small delay to avoid overwhelming the API
+                if (attempted > 1) {
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                await saveMonthChangesDirectly(futureMonth.month, futureMonth.year, data.category, currentVal, recalculated);
+                successful++;
+                console.log(`✅ Saved: ${data.category} = ${currentVal} to ${futureMonth.month}/${futureMonth.year}`);
+              } catch (e) {
+                failed++;
+                console.error(`❌ Save failed for ${futureMonth.month}/${futureMonth.year}:`, e.message);
+                
+                // Retry once
+                try {
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                  await saveMonthChangesDirectly(futureMonth.month, futureMonth.year, data.category, currentVal, recalculated);
+                  successful++;
+                  failed--; // Remove from failed count since retry succeeded
+                  console.log(`✅ Retry successful for ${futureMonth.month}/${futureMonth.year}`);
+                } catch (retryError) {
+                  console.error(`❌ Retry failed for ${futureMonth.month}/${futureMonth.year}:`, retryError.message);
+                }
+              }
+            }
+            
+                        // STEP 2: Save to additional future months in database (beyond grid)
+            try {
+              const currentMonth = months[colIdx].month;
+              const currentYear = months[colIdx].year;
+              
+              // Generate additional future months (up to 12 months total)
+              const additionalFutureMonths = [];
+              const currentDate = new Date(currentYear, currentMonth - 1, 1);
+              
+              for (let monthOffset = 1; monthOffset <= 12; monthOffset++) {
+                const futureDate = new Date(currentDate);
+                futureDate.setMonth(futureDate.getMonth() + monthOffset);
+                const futureMonth = futureDate.getMonth() + 1;
+                const futureYear = futureDate.getFullYear();
+                
+                // Skip months already in the grid
+                const alreadyInGrid = months.some(m => 
+                  m.month === futureMonth && m.year === futureYear
+                );
+                
+                if (!alreadyInGrid) {
+                  additionalFutureMonths.push({
+                    month: futureMonth,
+                    year: futureYear,
+                    label: futureDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                  });
+                }
+              }
+              
+              console.log(`🔍 Found ${additionalFutureMonths.length} additional future months to update`);
+              
+              // Check each additional month in the database and update if exists
+              let additionalAttempted = 0;
+              let additionalSuccessful = 0;
+              let additionalSkipped = 0;
+              
+              for (const futureMonth of additionalFutureMonths) {
+                try {
+                  // Check if this month exists in the database
+                  const isDev = process.env.NODE_ENV === 'development' ||
+                    (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'));
+                  // FIXED: Always use authenticated endpoint for proper user isolation
+      const getMonthUrl = `${process.env.REACT_APP_API_URL}/api/mongodb/budgets/get-month/`;
+                  
+              
+                  
+                  const checkResponse = await axios.get(`${getMonthUrl}?month=${futureMonth.month}&year=${futureMonth.year}`);
+                  
+                  if (checkResponse.status === 200 && checkResponse.data) {
+                    // SIMPLIFIED: Only preserve months that are clearly manually edited with unusual values
+                    // The grid-based locked cells mechanism handles most cases for visible months
+                    // For database-only months, we'll use a more relaxed approach
+                    const existingBudget = checkResponse.data;
+                    const existingValue = data.category === 'income' || data.category === 'additional_income' 
+                      ? existingBudget[data.category] 
+                      : existingBudget.expenses?.[data.category];
+                    
+                    // Only skip if this looks like a very unusual manual edit (not a typical budget value)
+                    // This is a pragmatic approach - we'll err on the side of propagation
+                    const isUnusualValue = (existingValue !== undefined && (
+                      // Very small values that look like manual tests
+                      (existingValue > 0 && existingValue < 10) ||
+                      // Very specific values that don't look like typical budget amounts
+                      (existingValue % 1 !== 0 && existingValue < 100) // Has decimals and is small
+                    ));
+                    
+                    // Only preserve if it's an unusual value AND it's the immediate next month
+                    const isImmediateNextMonth = (
+                      (futureMonth.month === currentMonth + 1 && futureMonth.year === currentYear) ||
+                      (currentMonth === 12 && futureMonth.month === 1 && futureMonth.year === currentYear + 1)
+                    );
+                    
+                    if (isImmediateNextMonth && isUnusualValue) {
+                  
+                      additionalSkipped++;
+                      continue;
+                    }
+                    
+                    // For all other cases, propagate the current month value
+                
+                    
+                    additionalAttempted++;
+                    await saveMonthChangesDirectly(futureMonth.month, futureMonth.year, data.category, currentVal, recalculated);
+                    additionalSuccessful++;
+                    
+                    console.log(`✅ Saved: ${data.category} = ${currentVal} to ${futureMonth.month}/${futureMonth.year}`);
+                    
+                    // Small delay to avoid overwhelming the API
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                  } else {
+                    // ENHANCED: Create month if it doesn't exist instead of skipping
+                    console.log(`🆕 Creating month ${futureMonth.month}/${futureMonth.year}`);
+                    
+                    additionalAttempted++;
+                    await saveMonthChangesDirectly(futureMonth.month, futureMonth.year, data.category, currentVal, recalculated);
+                    additionalSuccessful++;
+                    
+                    console.log(`✅ Created: ${data.category} = ${currentVal} for ${futureMonth.month}/${futureMonth.year}`);
+                    
+                    // Small delay to avoid overwhelming the API
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                  }
+                } catch (checkError) {
+                  if (checkError.response && checkError.response.status === 404) {
+                    // ENHANCED: Create month if 404 (not found) instead of skipping
+                
+                    
+                    try {
+                      additionalAttempted++;
+                      await saveMonthChangesDirectly(futureMonth.month, futureMonth.year, data.category, currentVal, recalculated);
+                      additionalSuccessful++;
+                      
+                      console.log(`✅ ADDITIONAL CREATE ${additionalSuccessful} SUCCESSFUL: ${data.category} = ${currentVal} to NEW month ${futureMonth.month}/${futureMonth.year}`);
+                      
+                      // Small delay to avoid overwhelming the API
+                      await new Promise(resolve => setTimeout(resolve, 50));
+                    } catch (createError) {
+                      console.error(`❌ Error creating month ${futureMonth.month}/${futureMonth.year}:`, createError.message);
+                      additionalSkipped++;
+                    }
+                  } else {
+                    console.error(`❌ Error checking/updating month ${futureMonth.month}/${futureMonth.year}:`, checkError.message);
+                    additionalSkipped++;
+                  }
+                }
+              }
+              
+              
+
+          
+              
+              attempted += additionalAttempted;
+              successful += additionalSuccessful;
+              
+            } catch (dbError) {
+              console.error(`❌ Error during additional database propagation:`, dbError.message);
+            }
+            
         
+        
+                        console.log(`📊 Propagation summary: ${attempted} attempted, ${successful} successful, ${failed} failed, ${skipped} skipped`);
+            
+            // ENHANCED: Recalculate Net Savings for ALL affected months after propagation
+        
+            setLocalGridData(prevData => {
+              const finalRecalculated = recalculateNetSavings(prevData);
+              
+              // CRITICAL FIX: Update editableMonths with fresh Net Savings after propagation
+              let monthBudgetsForDebtCalcFuture = [...editableMonths]; // Initialize with current state
+              const netSavingsRow = finalRecalculated.find(row => row.category === 'Net Savings');
+              if (netSavingsRow) {
+                const currentMonthIdx = months.findIndex(m => m.type === 'current');
+                monthBudgetsForDebtCalcFuture = editableMonths.map((budget, idx) => {
+                  const gridColumnIdx = currentMonthIdx + idx;
+                  const netSavingsValue = netSavingsRow[`month_${gridColumnIdx}`] || 0;
+                  return {
+                    ...budget,
+                    actualNetSavings: netSavingsValue
+                  };
+                });
+                console.log(`💾 UPDATED monthBudgetsForDebtCalcFuture after propagation:`, monthBudgetsForDebtCalcFuture.map((m, i) => `monthBudgetsForDebtCalcFuture[${i}] = Month ${m.month}/${m.year}: $${m.actualNetSavings}`));
+                
+                setEditableMonths(monthBudgetsForDebtCalcFuture); // Update state for future renders
+              }
+          
+              return finalRecalculated;
+            });
+          })();
+        }
         return recalculated;
       });
       
@@ -1514,19 +2661,114 @@ const DebtPlanning = () => {
         clearTimeout(autoSaveTimeoutRef.current);
       }
       
-      autoSaveTimeoutRef.current = setTimeout(() => {
-        console.log('Auto-saving changes after cell edit...');
-        
-        // FIXED: Save month-specific data based on which month was edited
-        if (months[colIdx].type === 'future') {
-          // For future months, save that specific month's data
-          saveMonthChanges(colIdx, months[colIdx]);
-        } else if (months[colIdx].type === 'current') {
-          // For current month, save current month data only
-          handleSaveChanges();
+      autoSaveTimeoutRef.current = setTimeout(async () => {
+        try {
+          // ENHANCED: Save month-specific data based on which month was edited
+          if (months[colIdx].type === 'future') {
+            // For future months, save that specific month's data and mark as locked
+            await saveMonthChanges(colIdx, months[colIdx], true);
+            
+            // ENHANCED: Immediate debt recalculation for future month edits
+            if (outstandingDebts && outstandingDebts.length > 0 && !debtCalculationInProgress) {
+              const filteredDebts = outstandingDebts.filter(debt => debt.balance > 0 && debt.debt_type !== "mortgage");
+              if (filteredDebts.length > 0) {
+                console.log("🔄 FUTURE MONTH DEBT RECALCULATION: Triggering debt payoff calculation...");
+                
+                // Prevent multiple simultaneous calculations
+                setDebtCalculationInProgress(true);
+                setPlanLoading(true);
+                
+                // Get the fresh payoff plan result directly from the calculation
+                // Use editableMonths which should have the latest Net Savings from the setEditableMonths update
+                const freshPayoffPlan = await calculateDebtPayoffPlanWithResult(editableMonths, filteredDebts, strategy);
+                console.log("✅ FUTURE MONTH DEBT RECALCULATION: Completed");
+                
+                // ENHANCED: Immediately update remaining debt columns in the grid with fresh plan
+                if (freshPayoffPlan) {
+                  // Update the payoffPlan state for timeline table real-time updates
+                  setPayoffPlan(freshPayoffPlan);
+                  
+                  setLocalGridData(prevData => {
+                    if (prevData) {
+                      const updatedData = updateTotalDebtFromPayoffPlan(prevData, freshPayoffPlan);
+                      // Force immediate grid refresh with updated remaining debt values
+                      safeUpdateGridData(updatedData);
+                      console.log("🔥 FUTURE MONTH UPDATE: Remaining debt columns AND timeline table refreshed with real-time data");
+                      
+                      // Force re-render of debt payoff timeline table
+                      setGridUpdateCounter(prev => prev + 1);
+                      
+                      return updatedData;
+                    }
+                    return prevData;
+                  });
+                }
+                
+                // Brief delay to ensure user sees the updated data, then hide loading
+                setTimeout(() => {
+                  setPlanLoading(false);
+                  setDebtCalculationInProgress(false);
+                }, 150); // Reduced from 200ms to 150ms for faster response
+              }
+            }
+            
+            setGridUpdating(false);
+            setLoading(false);
+            
+          } else if (months[colIdx].type === 'current') {
+            // For current month, save current month data and trigger comprehensive propagation
+            console.log('📝 Saving current month data to MongoDB...');
+            await handleSaveChanges();
+            
+            // Database saving only - visual updates are handled by onCellValueChanged
+            
+            // ENHANCED: Wait for debt calculations to complete
+            await new Promise((resolve) => {
+              const checkDebtCalculations = () => {
+                if (outstandingDebts && outstandingDebts.length > 0) {
+                  resolve();
+                } else {
+                  console.log('✅ No debts to calculate, resolving immediately');
+                  resolve();
+                }
+              };
+              setTimeout(checkDebtCalculations, 1000);
+            });
+            
+            // ENHANCED: End loading states after all operations complete
+            console.log('✅ All operations completed - loading state ending');
+            setGridUpdating(false);
+            setLoading(false);
+            
+          } else {
+            // Historical months are not editable, so no save needed
+            console.log('📋 Historical month edit - no save required');
+            setGridUpdating(false);
+            setLoading(false);
+          }
+          
+        } catch (saveError) {
+          console.error('❌ Error during auto-save:', saveError);
+          setErrorMessage('Failed to save budget data. Please try again.');
+          setShowErrorSnackbar(true);
+          
+          // ENHANCED: Reset loading states on save error
+          console.log('🏁 LOADING STATE: Ending loading due to save error');
+          setGridUpdating(false);
+          setLoading(false);
         }
-        // Historical months are not editable, so no save needed
       }, 1500); // Auto-save after 1.5 seconds of inactivity for faster response
+      
+      } catch (error) {
+        console.error('❌ Error during cell value change:', error);
+        setErrorMessage('Failed to update budget data. Please try again.');
+        setShowErrorSnackbar(true);
+        
+        // ENHANCED: Reset all loading states on error
+        console.log('🏁 LOADING STATE: Ending loading due to cell change error');
+        setGridUpdating(false);
+        setLoading(false);
+      }
     };
 
     return (
@@ -1534,6 +2776,7 @@ const DebtPlanning = () => {
         width: '100%', 
         minWidth: 1200, 
         overflow: 'auto',
+        position: 'relative', // For loading overlay positioning
         background: isDarkMode 
           ? 'rgba(255, 255, 255, 0.08)' 
           : 'rgba(255, 255, 255, 0.9)',
@@ -1774,11 +3017,45 @@ const DebtPlanning = () => {
             }
           }}
         >
+          {/* Grid Loading Overlay */}
+          {gridUpdating && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                borderRadius: 1
+              }}
+            >
+              <Box
+                sx={{
+                  backgroundColor: isDarkMode ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                  padding: 3,
+                  borderRadius: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+                }}
+              >
+                <Loading.InlineLoader message="Updating budget projection..." />
+              </Box>
+            </Box>
+          )}
+          
           {localGridData && localGridData.length > 0 ? (
             <AgGridReact
               rowData={localGridData}
               columnDefs={columnDefs}
               domLayout="autoHeight"
+              onGridReady={onGridReady}
               onCellValueChanged={onCellValueChanged}
               suppressMovableColumns={true}
               suppressMenuHide={true}
@@ -2045,17 +3322,26 @@ const DebtPlanning = () => {
     const months = generateMonths();
     if (!months || months.length === 0) return null;
     
-    console.log('Rendering payoff table:');
-    console.log('Months:', months.map((m, idx) => `${idx}: ${m.type} - ${m.label}`));
-    console.log('Payoff plan:', payoffPlan);
+    // console.log('Rendering payoff table:');
+    // console.log('Months:', months.map((m, idx) => `${idx}: ${m.type} - ${m.label}`));
+    // console.log('Payoff plan:', payoffPlan);
     
     const debtFreeCol = findDebtFreeColIdx(payoffPlan, months);
     const debtFreeColIdx = debtFreeCol ? debtFreeCol.idx : null;
     const debtFreeDate = debtFreeCol ? debtFreeCol.debtFreeDate : null;
     
-    console.log('Debt free column:', debtFreeCol);
-    console.log('Debt free column index:', debtFreeColIdx);
-    console.log('Debt free date:', debtFreeDate);
+    // console.log('Debt free column:', debtFreeCol);
+    // console.log('Debt free column index:', debtFreeColIdx);
+    // console.log('Debt free date:', debtFreeDate);
+
+    // Order debts in the timeline according to selected strategy
+    const sortedDebts = Array.isArray(outstandingDebts) ? [...outstandingDebts] : [];
+    if (strategy === 'snowball') {
+      sortedDebts.sort((a, b) => (parseFloat(a.balance) || 0) - (parseFloat(b.balance) || 0));
+    } else {
+      // avalanche: highest rate first
+      sortedDebts.sort((a, b) => (parseFloat(b.interest_rate) || 0) - (parseFloat(a.interest_rate) || 0));
+    }
 
     return (
       <Box sx={{ mb: 3 }}>
@@ -2133,7 +3419,7 @@ const DebtPlanning = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {payoffPlan.debts?.map((debt, debtIdx) => debt && debt.name && (
+                  {sortedDebts?.map((debt, debtIdx) => debt && debt.name && (
                     <TableRow key={`debt-${debtIdx}-${debt.name || debtIdx}`}>
                       <TableCell sx={{
                         background: isDarkMode ? debtDarkColors.blue : '#e3f2fd',
@@ -2191,10 +3477,19 @@ const DebtPlanning = () => {
                               isDarkMode ? (
                                 <DebtCurrentCell key={`current-${monthIdx}`} align="center">
                                   {(() => {
-                                    const payoffPlanIdx = (monthIdx - currentMonthIdx) + 1;
-                                    const payoffRow = payoffPlan.plan && payoffPlan.plan[payoffPlanIdx];
+                                    // FIXED: Current month uses plan[1] (after payments), not calculated offset
+                                    const payoffRow = payoffPlan.plan && payoffPlan.plan[1];
+                                    console.log(`🔍 TIMELINE CURRENT MONTH DEBUG for ${debt.name}:`, {
+                                      hasPayoffPlan: !!payoffPlan.plan,
+                                      planLength: payoffPlan.plan ? payoffPlan.plan.length : 0,
+                                      hasPlan1: !!payoffRow,
+                                      plan1HasDebts: payoffRow ? !!payoffRow.debts : false,
+                                      plan1DebtsCount: payoffRow?.debts ? payoffRow.debts.length : 0
+                                    });
+                                    
                                     if (payoffRow && payoffRow.debts) {
                                       const debtInPlan = payoffRow.debts.find(d => d.name === debt.name);
+                                      console.log(`🔍 ${debt.name} in plan[1]:`, debtInPlan ? `$${debtInPlan.balance}` : 'NOT FOUND');
                                       if (debtInPlan) {
                                         const balance = debtInPlan.balance;
                                         const result = balance !== undefined && balance !== null ?
@@ -2203,6 +3498,8 @@ const DebtPlanning = () => {
                                         return result;
                                       }
                                     }
+                                    // FIXED: When debt not found in payoff plan (paid off), show $0
+                                    console.log(`🔍 ${debt.name} TIMELINE CURRENT: No data, showing original balance $${debt.balance || 0}`);
                                     return `$${parseFloat(debt.balance || 0).toLocaleString()}`;
                                   })()}
                                 </DebtCurrentCell>
@@ -2213,10 +3510,19 @@ const DebtPlanning = () => {
                                   borderBottom: `1px solid ${isDarkMode ? debtDarkColors.border : '#1976d2'}`
                                 }}>
                                   {(() => {
-                                    const payoffPlanIdx = (monthIdx - currentMonthIdx) + 1;
-                                    const payoffRow = payoffPlan.plan && payoffPlan.plan[payoffPlanIdx];
+                                    // FIXED: Current month uses plan[1] (after payments), not calculated offset
+                                    const payoffRow = payoffPlan.plan && payoffPlan.plan[1];
+                                    console.log(`🔍 TIMELINE CURRENT MONTH (Light) DEBUG for ${debt.name}:`, {
+                                      hasPayoffPlan: !!payoffPlan.plan,
+                                      planLength: payoffPlan.plan ? payoffPlan.plan.length : 0,
+                                      hasPlan1: !!payoffRow,
+                                      plan1HasDebts: payoffRow ? !!payoffRow.debts : false,
+                                      plan1DebtsCount: payoffRow?.debts ? payoffRow.debts.length : 0
+                                    });
+                                    
                                     if (payoffRow && payoffRow.debts) {
                                       const debtInPlan = payoffRow.debts.find(d => d.name === debt.name);
+                                      console.log(`🔍 ${debt.name} in plan[1] (Light):`, debtInPlan ? `$${debtInPlan.balance}` : 'NOT FOUND');
                                       if (debtInPlan) {
                                         const balance = debtInPlan.balance;
                                         const result = balance !== undefined && balance !== null ?
@@ -2225,6 +3531,8 @@ const DebtPlanning = () => {
                                         return result;
                                       }
                                     }
+                                    // FIXED: When debt not found in payoff plan (paid off), show $0
+                                    console.log(`🔍 ${debt.name} TIMELINE CURRENT (Light): No data, showing original balance $${debt.balance || 0}`);
                                     return `$${parseFloat(debt.balance || 0).toLocaleString()}`;
                                   })()}
                                 </TableCell>
@@ -2235,8 +3543,12 @@ const DebtPlanning = () => {
                               isDarkMode ? (
                                 <DebtProjectedCell key={`projected-${monthIdx}`} align="center">
                                   {(() => {
-                                    const payoffPlanIdx = (monthIdx - currentMonthIdx) + 1;
-                                    const payoffRow = payoffPlan.plan && payoffPlan.plan[payoffPlanIdx];
+                                    // FIXED: Correct plan index mapping for future months
+                                    // monthIdx > currentMonthIdx means future months
+                                    // plan[0] = previous, plan[1] = current, plan[2] = next, plan[3] = month after next, etc.
+                                    const planIdx = (monthIdx - currentMonthIdx) + 1;
+                                    const payoffRow = payoffPlan.plan && payoffPlan.plan[planIdx];
+                                    console.log(`🔍 Timeline Future Month ${monthIdx}: plan[${planIdx}], monthIdx=${monthIdx}, currentMonthIdx=${currentMonthIdx}`);
                                     if (payoffRow && payoffRow.debts) {
                                       const debtInPlan = payoffRow.debts.find(d => d.name === debt.name);
                                       if (debtInPlan) {
@@ -2244,10 +3556,13 @@ const DebtPlanning = () => {
                                         const result = balance !== undefined && balance !== null ?
                                           `$${parseFloat(balance).toLocaleString()}` :
                                           `$${parseFloat(debt.balance || 0).toLocaleString()}`;
+                                        console.log(`🔍 ${debt.name} future month ${monthIdx} (plan[${planIdx}]): $${balance}`);
                                         return result;
                                       }
                                     }
-                                    return `$${parseFloat(debt.balance || 0).toLocaleString()}`;
+                                    // FIXED: When debt not found in payoff plan (paid off), show $0
+                                    console.log(`🔍 ${debt.name} future month ${monthIdx}: No data in plan[${planIdx}], showing $0`);
+                                    return '$0';
                                   })()}
                                 </DebtProjectedCell>
                               ) : (
@@ -2257,8 +3572,12 @@ const DebtPlanning = () => {
                                   borderBottom: `1px solid ${isDarkMode ? debtDarkColors.border : '#1976d2'}`
                                 }}>
                                   {(() => {
-                                    const payoffPlanIdx = (monthIdx - currentMonthIdx) + 1;
-                                    const payoffRow = payoffPlan.plan && payoffPlan.plan[payoffPlanIdx];
+                                    // FIXED: Correct plan index mapping for future months
+                                    // monthIdx > currentMonthIdx means future months  
+                                    // plan[0] = previous, plan[1] = current, plan[2] = next, plan[3] = month after next, etc.
+                                    const planIdx = (monthIdx - currentMonthIdx) + 1;
+                                    const payoffRow = payoffPlan.plan && payoffPlan.plan[planIdx];
+                                    console.log(`🔍 Timeline Future Month ${monthIdx} (Light): plan[${planIdx}], monthIdx=${monthIdx}, currentMonthIdx=${currentMonthIdx}`);
                                     if (payoffRow && payoffRow.debts) {
                                       const debtInPlan = payoffRow.debts.find(d => d.name === debt.name);
                                       if (debtInPlan) {
@@ -2266,10 +3585,13 @@ const DebtPlanning = () => {
                                         const result = balance !== undefined && balance !== null ?
                                           `$${parseFloat(balance).toLocaleString()}` :
                                           `$${parseFloat(debt.balance || 0).toLocaleString()}`;
+                                        console.log(`🔍 ${debt.name} future month ${monthIdx} (Light, plan[${planIdx}]): $${balance}`);
                                         return result;
                                       }
                                     }
-                                    return `$${parseFloat(debt.balance || 0).toLocaleString()}`;
+                                    // FIXED: When debt not found in payoff plan (paid off), show $0
+                                    console.log(`🔍 ${debt.name} future month ${monthIdx} (Light): No data in plan[${planIdx}], showing $0`);
+                                    return '$0';
                                   })()}
                                 </TableCell>
                               )
@@ -2290,7 +3612,7 @@ const DebtPlanning = () => {
 
   // Helper function to clear unsaved changes flag
   const clearUnsavedChanges = () => {
-    console.log('Clearing unsaved changes flag');
+    // console.log('Clearing unsaved changes flag');
     setHasUnsavedChanges(false);
   };
 
@@ -2320,17 +3642,21 @@ const DebtPlanning = () => {
       // Prepare budget data for backend - ONLY current month data
       const budgetUpdate = {
         income: 0,
-        housing: 0,
-        transportation: 0,
-        food: 0,
-        healthcare: 0,
-        entertainment: 0,
-        shopping: 0,
-        travel: 0,
-        education: 0,
-        utilities: 0,
-        childcare: 0,
-        other: 0,
+        additional_income: 0,
+        expenses: {
+          housing: 0,
+          transportation: 0,
+          food: 0,
+          healthcare: 0,
+          entertainment: 0,
+          shopping: 0,
+          travel: 0,
+          education: 0,
+          utilities: 0,
+          childcare: 0,
+          debt_payments: 0,
+          other: 0
+        },
         additional_items: [],
         savings_items: [],
         month: new Date().getMonth() + 1,
@@ -2342,7 +3668,28 @@ const DebtPlanning = () => {
         const currentValue = parseFloat(row[`month_${currentMonthIdx}`]) || 0;
         
         if (row.category === 'Income') {
-          budgetUpdate.income = currentValue;
+          // Preserve the existing income split if available
+          const existingBudget = editedBudgetData || {};
+          const existingAdditionalIncome = existingBudget.additional_income || 0;
+          const existingPrimaryIncome = existingBudget.income || 0;
+          
+          // NEW LOGIC: Add the difference to primary income, keep additional income unchanged
+          const totalExisting = existingPrimaryIncome + existingAdditionalIncome;
+          const difference = currentValue - totalExisting;
+          
+          if (difference !== 0) {
+            // Add the difference to primary income, keep additional income as is
+            budgetUpdate.income = existingPrimaryIncome + difference;
+            budgetUpdate.additional_income = existingAdditionalIncome;
+            // Ensure primary income doesn't go negative
+            if (budgetUpdate.income < 0) {
+              budgetUpdate.income = 0;
+            }
+          } else {
+            // No change needed
+            budgetUpdate.income = existingPrimaryIncome;
+            budgetUpdate.additional_income = existingAdditionalIncome;
+          }
         } else if (row.type === 'income' && row.category !== 'Income') {
           // Additional income items
           budgetUpdate.additional_items.push({
@@ -2363,11 +3710,12 @@ const DebtPlanning = () => {
             'Education': 'education',
             'Utilities': 'utilities',
             'Childcare': 'childcare',
-            'Other': 'other'
+            'Other': 'other',
+            'Others': 'other'
           };
           
           if (baseExpenseMap[row.category]) {
-            budgetUpdate[baseExpenseMap[row.category]] = currentValue;
+            budgetUpdate.expenses[baseExpenseMap[row.category]] = currentValue;
           } else {
             // Additional expense items
             budgetUpdate.additional_items.push({
@@ -2385,34 +3733,40 @@ const DebtPlanning = () => {
         }
       });
       
-      console.log('Saving current month budget update:', budgetUpdate);
+      // console.log('Saving current month budget update:', budgetUpdate);
       
       // Make API call to save budget - ONLY current month
       let response;
       try {
-        console.log('Attempting to save current month budget data...');
-        
-        // Use the update-current endpoint for current month only
-        response = await axios.post('/api/budgets/update-current/', budgetUpdate);
-        console.log('Current month budget saved via update-current endpoint');
-      } catch (updateError) {
-        console.log('Update-current endpoint failed, trying standard endpoints:', updateError);
-        
-        // Fallback to standard PUT/POST
-        if (editedBudgetData && editedBudgetData.id) {
-          // Update existing budget
-          console.log('Updating existing budget with ID:', editedBudgetData.id);
-          response = await axios.put(`/api/budgets/${editedBudgetData.id}/`, budgetUpdate);
-          console.log('Budget updated via PUT endpoint');
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        const isDev = process.env.NODE_ENV === 'development';
+        // FIXED: Always use authenticated endpoint for proper user isolation
+      const saveMonthUrl = '/api/mongodb/budgets/save-month/';
+
+        if (editedBudgetData && editedBudgetData.month === currentMonth && editedBudgetData.year === currentYear && editedBudgetData.id) {
+          response = await axios.put(`/api/mongodb/budgets/${editedBudgetData.id}/update/`, budgetUpdate);
         } else {
-          // Create new budget
-          console.log('Creating new budget');
-          response = await axios.post('/api/budgets/', budgetUpdate);
-          console.log('Budget created via POST endpoint');
+          response = await axios.post(saveMonthUrl, budgetUpdate);
         }
-      }
-      
-      console.log('Budget save response:', response.data);
+              } catch (updateError) {
+          // console.log('Budget save failed, trying fallback:', updateError);
+          
+          // Fallback to standard PUT/POST
+          if (editedBudgetData && editedBudgetData.id) {
+            // Update existing budget
+            // console.log('Updating existing budget with ID:', editedBudgetData.id);
+            response = await axios.put(`/api/mongodb/budgets/${editedBudgetData.id}/update/`, budgetUpdate);
+            // console.log('Budget updated via PUT endpoint');
+          } else {
+            // Create new budget
+            // console.log('Creating new budget');
+            response = await axios.post('/api/mongodb/budgets/create/', budgetUpdate);
+            // console.log('Budget created via POST endpoint');
+          }
+        }
+        
+        // console.log('Budget save response:', response.data);
       
       // Update local state with saved data - ONLY current month data
       setBudgetData(response.data);
@@ -2431,9 +3785,9 @@ const DebtPlanning = () => {
           debt => debt.balance > 0 && debt.debt_type !== 'mortgage'
         );
         if (filteredDebts.length > 0) {
-          console.log('Updating debt payoff plan with new budget data...');
-          const updatedBudgetForDebt = createBudgetFromGridData(localGridData);
-          await calculateDebtPayoffPlan(updatedBudgetForDebt, filteredDebts, strategy);
+          // console.log('Updating debt payoff plan with new budget data...');
+          // The new useEffect will automatically recalculate debt payoff when localGridData changes
+          // No need to call calculateDebtPayoffPlan here
         }
       }
       
@@ -2449,367 +3803,64 @@ const DebtPlanning = () => {
     }
   };
 
-  // Helper function to load all monthly budget data from database
+  // PERFORMANCE OPTIMIZATION: Use current budget data for all months instead of individual API calls
   const loadAllMonthlyBudgetData = async () => {
     const months = generateMonths();
     const monthlyBudgetData = [];
     
-    for (let monthIdx = 0; monthIdx < months.length; monthIdx++) {
-      const month = months[monthIdx];
-      
-      if (month.type === 'historical') {
-        // Historical months: try to get saved data, fallback to current month data
-        try {
-          const monthNum = month.date.getMonth() + 1;
-          const year = month.date.getFullYear();
-          
-          const response = await axios.get(`/api/budgets/get-month/?month=${monthNum}&year=${year}`);
-          const monthBudget = response.data;
-          
-          if (monthBudget && response.status !== 404) {
-            // Use saved budget data for historical month
-            let income = monthBudget.income || 0;
-            let expenses = 0;
-            
-            // Add base expenses
-            expenses += monthBudget.housing || 0;
-            expenses += monthBudget.transportation || 0;
-            expenses += monthBudget.food || 0;
-            expenses += monthBudget.healthcare || 0;
-            expenses += monthBudget.entertainment || 0;
-            expenses += monthBudget.shopping || 0;
-            expenses += monthBudget.travel || 0;
-            expenses += monthBudget.education || 0;
-            expenses += monthBudget.utilities || 0;
-            expenses += monthBudget.childcare || 0;
-            expenses += monthBudget.other || 0;
-            
-            // Add additional income
-            if (monthBudget.additional_items) {
-              monthBudget.additional_items
-                .filter(item => item.type === 'income')
-                .forEach(item => {
-                  income += item.amount || 0;
-                });
-            }
-            
-            // Add additional expenses
-            if (monthBudget.additional_items) {
-              monthBudget.additional_items
-                .filter(item => item.type === 'expense')
-                .forEach(item => {
-                  expenses += item.amount || 0;
-                });
-            }
-            
-            const netSavings = income - expenses;
-            
-            monthlyBudgetData.push({
-              month: monthIdx,
-              net_savings: netSavings,
-              income: income,
-              expenses: expenses,
-              budget_data: monthBudget
-            });
-            
-            console.log(`Month ${monthNum}/${year} (HISTORICAL SAVED): Income $${income}, Expenses $${expenses}, Net Savings $${netSavings}`);
-          } else {
-            // Fallback to current month data for historical months
-            let income = editedBudgetData?.income || 0;
-            let expenses = 0;
-            
-            // Add base expenses
-            expenses += editedBudgetData?.housing || 0;
-            expenses += editedBudgetData?.transportation || 0;
-            expenses += editedBudgetData?.food || 0;
-            expenses += editedBudgetData?.healthcare || 0;
-            expenses += editedBudgetData?.entertainment || 0;
-            expenses += editedBudgetData?.shopping || 0;
-            expenses += editedBudgetData?.travel || 0;
-            expenses += editedBudgetData?.education || 0;
-            expenses += editedBudgetData?.utilities || 0;
-            expenses += editedBudgetData?.childcare || 0;
-            expenses += editedBudgetData?.other || 0;
-            
-            // Add additional income
-            if (editedBudgetData?.additional_items) {
-              editedBudgetData.additional_items
-                .filter(item => item.type === 'income')
-                .forEach(item => {
-                  income += item.amount || 0;
-                });
-            }
-            
-            // Add additional expenses
-            if (editedBudgetData?.additional_items) {
-              editedBudgetData.additional_items
-                .filter(item => item.type === 'expense')
-                .forEach(item => {
-                  expenses += item.amount || 0;
-                });
-            }
-            
-            const netSavings = income - expenses;
-            
-            monthlyBudgetData.push({
-              month: monthIdx,
-              net_savings: netSavings,
-              income: income,
-              expenses: expenses,
-              budget_data: editedBudgetData
-            });
-            
-            console.log(`Month ${monthNum}/${year} (HISTORICAL FALLBACK): Income $${income}, Expenses $${expenses}, Net Savings $${netSavings}`);
-          }
-        } catch (error) {
-          // Error fallback to current month data for historical months
-          let income = editedBudgetData?.income || 0;
-          let expenses = 0;
-          
-          // Add base expenses
-          expenses += editedBudgetData?.housing || 0;
-          expenses += editedBudgetData?.transportation || 0;
-          expenses += editedBudgetData?.food || 0;
-          expenses += editedBudgetData?.healthcare || 0;
-          expenses += editedBudgetData?.entertainment || 0;
-          expenses += editedBudgetData?.shopping || 0;
-          expenses += editedBudgetData?.travel || 0;
-          expenses += editedBudgetData?.education || 0;
-          expenses += editedBudgetData?.utilities || 0;
-          expenses += editedBudgetData?.childcare || 0;
-          expenses += editedBudgetData?.other || 0;
-          
-          // Add additional income
-          if (editedBudgetData?.additional_items) {
-            editedBudgetData.additional_items
-              .filter(item => item.type === 'income')
-              .forEach(item => {
-                income += item.amount || 0;
-              });
-          }
-          
-          // Add additional expenses
-          if (editedBudgetData?.additional_items) {
-            editedBudgetData.additional_items
-              .filter(item => item.type === 'expense')
-              .forEach(item => {
-                expenses += item.amount || 0;
-              });
-          }
-          
-          const netSavings = income - expenses;
-          
-          monthlyBudgetData.push({
-            month: monthIdx,
-            net_savings: netSavings,
-            income: income,
-            expenses: expenses,
-            budget_data: editedBudgetData
-          });
-          
-          console.log(`Month ${month.date.getMonth() + 1}/${month.date.getFullYear()} (HISTORICAL ERROR FALLBACK): Income $${income}, Expenses $${expenses}, Net Savings $${netSavings}`);
-        }
-      } else if (month.type === 'current') {
-        // Current month always uses current budget data
-        let income = editedBudgetData?.income || 0;
-        let expenses = 0;
-        
-        // Add base expenses
-        expenses += editedBudgetData?.housing || 0;
-        expenses += editedBudgetData?.transportation || 0;
-        expenses += editedBudgetData?.food || 0;
-        expenses += editedBudgetData?.healthcare || 0;
-        expenses += editedBudgetData?.entertainment || 0;
-        expenses += editedBudgetData?.shopping || 0;
-        expenses += editedBudgetData?.travel || 0;
-        expenses += editedBudgetData?.education || 0;
-        expenses += editedBudgetData?.utilities || 0;
-        expenses += editedBudgetData?.childcare || 0;
-        expenses += editedBudgetData?.other || 0;
-        
-        // Add additional income
-        if (editedBudgetData?.additional_items) {
-          editedBudgetData.additional_items
-            .filter(item => item.type === 'income')
-            .forEach(item => {
-              income += item.amount || 0;
-            });
-        }
-        
-        // Add additional expenses
-        if (editedBudgetData?.additional_items) {
-          editedBudgetData.additional_items
-            .filter(item => item.type === 'expense')
-            .forEach(item => {
-              expenses += item.amount || 0;
-            });
-        }
-        
-        const netSavings = income - expenses;
-        
-        monthlyBudgetData.push({
-          month: monthIdx,
-          net_savings: netSavings,
-          income: income,
-          expenses: expenses,
-          budget_data: editedBudgetData
-        });
-        
-        console.log(`Month ${month.date.getMonth() + 1}/${month.date.getFullYear()} (CURRENT): Income $${income}, Expenses $${expenses}, Net Savings $${netSavings}`);
-      } else {
-        // Future months: try to get saved data, fallback to current month data
-        try {
-          const monthNum = month.date.getMonth() + 1;
-          const year = month.date.getFullYear();
-          
-          const response = await axios.get(`/api/budgets/get-month/?month=${monthNum}&year=${year}`);
-          const monthBudget = response.data;
-          
-          if (monthBudget) {
-            // Use saved budget data
-            let income = monthBudget.income || 0;
-            let expenses = 0;
-            
-            // Add base expenses
-            expenses += monthBudget.housing || 0;
-            expenses += monthBudget.transportation || 0;
-            expenses += monthBudget.food || 0;
-            expenses += monthBudget.healthcare || 0;
-            expenses += monthBudget.entertainment || 0;
-            expenses += monthBudget.shopping || 0;
-            expenses += monthBudget.travel || 0;
-            expenses += monthBudget.education || 0;
-            expenses += monthBudget.utilities || 0;
-            expenses += monthBudget.childcare || 0;
-            expenses += monthBudget.other || 0;
-            
-            // Add additional income
-            if (monthBudget.additional_items) {
-              monthBudget.additional_items
-                .filter(item => item.type === 'income')
-                .forEach(item => {
-                  income += item.amount || 0;
-                });
-            }
-            
-            // Add additional expenses
-            if (monthBudget.additional_items) {
-              monthBudget.additional_items
-                .filter(item => item.type === 'expense')
-                .forEach(item => {
-                  expenses += item.amount || 0;
-                });
-            }
-            
-            const netSavings = income - expenses;
-            
-            monthlyBudgetData.push({
-              month: monthIdx,
-              net_savings: netSavings,
-              income: income,
-              expenses: expenses,
-              budget_data: monthBudget
-            });
-            
-            console.log(`Month ${monthNum}/${year} (SAVED DATA): Income $${income}, Expenses $${expenses}, Net Savings $${netSavings}`);
-          } else {
-            // Fallback to current month data
-            let income = editedBudgetData?.income || 0;
-            let expenses = 0;
-            
-            // Add base expenses
-            expenses += editedBudgetData?.housing || 0;
-            expenses += editedBudgetData?.transportation || 0;
-            expenses += editedBudgetData?.food || 0;
-            expenses += editedBudgetData?.healthcare || 0;
-            expenses += editedBudgetData?.entertainment || 0;
-            expenses += editedBudgetData?.shopping || 0;
-            expenses += editedBudgetData?.travel || 0;
-            expenses += editedBudgetData?.education || 0;
-            expenses += editedBudgetData?.utilities || 0;
-            expenses += editedBudgetData?.childcare || 0;
-            expenses += editedBudgetData?.other || 0;
-            
-            // Add additional income
-            if (editedBudgetData?.additional_items) {
-              editedBudgetData.additional_items
-                .filter(item => item.type === 'income')
-                .forEach(item => {
-                  income += item.amount || 0;
-                });
-            }
-            
-            // Add additional expenses
-            if (editedBudgetData?.additional_items) {
-              editedBudgetData.additional_items
-                .filter(item => item.type === 'expense')
-                .forEach(item => {
-                  expenses += item.amount || 0;
-                });
-            }
-            
-            const netSavings = income - expenses;
-            
-            monthlyBudgetData.push({
-              month: monthIdx,
-              net_savings: netSavings,
-              income: income,
-              expenses: expenses,
-              budget_data: editedBudgetData
-            });
-            
-            console.log(`Month ${monthNum}/${year} (FALLBACK): Income $${income}, Expenses $${expenses}, Net Savings $${netSavings}`);
-          }
-        } catch (error) {
-          // Error fallback to current month data
-          let income = editedBudgetData?.income || 0;
-          let expenses = 0;
-          
-          // Add base expenses
-          expenses += editedBudgetData?.housing || 0;
-          expenses += editedBudgetData?.transportation || 0;
-          expenses += editedBudgetData?.food || 0;
-          expenses += editedBudgetData?.healthcare || 0;
-          expenses += editedBudgetData?.entertainment || 0;
-          expenses += editedBudgetData?.shopping || 0;
-          expenses += editedBudgetData?.travel || 0;
-          expenses += editedBudgetData?.education || 0;
-          expenses += editedBudgetData?.utilities || 0;
-          expenses += editedBudgetData?.childcare || 0;
-          expenses += editedBudgetData?.other || 0;
-          
-          // Add additional income
-          if (editedBudgetData?.additional_items) {
-            editedBudgetData.additional_items
-              .filter(item => item.type === 'income')
-              .forEach(item => {
-                income += item.amount || 0;
-              });
-          }
-          
-          // Add additional expenses
-          if (editedBudgetData?.additional_items) {
-            editedBudgetData.additional_items
-              .filter(item => item.type === 'expense')
-              .forEach(item => {
-                expenses += item.amount || 0;
-              });
-          }
-          
-          const netSavings = income - expenses;
-          
-          monthlyBudgetData.push({
-            month: monthIdx,
-            net_savings: netSavings,
-            income: income,
-            expenses: expenses,
-            budget_data: editedBudgetData
-          });
-          
-          console.log(`Month ${month.date.getMonth() + 1}/${month.date.getFullYear()} (ERROR FALLBACK): Income $${income}, Expenses $${expenses}, Net Savings $${netSavings}`);
-        }
-      }
+    // Calculate net savings from current budget data
+    let income = editedBudgetData?.income || 0;
+    let expenses = 0;
+    
+    // Add base expenses from nested expenses object
+    if (editedBudgetData?.expenses) {
+      expenses += editedBudgetData.expenses.housing || 0;
+      expenses += editedBudgetData.expenses.transportation || 0;
+      expenses += editedBudgetData.expenses.food || 0;
+      expenses += editedBudgetData.expenses.healthcare || 0;
+      expenses += editedBudgetData.expenses.entertainment || 0;
+      expenses += editedBudgetData.expenses.shopping || 0;
+      expenses += editedBudgetData.expenses.travel || 0;
+      expenses += editedBudgetData.expenses.education || 0;
+      expenses += editedBudgetData.expenses.utilities || 0;
+      expenses += editedBudgetData.expenses.childcare || 0;
+      expenses += editedBudgetData.expenses.debt_payments || 0;
+      expenses += editedBudgetData.expenses.others || 0;
     }
+    
+    // Add additional income
+    if (editedBudgetData?.additional_items) {
+      editedBudgetData.additional_items
+        .filter(item => item.type === 'income')
+        .forEach(item => {
+          income += item.amount || 0;
+        });
+    }
+    
+    // Add additional expenses
+    if (editedBudgetData?.additional_items) {
+      editedBudgetData.additional_items
+        .filter(item => item.type === 'expense')
+        .forEach(item => {
+          expenses += item.amount || 0;
+        });
+    }
+    
+    const netSavings = income - expenses;
+    
+    // Use the same budget data for all months (performance optimization)
+    for (let monthIdx = 0; monthIdx < months.length; monthIdx++) {
+      monthlyBudgetData.push({
+        month: monthIdx,
+        net_savings: netSavings,
+        income: income,
+        expenses: expenses,
+        budget_data: editedBudgetData
+      });
+    }
+    
+    // console.log(`PERFORMANCE OPTIMIZATION: Using current budget data for all ${months.length} months`);
+    // console.log(`Net Savings: $${netSavings}, Income: $${income}, Expenses: $${expenses}`);
     
     return monthlyBudgetData;
   };
@@ -2823,17 +3874,20 @@ const DebtPlanning = () => {
     const budget = {
       income: 0,
       additional_income: 0,
-      housing: 0,
-      transportation: 0,
-      food: 0,
-      healthcare: 0,
-      entertainment: 0,
-      shopping: 0,
-      travel: 0,
-      education: 0,
-      utilities: 0,
-      childcare: 0,
-      other: 0,
+      expenses: {
+        housing: 0,
+        transportation: 0,
+        food: 0,
+        healthcare: 0,
+        entertainment: 0,
+        shopping: 0,
+        travel: 0,
+        education: 0,
+        utilities: 0,
+        childcare: 0,
+        debt_payments: 0,
+        others: 0
+      },
       additional_items: [],
       savings_items: []
     };
@@ -2893,11 +3947,11 @@ const DebtPlanning = () => {
           'Education': 'education',
           'Utilities': 'utilities',
           'Childcare': 'childcare',
-          'Other': 'other'
+          'Other': 'others'
         };
         
         if (baseExpenseMap[row.category]) {
-          budget[baseExpenseMap[row.category]] = currentValue;
+          budget.expenses[baseExpenseMap[row.category]] = currentValue;
         } else {
           // Additional expense items
           budget.additional_items.push({
@@ -2918,9 +3972,120 @@ const DebtPlanning = () => {
     return budget;
   };
 
-  // New function to save changes for a specific month - FIXED: Proper month-specific saving
-  const saveMonthChanges = async (monthIdx, monthData) => {
+  // NEW: Function to build month-specific budgets from grid data for debt payoff calculations
+  const buildMonthSpecificBudgetsFromGrid = () => {
+    if (!localGridData || localGridData.length === 0) {
+      return [];
+    }
+    
+    const months = generateMonths();
+    const currentMonthIdx = months.findIndex(m => m.type === 'current');
+    
+    if (currentMonthIdx === -1) {
+      return [];
+    }
+    
+    const monthlyBudgets = [];
+    
+    // Only process current and future months (skip historical)
+    for (let monthIdx = currentMonthIdx; monthIdx < months.length; monthIdx++) {
+      const month = months[monthIdx];
+      const budget = {
+        income: 0,
+        additional_income: 0,
+        expenses: {
+          housing: 0,
+          transportation: 0,
+          food: 0,
+          healthcare: 0,
+          entertainment: 0,
+          shopping: 0,
+          travel: 0,
+          education: 0,
+          utilities: 0,
+          childcare: 0,
+          debt_payments: 0,
+          others: 0
+        },
+        additional_items: [],
+        savings_items: [],
+        month: month.date.getMonth() + 1,
+        year: month.date.getFullYear()
+      };
+      
+      // Process each row in the grid data for this specific month
+      localGridData.forEach(row => {
+        const monthValue = parseFloat(row[`month_${monthIdx}`]) || 0;
+        
+        if (row.category === 'Income') {
+          // For the debt planning grid, we show total income
+          // Since the grid shows total income, we should use the grid value directly
+          budget.income = monthValue;
+          budget.additional_income = 0;
+        } else if (row.type === 'income' && row.category !== 'Income') {
+          // Additional income items
+          budget.additional_items.push({
+            name: row.category,
+            amount: monthValue,
+            type: 'income'
+          });
+        } else if (row.type === 'expense') {
+          // Map to base expense categories or additional items
+          const baseExpenseMap = {
+            'Housing': 'housing',
+            'Transportation': 'transportation', 
+            'Food': 'food',
+            'Healthcare': 'healthcare',
+            'Entertainment': 'entertainment',
+            'Shopping': 'shopping',
+            'Travel': 'travel',
+            'Education': 'education',
+            'Utilities': 'utilities',
+            'Childcare': 'childcare',
+            'Other': 'others'
+          };
+          
+          if (baseExpenseMap[row.category]) {
+            budget.expenses[baseExpenseMap[row.category]] = monthValue;
+          } else {
+            // Additional expense items
+            budget.additional_items.push({
+              name: row.category,
+              amount: monthValue,
+              type: 'expense'
+            });
+          }
+        } else if (row.type === 'savings') {
+          // Savings items
+          budget.savings_items.push({
+            name: row.category,
+            amount: monthValue
+          });
+        }
+      });
+      
+      monthlyBudgets.push({
+        monthIndex: monthIdx - currentMonthIdx, // 0-based for debt payoff
+        monthLabel: month.label,
+        budget: budget
+      });
+    }
+    
+    // console.log('📊 Built month-specific budgets from grid:', monthlyBudgets.map(m => ({
+    //   month: m.monthLabel,
+    //   income: m.budget.income + m.budget.additional_income,
+    //   expenses: Object.values(m.budget.expenses).reduce((sum, val) => sum + val, 0)
+    // })));
+    
+    return monthlyBudgets;
+  };
+
+  // New function to save changes for a specific month - ENHANCED: Uses new save-month endpoint
+  const saveMonthChanges_DUPLICATE = async (monthIdx, monthData) => {
+    // console.log('🔄 Saving Editable Budget Projection changes for month:', { monthIdx, monthData });
+    
     if (!monthData || monthData.type === 'historical') {
+      // console.log('❌ Not saving - historical month or invalid data');
       return; // Don't save historical months
     }
     
@@ -2940,66 +4105,38 @@ const DebtPlanning = () => {
       const budgetUpdate = {
         income: 0,
         additional_income: 0,
-        housing: 0,
-        transportation: 0,
-        food: 0,
-        healthcare: 0,
-        entertainment: 0,
-        shopping: 0,
-        travel: 0,
-        education: 0,
-        utilities: 0,
-        childcare: 0,
-        other: 0,
+        expenses: {
+          housing: 0,
+          transportation: 0,
+          food: 0,
+          healthcare: 0,
+          entertainment: 0,
+          shopping: 0,
+          travel: 0,
+          education: 0,
+          utilities: 0,
+          childcare: 0,
+          debt_payments: 0,
+          others: 0
+        },
         additional_items: [],
         savings_items: [],
         month: month,
         year: year
       };
       
-      // First, try to get existing budget data for this month to preserve the income split
-      let existingBudget = null;
-      try {
-        const existingResponse = await axios.get(`/api/budgets/get-month/?month=${month}&year=${year}`);
-        if (existingResponse.data && existingResponse.status !== 404) {
-          existingBudget = existingResponse.data;
-        }
-      } catch (error) {
-        console.log(`No existing budget found for month ${month}/${year}, will use default split`);
-      }
+      // Note: We no longer initialize projected months to empty
+      // The grid data already contains the correct values (either from MongoDB or fallback data)
+      // We'll build the budgetUpdate directly from the grid data
       
       // Process each row in the grid data for this specific month only
       localGridData.forEach(row => {
         const monthValue = parseFloat(row[`month_${monthIdx}`]) || 0;
         
         if (row.category === 'Income') {
-          // For the debt planning grid, we show total income
-          // We need to preserve the existing split if available
-          if (existingBudget) {
-            const existingAdditionalIncome = existingBudget.additional_income || 0;
-            const existingPrimaryIncome = existingBudget.income || 0;
-            
-            if (existingPrimaryIncome > 0 || existingAdditionalIncome > 0) {
-              // Preserve the existing ratio
-              const totalExisting = existingPrimaryIncome + existingAdditionalIncome;
-              if (totalExisting > 0) {
-                const ratio = monthValue / totalExisting;
-                budgetUpdate.income = existingPrimaryIncome * ratio;
-                budgetUpdate.additional_income = existingAdditionalIncome * ratio;
-              } else {
-                budgetUpdate.income = monthValue;
-                budgetUpdate.additional_income = 0;
-              }
-            } else {
-              // No existing data, put all in primary income
-              budgetUpdate.income = monthValue;
-              budgetUpdate.additional_income = 0;
-            }
-          } else {
-            // No existing data, put all in primary income
-            budgetUpdate.income = monthValue;
-            budgetUpdate.additional_income = 0;
-          }
+          // Use the grid value directly for both current and projected months
+          budgetUpdate.income = monthValue;
+          budgetUpdate.additional_income = 0;
         } else if (row.type === 'income' && row.category !== 'Income') {
           // Additional income items
           budgetUpdate.additional_items.push({
@@ -3020,11 +4157,11 @@ const DebtPlanning = () => {
             'Education': 'education',
             'Utilities': 'utilities',
             'Childcare': 'childcare',
-            'Other': 'other'
+            'Other': 'others'
           };
           
           if (baseExpenseMap[row.category]) {
-            budgetUpdate[baseExpenseMap[row.category]] = monthValue;
+            budgetUpdate.expenses[baseExpenseMap[row.category]] = monthValue;
           } else {
             // Additional expense items
             budgetUpdate.additional_items.push({
@@ -3042,46 +4179,45 @@ const DebtPlanning = () => {
         }
       });
       
-      console.log(`Saving budget for month ${month}/${year}:`, budgetUpdate);
+  
       
-      // Save to database using the month-specific endpoint
-      const response = await axios.post('/api/budgets/update-month/', budgetUpdate);
-      console.log(`Budget saved for month ${month}/${year}:`, response.data);
+      // Use the test endpoint for development, regular endpoint for production
+      const endpoint = process.env.NODE_ENV === 'development' 
+        ? '/api/mongodb/budgets/save-month-test/'
+        : '/api/mongodb/budgets/save-month/';
       
-      // FIXED: Don't update the main editedBudgetData with month-specific data
-      // This prevents the current month from being affected by future month changes
+      const response = await axios.post(endpoint, budgetUpdate);
+  
       
-      // Create a comprehensive budget object from the current grid data for debt calculations
-      const updatedBudgetForDebt = createBudgetFromGridData(localGridData);
-      
-      // Update debt payoff plan with the comprehensive budget data
+      // Update debt payoff plan with the new data
       if (outstandingDebts && outstandingDebts.length > 0) {
         const filteredDebts = outstandingDebts.filter(
           debt => debt.balance > 0 && debt.debt_type !== 'mortgage'
         );
         if (filteredDebts.length > 0) {
-          console.log('Updating debt payoff plan with updated grid data...');
-          // Use the current budget data to recalculate the entire plan
-          await calculateDebtPayoffPlan(editedBudgetData, filteredDebts, strategy);
+          // console.log('Updating debt payoff plan with updated grid data...');
+          // The new useEffect will automatically recalculate debt payoff when localGridData changes
+          // No need to call calculateDebtPayoffPlan here
         }
       }
       
       // Show success message
-      setSuccessMessage(`Budget for ${month}/${year} saved successfully!`);
+      setSuccessMessage(`Editable Budget Projection for ${month}/${year} saved successfully!`);
       setShowSuccessSnackbar(true);
       
     } catch (error) {
-      console.error(`Error saving budget for month ${monthIdx}:`, error);
+      // console.error(`❌ Error saving Editable Budget Projection for month ${monthIdx}:`, error);
       setErrorMessage(
         error.response?.data?.detail || 
         error.response?.data?.message || 
         error.message || 
-        'Failed to save month budget changes'
+        'Failed to save Editable Budget Projection changes'
       );
       setShowErrorSnackbar(true);
     }
   };
 
+  // Main component render logic
   if (loading || debtsLoading) {
     return (
       <Box sx={{ 
@@ -5364,7 +6500,7 @@ const DebtPlanning = () => {
       {/* Add/Edit Debt Dialog */}
       <Dialog 
         open={debtDialogOpen} 
-        onClose={() => setDebtDialogOpen(false)}
+        onClose={debtSubmitting ? null : () => setDebtDialogOpen(false)}
         maxWidth="md"
         fullWidth
         PaperProps={{
@@ -5606,6 +6742,7 @@ const DebtPlanning = () => {
             <Button 
               onClick={() => setDebtDialogOpen(false)}
               variant="outlined"
+              disabled={debtSubmitting}
               sx={{
                 borderColor: isDarkMode 
                   ? 'rgba(255, 255, 255, 0.3)' 
@@ -5628,6 +6765,8 @@ const DebtPlanning = () => {
             <Button 
               type="submit" 
               variant="contained"
+              disabled={debtSubmitting}
+              startIcon={debtSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
               sx={{
                 background: editingDebt 
                   ? debtDarkColors.blue
@@ -5636,18 +6775,60 @@ const DebtPlanning = () => {
                 fontWeight: 600,
                 px: 3,
                 borderRadius: 2,
+                minWidth: 140,
                 '&:hover': {
                   background: editingDebt 
                     ? debtDarkColors.blueDark
                     : '#4caf50',
-                  transform: 'translateY(-1px)'
+                  transform: debtSubmitting ? 'none' : 'translateY(-1px)'
+                },
+                '&:disabled': {
+                  background: '#666',
+                  color: '#ccc'
                 }
               }}
             >
-              {editingDebt ? 'Update Debt' : 'Add Debt'}
+              {debtSubmitting 
+                ? (editingDebt ? 'Updating...' : 'Adding...') 
+                : (editingDebt ? 'Update Debt' : 'Add Debt')
+              }
             </Button>
           </DialogActions>
         </form>
+        
+        {/* Loading Overlay for Debt Dialog */}
+        {debtSubmitting && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              borderRadius: 3
+            }}
+          >
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center',
+              background: 'rgba(255, 255, 255, 0.9)',
+              padding: 4,
+              borderRadius: 2,
+              gap: 2
+            }}>
+              <CircularProgress size={40} />
+              <Typography variant="h6" sx={{ color: '#333' }}>
+                {editingDebt ? 'Updating debt...' : 'Adding debt...'}
+              </Typography>
+            </Box>
+          </Box>
+        )}
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
@@ -5684,13 +6865,9 @@ const DebtPlanning = () => {
           <Button 
             onClick={cancelDeleteDebt}
             variant="outlined"
-            sx={{
-              borderColor: isDarkMode 
-                ? 'rgba(255, 255, 255, 0.3)' 
-                : 'rgba(0, 0, 0, 0.3)',
-              color: isDarkMode 
-                ? 'rgba(255, 255, 255, 0.8)' 
-                : 'rgba(0, 0, 0, 0.8)'
+            sx={{ 
+              color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : '#666',
+              borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : '#ccc'
             }}
           >
             Cancel
@@ -5698,23 +6875,25 @@ const DebtPlanning = () => {
           <Button 
             onClick={confirmDeleteDebt}
             variant="contained"
-            sx={{
-              background: debtDarkColors.red,
-              color: 'white',
+            color="error"
+            disabled={debtSubmitting}
+            startIcon={debtSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
+            sx={{ 
+              background: '#f44336',
               fontWeight: 600,
               px: 3,
+              borderRadius: 2,
               '&:hover': {
-                background: debtDarkColors.redDark,
-                transform: 'translateY(-1px)'
+                background: '#d32f2f',
+                transform: debtSubmitting ? 'none' : 'translateY(-1px)'
               }
             }}
           >
-            Delete Debt
+            {debtSubmitting ? 'Deleting...' : 'Delete'}
           </Button>
-        </DialogActions>
+               </DialogActions>
       </Dialog>
     </Box>
   );
 };
-
 export default DebtPlanning;

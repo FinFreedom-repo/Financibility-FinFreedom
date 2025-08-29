@@ -7,7 +7,7 @@ const settingsService = {
    */
   getSettings: async () => {
     try {
-      const response = await axios.get('/api/settings/');
+      const response = await axios.get('/api/mongodb/settings/');
       return response.data;
     } catch (error) {
       console.error('Error fetching settings:', error);
@@ -22,7 +22,7 @@ const settingsService = {
    */
   updateSettings: async (settings) => {
     try {
-      const response = await axios.put('/api/settings/', settings);
+      const response = await axios.put('/api/mongodb/settings/update/', settings);
       return response.data;
     } catch (error) {
       console.error('Error updating settings:', error);

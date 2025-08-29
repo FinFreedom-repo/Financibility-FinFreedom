@@ -401,9 +401,6 @@ function Navigation({ onNavigate }) {
                 <Typography variant="subtitle2" noWrap>
                   {user?.username || 'User'}
                 </Typography>
-                <Typography variant="body2" color="text.secondary" noWrap>
-                  {user?.email || 'user@example.com'}
-                </Typography>
               </Box>
             )}
           </Box>

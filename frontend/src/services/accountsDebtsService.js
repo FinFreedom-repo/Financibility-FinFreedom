@@ -4,8 +4,26 @@ class AccountsDebtsService {
   // Get all accounts and debts with summary
   async getAccountsDebtsSummary() {
     try {
-      const response = await axios.get('/api/accounts-debts/summary/');
-      return response.data;
+      // FIXED: Always use authenticated endpoints to ensure proper user isolation
+      // No more test endpoints that show shared data
+      const [accountsResponse, debtsResponse] = await Promise.all([
+            axios.get('/api/mongodb/accounts/'),
+    axios.get('/api/mongodb/debts/')
+      ]);
+      
+      const accounts = accountsResponse.data.accounts || [];
+      const debts = debtsResponse.data.debts || [];
+      
+      const totalAccountBalance = accounts.reduce((sum, acc) => sum + (parseFloat(acc.balance) || 0), 0);
+      const totalDebtBalance = debts.reduce((sum, debt) => sum + (parseFloat(debt.amount) || 0), 0);
+      
+      return {
+        accounts: accounts,
+        debts: debts,
+        total_account_balance: totalAccountBalance,
+        total_debt_balance: totalDebtBalance,
+        net_worth: totalAccountBalance - totalDebtBalance
+      };
     } catch (error) {
       console.error('Error fetching accounts and debts summary:', error);
       throw error;
@@ -16,12 +34,12 @@ class AccountsDebtsService {
   async getAccounts() {
     try {
       console.log('🔍 Fetching accounts from API...');
-      const response = await axios.get('/api/accounts/');
+      const response = await axios.get('/api/mongodb/accounts/');
       console.log('📊 Raw accounts response:', response.data);
-      console.log('📊 Number of accounts:', response.data?.length || 0);
+      console.log('📊 Number of accounts:', response.data?.accounts?.length || 0);
       
       // Ensure we return a properly formatted array
-      const accounts = Array.isArray(response.data) ? response.data : [];
+      const accounts = Array.isArray(response.data.accounts) ? response.data.accounts : [];
       
       // Process each account to ensure proper field mapping and number conversion
       const processedAccounts = accounts.map(account => {
@@ -29,7 +47,7 @@ class AccountsDebtsService {
         const interestRate = parseFloat(account.interest_rate) || 0;
         
         return {
-          id: account.id,
+          id: account._id || account.id, // Handle both MongoDB _id and regular id
           name: account.name || 'Unnamed Account',
           account_type: account.account_type || 'checking',
           balance: balance,
@@ -71,22 +89,26 @@ class AccountsDebtsService {
   // Get all debts
   async getDebts() {
     try {
-      const response = await axios.get('/api/debts/');
+      // FIXED: Always use authenticated endpoint to ensure proper user isolation
+      console.log(`🔍 Fetching debts from: /api/mongodb/debts/`);
+      const response = await axios.get('/api/mongodb/debts/');
       console.log('Raw debts response from API:', response.data);
       
       // Ensure we return a properly formatted array
-      const debts = Array.isArray(response.data) ? response.data : [];
+      const debts = Array.isArray(response.data.debts) ? response.data.debts : [];
       
       // Process each debt to ensure proper field mapping and number conversion
       const processedDebts = debts.map(debt => {
-        const balance = parseFloat(debt.balance) || 0;
+        // Handle both 'amount' and 'balance' fields for backward compatibility
+        const balance = parseFloat(debt.amount || debt.balance) || 0;
         const interestRate = parseFloat(debt.interest_rate) || 0;
         
         return {
-          id: debt.id,
+          id: debt._id || debt.id, // Handle both MongoDB _id and regular id
           name: debt.name || 'Unnamed Debt',
           debt_type: debt.debt_type || 'other',
-          balance: balance,
+          balance: balance, // Use balance for frontend consistency
+          amount: balance,  // Also include amount for backend compatibility
           interest_rate: interestRate,
           effective_date: debt.effective_date || new Date().toISOString().split('T')[0],
           payoff_date: debt.payoff_date || null,
@@ -138,7 +160,7 @@ class AccountsDebtsService {
       };
       
       console.log('Formatted account data:', formattedData);
-      const response = await axios.post('/api/accounts/', formattedData);
+      const response = await axios.post('/api/mongodb/accounts/create/', formattedData);
       console.log('Account creation response:', response.data);
       return response.data;
     } catch (error) {
@@ -152,18 +174,22 @@ class AccountsDebtsService {
     try {
       console.log('Creating debt with data:', debtData);
       
+      // FIXED: Always use authenticated endpoint to ensure proper user isolation
+      
       // Ensure proper data formatting
       const formattedData = {
         name: debtData.name,
         debt_type: debtData.debtType || debtData.debt_type || 'other',
-        balance: parseFloat(debtData.balance),
+        amount: parseFloat(debtData.balance), // Use amount for backend
+        balance: parseFloat(debtData.balance), // Keep balance for frontend
         interest_rate: parseFloat(debtData.interestRate || debtData.interest_rate),
         effective_date: debtData.effectiveDate || debtData.effective_date || new Date().toISOString().split('T')[0],
         payoff_date: debtData.payoffDate || debtData.payoff_date || null
       };
       
+      console.log(`📤 Creating debt via: /api/mongodb/debts/create/`);
       console.log('Formatted debt data:', formattedData);
-      const response = await axios.post('/api/debts/', formattedData);
+      const response = await axios.post('/api/mongodb/debts/create/', formattedData);
       console.log('Debt creation response:', response.data);
       return response.data;
     } catch (error) {
@@ -187,7 +213,7 @@ class AccountsDebtsService {
       };
       
       console.log('Formatted account update data:', formattedData);
-      const response = await axios.put(`/api/accounts/${accountId}/`, formattedData);
+      const response = await axios.put(`/api/mongodb/accounts/${accountId}/update/`, formattedData);
       console.log('Account update response:', response.data);
       return response.data;
     } catch (error) {
@@ -205,14 +231,15 @@ class AccountsDebtsService {
       const formattedData = {
         name: debtData.name,
         debt_type: debtData.debtType || debtData.debt_type || 'other',
-        balance: parseFloat(debtData.balance),
+        amount: parseFloat(debtData.balance), // Use amount for backend
+        balance: parseFloat(debtData.balance), // Keep balance for frontend
         interest_rate: parseFloat(debtData.interestRate || debtData.interest_rate),
         effective_date: debtData.effectiveDate || debtData.effective_date || new Date().toISOString().split('T')[0],
         payoff_date: debtData.payoffDate || debtData.payoff_date || null
       };
       
       console.log('Formatted debt update data:', formattedData);
-      const response = await axios.put(`/api/debts/${debtId}/`, formattedData);
+      const response = await axios.put(`/api/mongodb/debts/${debtId}/update/`, formattedData);
       console.log('Debt update response:', response.data);
       return response.data;
     } catch (error) {
@@ -224,7 +251,7 @@ class AccountsDebtsService {
   // Delete an account
   async deleteAccount(accountId) {
     try {
-      await axios.delete(`/api/accounts/${accountId}/`);
+      await axios.delete(`/api/mongodb/accounts/${accountId}/delete/`);
       return true;
     } catch (error) {
       console.error('Error deleting account:', error);
@@ -236,7 +263,7 @@ class AccountsDebtsService {
   async deleteDebt(debtId) {
     try {
       console.log('Deleting debt with ID:', debtId);
-      await axios.delete(`/api/debts/${debtId}/`);
+      await axios.delete(`/api/mongodb/debts/${debtId}/delete/`);
       console.log('Debt deleted successfully');
       return true;
     } catch (error) {
@@ -248,11 +275,29 @@ class AccountsDebtsService {
   // Bulk save accounts and debts
   async bulkSaveAccountsDebts(accounts, debts) {
     try {
-      const response = await axios.post('/api/accounts-debts/bulk-save/', {
-        accounts: accounts,
-        debts: debts
-      });
-      return response.data;
+      const results = [];
+      
+      // Save accounts
+      for (const account of accounts) {
+        try {
+          const response = await axios.post('/api/mongodb/accounts/create/', account);
+          results.push({ type: 'account', success: true, data: response.data });
+        } catch (error) {
+          results.push({ type: 'account', success: false, error: error.message });
+        }
+      }
+      
+      // Save debts
+      for (const debt of debts) {
+        try {
+          const response = await axios.post('/api/mongodb/debts/create/', debt);
+          results.push({ type: 'debt', success: true, data: response.data });
+        } catch (error) {
+          results.push({ type: 'debt', success: false, error: error.message });
+        }
+      }
+      
+      return results;
     } catch (error) {
       console.error('Error bulk saving accounts and debts:', error);
       throw error;
@@ -262,7 +307,7 @@ class AccountsDebtsService {
   // Get history for a specific account or debt
   async getHistory(type, name) {
     try {
-      const endpoint = type === 'account' ? '/api/accounts/' : '/api/debts/';
+      const endpoint = type === 'account' ? '/api/mongodb/accounts/' : '/api/mongodb/debts/';
       const response = await axios.get(`${endpoint}?history=true`);
       
       // Filter the response to only include records for the specific name
@@ -309,7 +354,13 @@ class AccountsDebtsService {
       };
       
       console.log('Sending debt payoff request:', requestData);
-      const response = await axios.post('/api/debt-planner/', requestData);
+      
+      // Use test endpoint for development, regular endpoint for production
+      const endpoint = process.env.NODE_ENV === 'development' 
+        ? '/api/mongodb/debt-planner-test/'
+        : '/api/mongodb/debt-planner/';
+      
+      const response = await axios.post(endpoint, requestData);
       console.log('Debt payoff response:', response.data);
       return response.data;
     } catch (error) {

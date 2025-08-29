@@ -19,20 +19,15 @@ from django.urls import path, include
 from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
-from api.views import GrokExcelView
+# MongoDB-based authentication - no Django JWT needed
 
 urlpatterns = [
-    path('', RedirectView.as_view(url='/api/', permanent=False)),
+    path('', RedirectView.as_view(url='/api/mongodb/', permanent=False)),
     path('admin/', admin.site.urls),
-    path('api/', include('api.urls')),
-    path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/grok/analyze-excel/', GrokExcelView.as_view(), name='grok-analyze-excel'),
-    path('api/', include('budget.urls')),
+    # MongoDB-based endpoints (primary)
+    path('api/mongodb/', include('api.mongodb_urls')),
+    # path('api/grok/analyze-excel/', GrokExcelView.as_view(), name='grok-analyze-excel'),  # Removed - not needed for MongoDB
+    # path('api/', include('budget.urls')),  # Removed - budget handled by MongoDB
 ]
 
 # Serve media files in development

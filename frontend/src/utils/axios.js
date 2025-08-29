@@ -51,7 +51,8 @@ instance.interceptors.response.use(
 
     // Don't handle login/register requests in the interceptor
     const isAuthRequest = originalRequest.url?.includes('/auth/token/') || 
-                         originalRequest.url?.includes('/auth/register/');
+                         originalRequest.url?.includes('/auth/register/') ||
+                         originalRequest.url?.includes('/mongodb/auth/');
 
     console.log('Is auth request:', isAuthRequest);
 
@@ -70,7 +71,7 @@ instance.interceptors.response.use(
           return Promise.reject(error);
         }
 
-        const response = await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/auth/token/refresh/`, {
+        const response = await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/mongodb/auth/mongodb/refresh/`, {
           refresh: refreshToken,
         });
 

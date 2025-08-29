@@ -105,7 +105,7 @@ const Profile = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/profile-mongo/');
+      const response = await axios.get('/api/mongodb/auth/mongodb/profile/');
       setProfile(response.data);
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -119,7 +119,21 @@ const Profile = () => {
     try {
       setSaving(true);
       console.log('🔧 Sending profile update data:', editData);
-      await axios.put('/api/profile-mongo/update/', editData);
+      
+      // Use the comprehensive update endpoint
+      const updateData = {
+        profile: {
+          first_name: profile?.profile?.first_name || '',
+          last_name: profile?.profile?.last_name || '',
+          age: editData.age,
+          gender: editData.sex === 'M' ? 'male' : editData.sex === 'F' ? 'female' : 'other',
+          marital_status: editData.marital_status,
+          date_of_birth: editData.date_of_birth,
+          avatar: profile?.profile?.avatar || ''
+        }
+      };
+      
+      await axios.put('/api/mongodb/auth/mongodb/user/update/', updateData);
       setSuccess('Profile updated successfully');
       setEditing(false);
       fetchProfile();
@@ -135,7 +149,24 @@ const Profile = () => {
   const handlePasswordChange = async () => {
     try {
       setSaving(true);
-      await axios.post('/api/profile/change-password/', passwordData);
+      
+      // Validate passwords
+      if (passwordData.new_password !== passwordData.confirm_password) {
+        setError('New passwords do not match');
+        return;
+      }
+      
+      if (passwordData.new_password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        return;
+      }
+      
+      // Use the comprehensive update endpoint for password change
+      const updateData = {
+        password: passwordData.new_password
+      };
+      
+      await axios.put('/api/mongodb/auth/mongodb/user/update/', updateData);
       setSuccess('Password changed successfully');
       setPasswordDialog(false);
       setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
@@ -150,7 +181,18 @@ const Profile = () => {
   const handleUsernameUpdate = async () => {
     try {
       setSaving(true);
-      await axios.post('/api/profile/update-username/', usernameData);
+      
+      if (!usernameData.new_username.trim()) {
+        setError('Username cannot be empty');
+        return;
+      }
+      
+      // Use the comprehensive update endpoint for username change
+      const updateData = {
+        username: usernameData.new_username.trim()
+      };
+      
+      await axios.put('/api/mongodb/auth/mongodb/user/update/', updateData);
       setSuccess('Username updated successfully');
       setUsernameDialog(false);
       setUsernameData({ new_username: '' });
@@ -166,9 +208,18 @@ const Profile = () => {
   const handleAccountDelete = async () => {
     try {
       setSaving(true);
-      await axios.post('/api/profile/delete-account/', deleteData);
+      
+      // Use the delete user endpoint
+      await axios.delete('/api/mongodb/auth/mongodb/user/delete/');
       setSuccess('Account deleted successfully');
-      // Redirect to logout or home page
+      
+      // Redirect to logout or home page after a short delay
+      setTimeout(() => {
+        // Clear local storage and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }, 2000);
     } catch (error) {
       console.error('Error deleting account:', error);
       setError('Failed to delete account');
@@ -185,7 +236,7 @@ const Profile = () => {
       const formData = new FormData();
       formData.append('image', selectedImage);
 
-      const response = await axios.post('/api/profile-mongo/upload-image/', formData, {
+      const response = await axios.post('/api/mongodb/auth/mongodb/user/upload-image/', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -196,6 +247,7 @@ const Profile = () => {
       setImagePreview(null);
       setImageUploadDialog(false);
       setSuccess('Profile image uploaded successfully');
+      fetchProfile(); // Refresh profile data
     } catch (error) {
       console.error('Error uploading image:', error);
       setError('Failed to upload image');
@@ -207,7 +259,8 @@ const Profile = () => {
   const handleImageDelete = async () => {
     try {
       setSaving(true);
-      await axios.delete('/api/profile-mongo/delete-image/');
+      
+      await axios.delete('/api/mongodb/auth/mongodb/user/delete-image/');
       setSuccess('Profile image deleted successfully');
       setImageDeleteDialog(false);
       fetchProfile();
@@ -429,7 +482,7 @@ const Profile = () => {
                           }
                         >
                           <Avatar
-                            src={profile?.profile_image_url}
+                            src={profile?.user?.profile?.avatar || profile?.profile?.avatar || profile?.profile_image_url}
                             sx={{ 
                               width: { xs: 80, sm: 100, md: 120 },
                               height: { xs: 80, sm: 100, md: 120 },
@@ -459,7 +512,7 @@ const Profile = () => {
                             fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' }
                           }}
                         >
-                          {profile?.username}
+                          {profile?.user?.username || profile?.username}
                         </Typography>
                         <Typography 
                           variant="body1" 
@@ -470,7 +523,7 @@ const Profile = () => {
                             fontWeight: 500
                           }}
                         >
-                          {profile?.email}
+                          {profile?.user?.email || profile?.email}
                         </Typography>
                         
                         <Chip
@@ -512,7 +565,7 @@ const Profile = () => {
                               color: theme.palette.text.secondary,
                               fontWeight: 500
                             }}>
-                              Age: {profile?.age || 'Not specified'}
+                              Age: {profile?.user?.profile?.age || profile?.age || 'Not specified'}
                             </Typography>
                           </Box>
                           
@@ -532,7 +585,13 @@ const Profile = () => {
                               color: theme.palette.text.secondary,
                               fontWeight: 500
                             }}>
-                              {profile?.sex === 'M' ? 'Male' : profile?.sex === 'F' ? 'Female' : profile?.sex === 'O' ? 'Other' : 'Not specified'}
+                              {(() => {
+                                const gender = profile?.user?.profile?.gender || profile?.sex;
+                                if (gender === 'male' || gender === 'M') return 'Male';
+                                if (gender === 'female' || gender === 'F') return 'Female';
+                                if (gender === 'other' || gender === 'O') return 'Other';
+                                return 'Not specified';
+                              })()}
                             </Typography>
                           </Box>
                           
@@ -552,7 +611,10 @@ const Profile = () => {
                               color: theme.palette.text.secondary,
                               fontWeight: 500
                             }}>
-                              {profile?.marital_status ? profile.marital_status.charAt(0).toUpperCase() + profile.marital_status.slice(1) : 'Not specified'}
+                              {(() => {
+                                const status = profile?.user?.profile?.marital_status || profile?.marital_status;
+                                return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Not specified';
+                              })()}
                             </Typography>
                           </Box>
                         </Box>
@@ -704,11 +766,12 @@ const Profile = () => {
                         onClick={() => {
                           if (!editing) {
                             // Start editing - populate editData with current profile data
+                            const userProfile = profile?.user?.profile || profile?.profile || {};
                             setEditData({
-                              age: profile?.age || '',
-                              sex: profile?.sex || '',
-                              marital_status: profile?.marital_status || '',
-                              date_of_birth: profile?.date_of_birth || ''
+                              age: userProfile.age || '',
+                              sex: userProfile.gender === 'male' ? 'M' : userProfile.gender === 'female' ? 'F' : userProfile.gender === 'other' ? 'O' : userProfile.sex || '',
+                              marital_status: userProfile.marital_status || '',
+                              date_of_birth: userProfile.date_of_birth || ''
                             });
                           }
                           setEditing(!editing);
@@ -768,7 +831,7 @@ const Profile = () => {
                               fontSize: { xs: '1rem', sm: '1.1rem' },
                               lineHeight: 1.3
                             }}>
-                              {profile?.username}
+                              {profile?.user?.username || profile?.username}
                             </Typography>
                           </Box>
                         </Grid>
@@ -808,7 +871,7 @@ const Profile = () => {
                               fontSize: { xs: '1rem', sm: '1.1rem' },
                               lineHeight: 1.3
                             }}>
-                              {profile?.email}
+                              {profile?.user?.email || profile?.email}
                             </Typography>
                           </Box>
                         </Grid>
@@ -848,7 +911,7 @@ const Profile = () => {
                               fontSize: { xs: '1rem', sm: '1.1rem' },
                               lineHeight: 1.3
                             }}>
-                              {profile?.date_of_birth || 'Not specified'}
+                              {profile?.user?.profile?.date_of_birth || profile?.date_of_birth || 'Not specified'}
                             </Typography>
                           </Box>
                         </Grid>
@@ -888,7 +951,7 @@ const Profile = () => {
                               fontSize: { xs: '1rem', sm: '1.1rem' },
                               lineHeight: 1.3
                             }}>
-                              {formatMemberSince(profile?.date_joined)}
+                              {formatMemberSince(profile?.user?.date_joined || profile?.date_joined)}
                             </Typography>
                           </Box>
                         </Grid>
@@ -1181,7 +1244,7 @@ const Profile = () => {
                           >
                             Upload
                           </Button>
-                          {profile?.profile_image_url && (
+                          {(profile?.user?.profile?.avatar || profile?.profile?.avatar || profile?.profile_image_url) && (
                             <Button
                               variant="outlined"
                               color="error"
