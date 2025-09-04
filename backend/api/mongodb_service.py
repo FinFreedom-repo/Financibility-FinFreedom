@@ -736,7 +736,8 @@ class BudgetService(MongoDBService):
                     "other": 0.0
                 },
                 "additional_items": [],
-                "savings_items": []
+                "savings_items": [],
+                "manually_edited_categories": []
             }
             
             # Merge provided data with defaults
@@ -744,7 +745,7 @@ class BudgetService(MongoDBService):
                 default_budget["expenses"].update(budget_data["expenses"])
             
             # Update other fields
-            for key in ["income", "additional_income", "additional_items", "savings_items"]:
+            for key in ["income", "additional_income", "additional_items", "savings_items", "manually_edited_categories"]:
                 if key in budget_data:
                     default_budget[key] = budget_data[key]
             
@@ -877,7 +878,8 @@ class BudgetService(MongoDBService):
                     "other": 0.0
                 },
                 "additional_items": [],
-                "savings_items": []
+                "savings_items": [],
+                "manually_edited_categories": []
             }
             
             # Merge provided data with defaults
@@ -885,7 +887,7 @@ class BudgetService(MongoDBService):
                 default_budget["expenses"].update(budget_data["expenses"])
             
             # Update other fields (but NOT month and year to avoid duplicate key errors)
-            for key in ["income", "additional_income", "additional_items", "savings_items"]:
+            for key in ["income", "additional_income", "additional_items", "savings_items", "manually_edited_categories"]:
                 if key in budget_data:
                     default_budget[key] = budget_data[key]
             
@@ -924,6 +926,174 @@ class BudgetService(MongoDBService):
         except Exception as e:
             logger.error(f"Error deleting budget: {e}")
             return False
+    
+    def update_budget_field(self, user_id: str, month: int, year: int, category: str, value: float) -> Optional[Dict]:
+        """Update a specific field in a budget (optimized for batch updates)"""
+        try:
+            logger.info(f"Updating budget field: {category} = {value} for {month}/{year}")
+            
+            # Find existing budget
+            existing_budget = self.db.budgets.find_one({
+                "user_id": ObjectId(user_id),
+                "month": month,
+                "year": year
+            })
+            
+            if existing_budget:
+                # Update existing budget
+                update_data = {"updated_at": datetime.utcnow()}
+                
+                # Handle income fields
+                if category.lower() == 'income':
+                    update_data["income"] = value
+                elif category.lower() == 'additional_income':
+                    update_data["additional_income"] = value
+                # Handle expense fields
+                elif category.lower() in ['housing', 'transportation', 'food', 'healthcare', 
+                                        'entertainment', 'shopping', 'travel', 'education', 
+                                        'utilities', 'childcare', 'other']:
+                    update_data["expenses." + category.lower()] = value
+                # Handle savings
+                elif category.lower() == 'savings':
+                    # For savings, we might need to handle this differently
+                    # For now, we'll add it as an additional field
+                    update_data["savings"] = value
+                else:
+                    logger.warning(f"Unknown category: {category}")
+                    return None
+                
+                result = self.db.budgets.update_one(
+                    {"_id": existing_budget["_id"]},
+                    {"$set": update_data}
+                )
+                
+                if result.modified_count > 0:
+                    # Return updated budget
+                    updated_budget = self.db.budgets.find_one({"_id": existing_budget["_id"]})
+                    return updated_budget
+                else:
+                    return existing_budget
+            else:
+                # Create new budget with this field
+                logger.info(f"Creating new budget for {month}/{year} with {category} = {value}")
+                
+                new_budget = {
+                    "user_id": ObjectId(user_id),
+                    "month": month,
+                    "year": year,
+                    "income": 0.0,
+                    "additional_income": 0.0,
+                    "expenses": {
+                        "housing": 0.0,
+                        "transportation": 0.0,
+                        "food": 0.0,
+                        "healthcare": 0.0,
+                        "entertainment": 0.0,
+                        "shopping": 0.0,
+                        "travel": 0.0,
+                        "education": 0.0,
+                        "utilities": 0.0,
+                        "childcare": 0.0,
+                        "other": 0.0
+                    },
+                    "additional_items": [],
+                    "savings_items": [],
+                    "manually_edited_categories": [],
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+                
+                # Set the specific field
+                if category.lower() == 'income':
+                    new_budget["income"] = value
+                elif category.lower() == 'additional_income':
+                    new_budget["additional_income"] = value
+                elif category.lower() in ['housing', 'transportation', 'food', 'healthcare', 
+                                        'entertainment', 'shopping', 'travel', 'education', 
+                                        'utilities', 'childcare', 'other']:
+                    new_budget["expenses"][category.lower()] = value
+                elif category.lower() == 'savings':
+                    new_budget["savings"] = value
+                
+                result = self.db.budgets.insert_one(new_budget)
+                new_budget['_id'] = result.inserted_id
+                return new_budget
+                
+        except Exception as e:
+            logger.error(f"Error updating budget field: {e}")
+            return None
+    
+    def update_income_with_additional(self, user_id: str, month: int, year: int, total_income: float, additional_income: float) -> Optional[Dict]:
+        """Update income with specific additional income preservation (for propagation)"""
+        try:
+            logger.info(f"Updating income with additional: total={total_income}, additional={additional_income} for {month}/{year}")
+            
+            # Calculate primary income
+            primary_income = max(0, total_income - additional_income)
+            
+            # Find existing budget
+            existing_budget = self.db.budgets.find_one({
+                "user_id": ObjectId(user_id),
+                "month": month,
+                "year": year
+            })
+            
+            if existing_budget:
+                # Update existing budget
+                update_data = {
+                    "income": primary_income,
+                    "additional_income": additional_income,
+                    "updated_at": datetime.utcnow()
+                }
+                
+                result = self.db.budgets.update_one(
+                    {"_id": existing_budget["_id"]},
+                    {"$set": update_data}
+                )
+                
+                if result.modified_count > 0:
+                    # Return updated budget
+                    updated_budget = self.db.budgets.find_one({"_id": existing_budget["_id"]})
+                    return updated_budget
+                else:
+                    return existing_budget
+            else:
+                # Create new budget with this income split
+                logger.info(f"Creating new budget for {month}/{year} with income split")
+                
+                new_budget = {
+                    "user_id": ObjectId(user_id),
+                    "month": month,
+                    "year": year,
+                    "income": primary_income,
+                    "additional_income": additional_income,
+                    "expenses": {
+                        "housing": 0.0,
+                        "transportation": 0.0,
+                        "food": 0.0,
+                        "healthcare": 0.0,
+                        "entertainment": 0.0,
+                        "shopping": 0.0,
+                        "travel": 0.0,
+                        "education": 0.0,
+                        "utilities": 0.0,
+                        "childcare": 0.0,
+                        "other": 0.0
+                    },
+                    "additional_items": [],
+                    "savings_items": [],
+                    "manually_edited_categories": [],
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+                
+                result = self.db.budgets.insert_one(new_budget)
+                new_budget['_id'] = result.inserted_id
+                return new_budget
+                
+        except Exception as e:
+            logger.error(f"Error updating income with additional: {e}")
+            return None
 
 class TransactionService(MongoDBService):
     """Service for transaction management operations"""

@@ -979,4 +979,81 @@ def mongodb_update_transaction(request, transaction_id):
     return TransactionViews.update_transaction(request, transaction_id)
 
 def mongodb_delete_transaction(request, transaction_id):
-    return TransactionViews.delete_transaction(request, transaction_id) 
+    return TransactionViews.delete_transaction(request, transaction_id)
+
+def mongodb_batch_update_budgets(request):
+    """Optimized batch update for multiple budget changes"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Only POST method allowed'}, status=405)
+    
+    try:
+        # Get user from token
+        user = MongoDBApiViews.get_user_from_token(request)
+        if not user:
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+        
+        # Parse request data
+        data = json.loads(request.body)
+        changes = data.get('changes', [])
+        
+        if not changes:
+            return JsonResponse({'error': 'No changes provided'}, status=400)
+        
+        logger.info(f"Batch updating {len(changes)} budget changes for user {user['_id']}")
+        
+        # Process batch updates
+        budget_service = BudgetService()
+        updated_budgets = []
+        
+        for change in changes:
+            month = change.get('month')
+            year = change.get('year')
+            category = change.get('category')
+            value = change.get('value')
+            additional_income = change.get('additional_income')  # For income propagation
+            
+            if not all([month, year, category, value is not None]):
+                logger.warning(f"Invalid change data: {change}")
+                continue
+            
+            try:
+                # For income changes with additional_income specified, use special handling
+                if category == 'Income' and additional_income is not None:
+                    result = budget_service.update_income_with_additional(
+                        user_id=str(user['_id']),
+                        month=month,
+                        year=year,
+                        total_income=value,
+                        additional_income=additional_income
+                    )
+                else:
+                    # Update or create budget entry
+                    result = budget_service.update_budget_field(
+                        user_id=str(user['_id']),
+                        month=month,
+                        year=year,
+                        category=category,
+                        value=value
+                    )
+                
+                if result:
+                    updated_budgets.append(result)
+                    logger.info(f"Updated {category} for {month}/{year}: {value}")
+                
+            except Exception as e:
+                logger.error(f"Failed to update {category} for {month}/{year}: {str(e)}")
+                continue
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully updated {len(updated_budgets)} budget entries',
+            'updated_budgets': [convert_objectid_to_str(budget) for budget in updated_budgets],
+            'total_changes': len(changes),
+            'successful_changes': len(updated_budgets)
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        logger.error(f"Batch update error: {str(e)}")
+        return JsonResponse({'error': f'Batch update failed: {str(e)}'}, status=500)

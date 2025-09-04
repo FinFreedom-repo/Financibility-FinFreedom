@@ -14,7 +14,7 @@ from .mongodb_api_views import (
     mongodb_get_accounts, mongodb_create_account, mongodb_update_account, mongodb_delete_account,
     mongodb_get_debts, mongodb_create_debt, mongodb_update_debt, mongodb_delete_debt,
     mongodb_get_budgets, mongodb_create_budget, mongodb_update_budget, mongodb_delete_budget, mongodb_get_month_budget,
-    mongodb_get_month_budget_test, mongodb_save_month_budget,
+    mongodb_get_month_budget_test, mongodb_save_month_budget, mongodb_batch_update_budgets,
     mongodb_get_transactions, mongodb_create_transaction, mongodb_update_transaction, mongodb_delete_transaction,
     BudgetViews, DebtViews
 )
@@ -70,6 +70,7 @@ urlpatterns = [
     path('budgets/get-month-test/', mongodb_get_month_budget_test, name='mongodb_get_month_budget_test'),
     path('budgets/save-month/', mongodb_save_month_budget, name='mongodb_save_month_budget'),
     path('budgets/save-month-test/', BudgetViews.save_month_budget_test, name='mongodb_save_month_budget_test'),
+    path('budgets/batch-update/', mongodb_batch_update_budgets, name='mongodb_batch_update_budgets'),
     
     # Transaction endpoints
     path('transactions/', mongodb_get_transactions, name='mongodb_get_transactions'),

@@ -77,6 +77,7 @@ class MongoBudget(Document):
     other = FloatField()
     additional_items = ListField(DictField())
     savings_items = ListField(DictField())
+    manually_edited_categories = ListField(StringField())
     month = IntField()
     year = IntField()
     
@@ -505,6 +506,7 @@ class DataConverter:
             'other': float(mongo_budget.other) if mongo_budget.other else 0,
             'additional_items': mongo_budget.additional_items or [],
             'savings_items': mongo_budget.savings_items or [],
+            'manually_edited_categories': getattr(mongo_budget, 'manually_edited_categories', []) or [],
             'month': mongo_budget.month,
             'year': mongo_budget.year,
             'created_at': mongo_budget.created_at.isoformat() if mongo_budget.created_at else None,

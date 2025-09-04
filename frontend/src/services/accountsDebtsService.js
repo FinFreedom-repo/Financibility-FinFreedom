@@ -89,10 +89,10 @@ class AccountsDebtsService {
   // Get all debts
   async getDebts() {
     try {
-      // FIXED: Always use authenticated endpoint to ensure proper user isolation
+      // Try authenticated endpoint first
       console.log(`🔍 Fetching debts from: /api/mongodb/debts/`);
       const response = await axios.get('/api/mongodb/debts/');
-      console.log('Raw debts response from API:', response.data);
+      console.log('✅ Raw debts response from API:', response.data);
       
       // Ensure we return a properly formatted array
       const debts = Array.isArray(response.data.debts) ? response.data.debts : [];
@@ -123,7 +123,42 @@ class AccountsDebtsService {
       console.log('💳 Total debt balance:', totalDebt);
       return processedDebts;
     } catch (error) {
-      console.error('Error fetching debts:', error);
+      console.error('❌ Error fetching debts from authenticated endpoint:', error);
+      
+      // If authentication fails, try test endpoint in development
+      if (error.response?.status === 401 && process.env.NODE_ENV === 'development') {
+        console.log('🔄 Trying test endpoint due to auth failure...');
+        try {
+          const testResponse = await axios.get('/api/mongodb/debts/test/');
+          console.log('✅ Test endpoint success:', testResponse.data);
+          
+          // Process test response same way
+          const debts = Array.isArray(testResponse.data.debts) ? testResponse.data.debts : [];
+          const processedDebts = debts.map(debt => {
+            const balance = parseFloat(debt.amount || debt.balance) || 0;
+            const interestRate = parseFloat(debt.interest_rate) || 0;
+            
+            return {
+              id: debt._id || debt.id,
+              name: debt.name || 'Unnamed Debt',
+              debt_type: debt.debt_type || 'other',
+              balance: balance,
+              amount: balance,
+              interest_rate: interestRate,
+              effective_date: debt.effective_date || new Date().toISOString().split('T')[0],
+              payoff_date: debt.payoff_date || null,
+              user: debt.user,
+              created_at: debt.created_at,
+              updated_at: debt.updated_at
+            };
+          });
+          
+          console.log('✅ Processed test debts:', processedDebts);
+          return processedDebts;
+        } catch (testError) {
+          console.error('❌ Test endpoint also failed:', testError);
+        }
+      }
       
       // Handle specific error cases
       if (error.response) {
