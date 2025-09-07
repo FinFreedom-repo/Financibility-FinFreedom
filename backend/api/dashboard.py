@@ -1,16 +1,17 @@
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from django.db.models import Sum
-from .models import Transaction, Account
-from budget.models import Budget
+from .mongodb_services import MongoDBService
+from .mongodb_authentication import get_user_from_token
 import logging
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
 class DashboardView(APIView):
-    permission_classes = [IsAuthenticated]
+    """
+    MongoDB-based dashboard view
+    """
 
     def get(self, request):
         """
@@ -21,59 +22,65 @@ class DashboardView(APIView):
         - Financial metrics
         """
         try:
+            # Get user from token
+            user = get_user_from_token(request)
+            if not user:
+                return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+            user_id = user.get('_id')
+            if not user_id:
+                return Response({'error': 'Invalid user'}, status=status.HTTP_400_BAD_REQUEST)
+
             # Get user's recent transactions
-            recent_transactions = Transaction.objects.filter(
-                user=request.user
-            ).order_by('-date')[:5]
+            recent_transactions = MongoDBService.get_user_transactions(user_id, limit=5)
 
             # Get account balances
-            accounts = Account.objects.filter(user=request.user)
-            total_balance = accounts.aggregate(Sum('balance'))['balance__sum'] or 0
+            accounts = MongoDBService.get_user_accounts(user_id)
+            total_balance = sum(Decimal(str(account.get('balance', 0))) for account in accounts)
 
             # Get budget overview
-            budget = Budget.objects.filter(user=request.user).order_by('-updated_at').first()
+            budget = MongoDBService.get_user_budget(user_id)
             
             # Calculate total expenses from budget
-            total_expenses = 0
+            total_expenses = Decimal('0')
             if budget:
                 expense_fields = [
                     'housing', 'debt_payments', 'transportation', 'utilities',
                     'food', 'healthcare', 'entertainment', 'shopping',
                     'travel', 'education', 'childcare', 'other'
                 ]
-                total_expenses = sum(getattr(budget, field, 0) for field in expense_fields)
+                for field in expense_fields:
+                    total_expenses += Decimal(str(budget.get(field, 0)))
                 
                 # Add additional expenses if any
-                if budget.additional_items:
-                    additional_expenses = sum(
-                        item.get('amount', 0) for item in budget.additional_items 
-                        if item.get('type') == 'expense'
-                    )
-                    total_expenses += additional_expenses
+                additional_items = budget.get('additional_items', [])
+                for item in additional_items:
+                    if item.get('type') == 'expense':
+                        total_expenses += Decimal(str(item.get('amount', 0)))
 
             # Prepare dashboard data
             dashboard_data = {
                 'recent_transactions': [
                     {
-                        'id': t.id,
-                        'amount': float(t.amount),
-                        'description': t.description,
-                        'date': t.date,
-                        'type': t.transaction_type
+                        'id': str(t.get('_id', '')),
+                        'amount': float(t.get('amount', 0)),
+                        'description': t.get('description', ''),
+                        'date': t.get('date', ''),
+                        'type': t.get('transaction_type', '')
                     } for t in recent_transactions
                 ],
                 'accounts': [
                     {
-                        'id': a.id,
-                        'name': a.name,
-                        'balance': float(a.balance)
+                        'id': str(a.get('_id', '')),
+                        'name': a.get('name', ''),
+                        'balance': float(a.get('balance', 0))
                     } for a in accounts
                 ],
                 'total_balance': float(total_balance),
                 'budget': {
-                    'income': float(budget.income) if budget else 0,
+                    'income': float(budget.get('income', 0)) if budget else 0,
                     'total_expenses': float(total_expenses),
-                    'net_income': float(budget.income - total_expenses) if budget else 0
+                    'net_income': float(budget.get('income', 0) - total_expenses) if budget else 0
                 }
             }
 

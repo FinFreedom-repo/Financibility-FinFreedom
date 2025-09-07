@@ -4,7 +4,7 @@ This module provides services to access MongoDB data while maintaining Django OR
 """
 
 import mongoengine
-from mongoengine import connect, Document, StringField, IntField, FloatField, DateTimeField, DateField, BooleanField, ListField, DictField, DecimalField
+from mongoengine import connect, Document, StringField, IntField, FloatField, DateTimeField, DateField, BooleanField, ListField, DictField, DecimalField, ObjectIdField
 from decimal import Decimal
 from datetime import datetime, date
 from backend.mongodb_settings import MONGODB_CONNECTION
@@ -13,7 +13,8 @@ from backend.mongodb_settings import MONGODB_CONNECTION
 connect(
     db=MONGODB_CONNECTION['db'],
     host=MONGODB_CONNECTION['host'],
-    port=MONGODB_CONNECTION.get('port', 27017)
+    port=MONGODB_CONNECTION.get('port', 27017),
+    alias='default'
 )
 
 # MongoDB Models
@@ -27,11 +28,11 @@ class MongoUser(Document):
     date_joined = DateTimeField()
     password = StringField()
     
-    meta = {'collection': 'auth_user'}
+    meta = {'collection': 'users', 'db_alias': 'default'}
 
 class MongoAccount(Document):
     id = IntField(primary_key=True)
-    user_id = IntField(required=True)
+    user_id = StringField(required=True)
     name = StringField(required=True)
     account_type = StringField()
     balance = DecimalField(precision=2)
@@ -40,11 +41,11 @@ class MongoAccount(Document):
     created_at = DateTimeField()
     updated_at = DateTimeField()
     
-    meta = {'collection': 'api_account'}
+    meta = {'collection': 'accounts', 'db_alias': 'default'}
 
 class MongoDebt(Document):
     id = IntField(primary_key=True)
-    user_id = IntField(required=True)
+    user_id = StringField(required=True)
     name = StringField(required=True)
     debt_type = StringField()
     balance = DecimalField(precision=2)
@@ -54,15 +55,16 @@ class MongoDebt(Document):
     created_at = DateTimeField()
     updated_at = DateTimeField()
     
-    meta = {'collection': 'api_debt'}
+    meta = {'collection': 'debts', 'db_alias': 'default'}
 
 class MongoBudget(Document):
     id = IntField(primary_key=True)
-    user_id = IntField(required=True)
+    user_id = StringField(required=True)
     created_at = DateTimeField()
     updated_at = DateTimeField()
     income = FloatField()
     additional_income = FloatField()
+    additional_income_items = ListField(DictField())
     housing = FloatField()
     debt_payments = FloatField()
     transportation = FloatField()
@@ -74,14 +76,14 @@ class MongoBudget(Document):
     travel = FloatField()
     education = FloatField()
     childcare = FloatField()
-    other = FloatField()
+    others = FloatField()
     additional_items = ListField(DictField())
     savings_items = ListField(DictField())
     manually_edited_categories = ListField(StringField())
     month = IntField()
     year = IntField()
     
-    meta = {'collection': 'budget_budget'}
+    meta = {'collection': 'budgets', 'db_alias': 'default'}
 
 class MongoTransaction(Document):
     id = IntField(primary_key=True)
@@ -92,11 +94,11 @@ class MongoTransaction(Document):
     category_id = IntField(required=True)
     date = DateField()
     effective_date = DateField()
-    user_id = IntField(required=True)
+    user_id = StringField(required=True)
     created_at = DateTimeField()
     updated_at = DateTimeField()
     
-    meta = {'collection': 'api_transaction'}
+    meta = {'collection': 'transactions', 'db_alias': 'default'}
 
 class MongoCategory(Document):
     id = IntField(primary_key=True)
@@ -105,7 +107,7 @@ class MongoCategory(Document):
     created_at = DateTimeField()
     updated_at = DateTimeField()
     
-    meta = {'collection': 'api_category'}
+    meta = {'collection': 'categories', 'db_alias': 'default'}
 
 class MongoFinancialStep(Document):
     id = IntField(primary_key=True)
@@ -121,7 +123,7 @@ class MongoFinancialStep(Document):
     mortgage_balance = DecimalField(precision=2)
     updated_at = DateTimeField()
     
-    meta = {'collection': 'api_financialstep'}
+    meta = {'collection': 'financial_steps', 'db_alias': 'default'}
 
 class MongoUserProfile(Document):
     id = IntField(primary_key=True)
@@ -137,7 +139,7 @@ class MongoUserProfile(Document):
     created_at = DateTimeField()
     updated_at = DateTimeField()
     
-    meta = {'collection': 'api_userprofile'}
+    meta = {'collection': 'user_profiles', 'db_alias': 'default'}
 
 # MongoDB Services
 class MongoDBService:
@@ -174,6 +176,16 @@ class MongoDBService:
             return []
     
     @staticmethod
+    def get_user_budget(user_id):
+        """Get the most recent budget for a user from MongoDB"""
+        try:
+            budget = MongoBudget.objects.filter(user_id=user_id).order_by('-updated_at').first()
+            return budget
+        except Exception as e:
+            print(f"Error getting budget from MongoDB: {e}")
+            return None
+    
+    @staticmethod
     def get_user_financial_step(user_id):
         """Get user's financial step data from MongoDB"""
         try:
@@ -182,9 +194,12 @@ class MongoDBService:
             return None
 
     @staticmethod
-    def get_user_transactions(user_id):
+    def get_user_transactions(user_id, limit=None):
         try:
-            return list(MongoTransaction.objects.filter(user_id=user_id))
+            queryset = MongoTransaction.objects.filter(user_id=user_id).order_by('-date')
+            if limit:
+                queryset = queryset[:limit]
+            return list(queryset)
         except Exception as e:
             print(f"Error getting transactions from MongoDB: {e}")
             return []
