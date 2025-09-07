@@ -183,7 +183,7 @@ function Navigation({ onNavigate }) {
       text: 'Dashboard', 
       icon: <DashboardIcon />, 
       path: '/dashboard',
-      color: '#1976d2'
+      color: 'linear-gradient(135deg, #ff0000 0%, #0000ff 100%)'
     },
   ];
 
@@ -192,19 +192,19 @@ function Navigation({ onNavigate }) {
       text: 'Accounts & Debts', 
       icon: <AccountBalanceIcon />, 
       path: '/accounts-and-debts',
-      color: '#2e7d32'
+      color: 'linear-gradient(135deg, #ff0000 0%, #0000ff 100%)'
     },
     { 
       text: 'Monthly Budget', 
       icon: <ReceiptIcon />, 
       path: '/monthly-budget',
-      color: '#ed6c02'
+      color: 'linear-gradient(135deg, #ff0000 0%, #0000ff 100%)'
     },
     { 
       text: 'Debt Planning', 
       icon: <CreditCardIcon />, 
       path: '/debt-planning',
-      color: '#d32f2f'
+      color: 'linear-gradient(135deg, #ff0000 0%, #0000ff 100%)'
     },
   ];
 
@@ -213,18 +213,44 @@ function Navigation({ onNavigate }) {
       text: 'Expense Analyzer', 
       icon: <AnalyticsIcon />, 
       path: '/expense-analyzer',
-      color: '#7b1fa2'
+      color: 'linear-gradient(135deg, #ff0000 0%, #0000ff 100%)'
     },
     { 
       text: 'Wealth Projector', 
       icon: <TrendingUpIcon />, 
       path: '/wealth-projector',
-      color: '#1565c0'
+      color: 'linear-gradient(135deg, #ff0000 0%, #0000ff 100%)'
     },
   ];
 
   const renderMenuItem = (item) => {
     const isActive = location.pathname === item.path;
+    
+    // Handle gradient colors for all menu items
+    const getActiveBackground = () => {
+      if (isActive) {
+        return 'linear-gradient(135deg, rgba(255, 0, 0, 0.2) 0%, rgba(0, 0, 255, 0.2) 100%)';
+      }
+      return 'transparent';
+    };
+
+    const getHoverBackground = () => {
+      return 'linear-gradient(135deg, rgba(255, 0, 0, 0.15) 0%, rgba(0, 0, 255, 0.15) 100%)';
+    };
+
+    const getIconColor = () => {
+      if (isActive) {
+        return 'linear-gradient(135deg, #ff0000 0%, #0000ff 100%)';
+      }
+      return 'inherit';
+    };
+
+    const getTextColor = () => {
+      if (isActive) {
+        return 'linear-gradient(135deg, #ff0000 0%, #0000ff 100%)';
+      }
+      return 'inherit';
+    };
     
     return (
       <ListItem key={item.path} disablePadding>
@@ -237,16 +263,10 @@ function Navigation({ onNavigate }) {
             mx: 1,
             my: 0.5,
             borderRadius: 2,
-            background: isActive 
-              ? (theme) => theme.palette.mode === 'dark'
-                ? `linear-gradient(135deg, ${item.color}20 0%, ${item.color}10 100%)`
-                : `linear-gradient(135deg, ${item.color}15 0%, ${item.color}08 100%)`
-              : 'transparent',
-            borderLeft: isActive ? `4px solid ${item.color}` : '4px solid transparent',
+            background: getActiveBackground(),
+            borderLeft: isActive ? '4px solid #ff0000' : '4px solid transparent',
             '&:hover': {
-              background: (theme) => theme.palette.mode === 'dark'
-                ? `linear-gradient(135deg, ${item.color}15 0%, ${item.color}08 100%)`
-                : `linear-gradient(135deg, ${item.color}10 0%, ${item.color}05 100%)`,
+              background: getHoverBackground(),
             },
           }}
         >
@@ -255,7 +275,7 @@ function Navigation({ onNavigate }) {
               minWidth: 0,
               mr: drawerOpen ? 3 : 'auto',
               justifyContent: 'center',
-              color: isActive ? item.color : 'inherit',
+              color: getIconColor(),
             }}
           >
             {item.icon}
@@ -266,7 +286,7 @@ function Navigation({ onNavigate }) {
               opacity: drawerOpen ? 1 : 0,
               '& .MuiTypography-root': {
                 fontWeight: isActive ? 600 : 400,
-                color: isActive ? item.color : 'inherit',
+                color: getTextColor(),
               }
             }} 
           />
@@ -327,7 +347,7 @@ function Navigation({ onNavigate }) {
           </IconButton>
           
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Financability
+            FinFreedom
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -377,10 +397,24 @@ function Navigation({ onNavigate }) {
         <Toolbar />
         
         <LogoContainer>
-          <MonetizationOnIcon sx={{ mr: drawerOpen ? 1 : 0, color: '#4caf50' }} />
+          <MonetizationOnIcon sx={{ 
+            mr: drawerOpen ? 1 : 0, 
+            background: 'linear-gradient(135deg, #ff0000 0%, #0000ff 100%)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            color: 'transparent'
+          }} />
           {drawerOpen && (
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#4caf50' }}>
-              Financability
+            <Typography variant="h6" sx={{ 
+              fontWeight: 'bold', 
+              background: 'linear-gradient(135deg, #ff0000 0%, #0000ff 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              color: 'transparent'
+            }}>
+              FinFreedom
             </Typography>
           )}
         </LogoContainer>

@@ -54,7 +54,7 @@ function AppContent() {
   useEffect(() => {
     if (showAccount && user && !profileLoaded) {
       console.log('Fetching profile data for user:', user);
-      axios.get('/api/profile/me/')
+      axios.get('/api/mongodb/auth/mongodb/profile/')
         .then(res => {
           console.log('Profile data received:', res.data);
           setProfile(res.data);

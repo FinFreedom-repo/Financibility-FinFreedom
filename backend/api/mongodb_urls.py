@@ -16,9 +16,12 @@ from .mongodb_api_views import (
     mongodb_get_budgets, mongodb_create_budget, mongodb_update_budget, mongodb_delete_budget, mongodb_get_month_budget,
     mongodb_get_month_budget_test, mongodb_save_month_budget, mongodb_batch_update_budgets,
     mongodb_get_transactions, mongodb_create_transaction, mongodb_update_transaction, mongodb_delete_transaction,
-    BudgetViews, DebtViews
+    mongodb_project_wealth, BudgetViews, DebtViews
 )
 from .mongodb_debt_planner import mongodb_debt_planner, mongodb_debt_planner_test
+from .financial_steps import FinancialStepsView, financial_steps_calculate_test
+from .dashboard import DashboardView
+from .test_auth import test_login
 
 def health_check(request):
     """Simple health check endpoint"""
@@ -81,4 +84,17 @@ urlpatterns = [
     # Debt planner endpoint
     path('debt-planner/', mongodb_debt_planner, name='mongodb_debt_planner'),
     path('debt-planner-test/', mongodb_debt_planner_test, name='mongodb_debt_planner_test'),
+    
+    # Financial steps endpoints
+    path('financial-steps/calculate/', FinancialStepsView.as_view(), name='financial_steps_calculate'),
+    path('financial-steps/calculate-test/', financial_steps_calculate_test, name='financial_steps_calculate_test'),
+    
+    # Dashboard endpoint
+    path('dashboard/', DashboardView.as_view(), name='dashboard'),
+    
+    # Wealth projection endpoint
+    path('project-wealth/', mongodb_project_wealth, name='mongodb_project_wealth'),
+    
+    # Test authentication endpoint
+    path('test-login/', test_login, name='test_login'),
 ] 

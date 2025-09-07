@@ -224,7 +224,13 @@ class UserService(MongoDBService):
     def get_user_by_id(self, user_id: str) -> Optional[Dict]:
         """Get user by ID"""
         try:
-            user = self.db.users.find_one({"_id": ObjectId(user_id)})
+            # Handle both ObjectId and string user IDs
+            try:
+                user_id_obj = ObjectId(user_id)
+            except:
+                user_id_obj = user_id
+            
+            user = self.db.users.find_one({"_id": user_id_obj})
             if user:
                 user.pop('password_hash', None)
             return user
@@ -721,6 +727,7 @@ class BudgetService(MongoDBService):
             default_budget = {
                 "income": 0.0,
                 "additional_income": 0.0,
+                "additional_income_items": [],
                 "expenses": {
                     "housing": 0.0,
                     "debt_payments": 0.0,
@@ -733,7 +740,7 @@ class BudgetService(MongoDBService):
                     "education": 0.0,
                     "utilities": 0.0,
                     "childcare": 0.0,
-                    "other": 0.0
+                    "others": 0.0
                 },
                 "additional_items": [],
                 "savings_items": [],
@@ -745,7 +752,7 @@ class BudgetService(MongoDBService):
                 default_budget["expenses"].update(budget_data["expenses"])
             
             # Update other fields
-            for key in ["income", "additional_income", "additional_items", "savings_items", "manually_edited_categories"]:
+            for key in ["income", "additional_income", "additional_income_items", "additional_items", "savings_items", "manually_edited_categories"]:
                 if key in budget_data:
                     default_budget[key] = budget_data[key]
             
@@ -805,8 +812,14 @@ class BudgetService(MongoDBService):
     def get_user_budgets(self, user_id: str) -> List[Dict]:
         """Get all budgets for a user, returning the most recent budget for each month"""
         try:
+            # Handle both ObjectId and string user IDs
+            try:
+                user_id_obj = ObjectId(user_id)
+            except:
+                user_id_obj = user_id
+            
             # Get all budgets for the user, ordered by creation date (newest first)
-            all_budgets = list(self.db.budgets.find({"user_id": ObjectId(user_id)}).sort("created_at", -1))
+            all_budgets = list(self.db.budgets.find({"user_id": user_id_obj}).sort("created_at", -1))
             
             # Group budgets by month/year and keep only the most recent one for each
             unique_budgets = {}
@@ -863,6 +876,7 @@ class BudgetService(MongoDBService):
             default_budget = {
                 "income": 0.0,
                 "additional_income": 0.0,
+                "additional_income_items": [],
                 "expenses": {
                     "housing": 0.0,
                     "debt_payments": 0.0,
@@ -875,7 +889,7 @@ class BudgetService(MongoDBService):
                     "education": 0.0,
                     "utilities": 0.0,
                     "childcare": 0.0,
-                    "other": 0.0
+                    "others": 0.0
                 },
                 "additional_items": [],
                 "savings_items": [],
@@ -887,7 +901,7 @@ class BudgetService(MongoDBService):
                 default_budget["expenses"].update(budget_data["expenses"])
             
             # Update other fields (but NOT month and year to avoid duplicate key errors)
-            for key in ["income", "additional_income", "additional_items", "savings_items", "manually_edited_categories"]:
+            for key in ["income", "additional_income", "additional_income_items", "additional_items", "savings_items", "manually_edited_categories"]:
                 if key in budget_data:
                     default_budget[key] = budget_data[key]
             
@@ -951,7 +965,7 @@ class BudgetService(MongoDBService):
                 # Handle expense fields
                 elif category.lower() in ['housing', 'transportation', 'food', 'healthcare', 
                                         'entertainment', 'shopping', 'travel', 'education', 
-                                        'utilities', 'childcare', 'other']:
+                                        'utilities', 'childcare', 'others']:
                     update_data["expenses." + category.lower()] = value
                 # Handle savings
                 elif category.lower() == 'savings':
@@ -994,7 +1008,7 @@ class BudgetService(MongoDBService):
                         "education": 0.0,
                         "utilities": 0.0,
                         "childcare": 0.0,
-                        "other": 0.0
+                        "others": 0.0
                     },
                     "additional_items": [],
                     "savings_items": [],
@@ -1010,7 +1024,7 @@ class BudgetService(MongoDBService):
                     new_budget["additional_income"] = value
                 elif category.lower() in ['housing', 'transportation', 'food', 'healthcare', 
                                         'entertainment', 'shopping', 'travel', 'education', 
-                                        'utilities', 'childcare', 'other']:
+                                        'utilities', 'childcare', 'others']:
                     new_budget["expenses"][category.lower()] = value
                 elif category.lower() == 'savings':
                     new_budget["savings"] = value
@@ -1078,7 +1092,7 @@ class BudgetService(MongoDBService):
                         "education": 0.0,
                         "utilities": 0.0,
                         "childcare": 0.0,
-                        "other": 0.0
+                        "others": 0.0
                     },
                     "additional_items": [],
                     "savings_items": [],
@@ -1190,6 +1204,6 @@ class JWTAuthService:
         except jwt.ExpiredSignatureError:
             logger.error("Token has expired")
             return None
-        except jwt.JWTError as e:
+        except jwt.PyJWTError as e:
             logger.error(f"JWT error: {e}")
             return None 

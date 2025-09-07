@@ -29,6 +29,7 @@ import {
   Home as HomeIcon,
   Savings as SavingsIcon,
   Timeline as TimelineIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from '../utils/axios';
@@ -132,7 +133,13 @@ function Dashboard() {
   const fetchFinancialSteps = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/financial-steps/calculate/');
+      const timestamp = new Date().toISOString();
+      console.log(`🔄 [${timestamp}] Fetching financial steps...`);
+      const url = `/api/mongodb/financial-steps/calculate/?t=${Date.now()}`;
+      console.log('🌐 API URL:', url);
+      const response = await axios.get(url);
+      console.log(`📊 [${timestamp}] Financial steps response:`, response.data);
+      console.log('📊 Response status:', response.status);
       setFinancialSteps(response.data);
       setError(null);
     } catch (err) {
@@ -148,6 +155,12 @@ function Dashboard() {
     
     const currentStep = financialSteps.current_step;
     const stepProgress = financialSteps.step_progress;
+    
+    console.log(`🔍 Step ${stepId} status check:`, {
+      currentStep,
+      stepProgress,
+      step1Data: financialSteps.steps?.step_1
+    });
     
     // If this step is completed (current step is higher)
     if (currentStep > stepId) {
@@ -174,6 +187,8 @@ function Dashboard() {
     const progress = financialSteps.step_progress;
     if (!progress || progress.completed) return null;
     
+    console.log(`📊 Step ${stepId} progress:`, progress);
+    
     return {
       progress: progress.progress || 0,
       current: progress.current_amount || progress.current_debt || progress.current_percent || 0,
@@ -197,7 +212,12 @@ function Dashboard() {
 
   const renderStepProgress = (stepId) => {
     const progress = getStepProgress(stepId);
-    if (!progress) return null;
+    if (!progress) {
+      console.log(`❌ No progress data for step ${stepId}`);
+      return null;
+    }
+    
+    console.log(`✅ Rendering progress for step ${stepId}:`, progress);
     
     return (
       <Box sx={{ mt: 2 }}>
@@ -337,10 +357,26 @@ function Dashboard() {
         <Grid item xs={12} md={4}>
           <Card>
             <Box sx={{ p: 3 }}>
-              <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TimelineIcon color="primary" />
-                Financial Planning Checklist
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h5" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <TimelineIcon color="primary" />
+                  Financial Planning Checklist
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    onClick={() => {
+                      console.log('🔄 Manual refresh triggered');
+                      fetchFinancialSteps();
+                    }}
+                    disabled={loading}
+                    startIcon={<RefreshIcon />}
+                    size="small"
+                    variant="outlined"
+                  >
+                    {loading ? 'Refreshing...' : 'Refresh'}
+                  </Button>
+                </Box>
+              </Box>
               
               {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
@@ -351,6 +387,11 @@ function Dashboard() {
               <List>
                 {babySteps.map((step) => {
                   const status = getStepStatus(step.id);
+                  console.log(`🎯 Rendering step ${step.id}:`, {
+                    status,
+                    financialSteps: financialSteps,
+                    stepData: financialSteps?.steps?.[`step_${step.id}`]
+                  });
                   return (
                     <ListItem key={step.id} sx={{ px: 0, py: 1 }}>
                       <Paper

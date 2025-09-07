@@ -16,6 +16,7 @@ from .mongodb_service import (
     UserService, AccountService, DebtService, BudgetService, TransactionService, JWTAuthService
 )
 from .mongodb_json_encoder import convert_objectid_to_str
+from .wealth_projection import calculate_wealth_projection
 
 logger = logging.getLogger(__name__)
 
@@ -605,6 +606,8 @@ class BudgetViews(MongoDBApiViews):
                 }, status=status.HTTP_401_UNAUTHORIZED)
             
             data = json.loads(request.body)
+            logger.info(f"💾 Received budget data: {data}")
+            logger.info(f"💾 Savings items in data: {data.get('savings_items', [])}")
             
             # Validate required fields
             if 'month' not in data or 'year' not in data:
@@ -1057,3 +1060,61 @@ def mongodb_batch_update_budgets(request):
     except Exception as e:
         logger.error(f"Batch update error: {str(e)}")
         return JsonResponse({'error': f'Batch update failed: {str(e)}'}, status=500)
+
+
+@api_view(['POST'])
+@authentication_classes([MongoDBJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def mongodb_project_wealth(request):
+    """
+    Calculate wealth projection based on user input parameters.
+    This endpoint uses real-time data from MongoDB Atlas.
+    """
+    try:
+        # Get user from token
+        user = MongoDBApiViews.get_user_from_token(request)
+        if not user:
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+        
+        # Parse request data
+        data = json.loads(request.body)
+        logger.info(f"Wealth projection request from user {user['_id']}: {data}")
+        
+        # Validate required fields
+        required_fields = ['age', 'startWealth', 'debt', 'annualContributions']
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse({'error': f'Missing required field: {field}'}, status=400)
+        
+        # Set default values for optional fields
+        defaults = {
+            'maxAge': 100,
+            'debtInterest': 6.0,
+            'assetInterest': 10.5,
+            'inflation': 2.5,
+            'taxRate': 25.0,
+            'checkingInterest': 4.0
+        }
+        
+        for field, default_value in defaults.items():
+            if field not in data:
+                data[field] = default_value
+        
+        # Calculate wealth projection
+        projections = calculate_wealth_projection(data)
+        
+        logger.info(f"Generated {len(projections)} projection points for user {user['_id']}")
+        
+        return JsonResponse({
+            'success': True,
+            'projections': projections,
+            'user_id': str(user['_id']),
+            'calculation_date': data.get('calculation_date', ''),
+            'total_years': len(projections) - 1
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        logger.error(f"Wealth projection error: {str(e)}")
+        return JsonResponse({'error': f'Wealth projection failed: {str(e)}'}, status=500)

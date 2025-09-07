@@ -86,7 +86,6 @@ function AccountsAndDebts() {
   // Default interest rates
   const defaultAccountRates = {
     checking: 0.01,
-    savings: 4.25,
     investment: 7.0,
     other: 0.0
   };
@@ -120,7 +119,6 @@ function AccountsAndDebts() {
 
   const accountTypes = [
     { value: 'checking', label: 'Checking Account', icon: <AccountBalanceIcon />, color: '#1976d2' },
-    { value: 'savings', label: 'Savings Account', icon: <SavingsIcon />, color: '#2e7d32' },
     { value: 'investment', label: 'Investment Account', icon: <TrendingUpIcon />, color: '#7b1fa2' },
     { value: 'other', label: 'Other', icon: <ReceiptIcon />, color: '#ed6c02' }
   ];

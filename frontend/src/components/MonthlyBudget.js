@@ -42,6 +42,7 @@ import {
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
   ExpandMore as ExpandMoreIcon,
   Save as SaveIcon,
   PieChart as PieChartIcon,
@@ -61,7 +62,6 @@ import {
   MoreHoriz as OtherIcon,
   AccountBalance as SavingsIcon,
   Receipt as DebtIcon,
-  Edit as EditIcon,
   Visibility as ViewIcon,
   BarChart as BarChartIcon,
   DonutLarge as DonutLargeIcon
@@ -103,6 +103,7 @@ function MonthlyBudget() {
   });
 
   const [additionalExpenses, setAdditionalExpenses] = useState([]);
+  const [additionalIncomeItems, setAdditionalIncomeItems] = useState([]);
   const [savingsItems, setSavingsItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -113,10 +114,14 @@ function MonthlyBudget() {
   const [currentBudgetId, setCurrentBudgetId] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddExpenseDialog, setShowAddExpenseDialog] = useState(false);
+  const [showAddIncomeDialog, setShowAddIncomeDialog] = useState(false);
   const [showAddSavingsDialog, setShowAddSavingsDialog] = useState(false);
   const [newExpenseItem, setNewExpenseItem] = useState({ name: '', amount: '' });
+  const [newIncomeItem, setNewIncomeItem] = useState({ name: '', amount: '' });
   const [newSavingsItem, setNewSavingsItem] = useState({ name: '', amount: '' });
+  const [savingsType, setSavingsType] = useState('custom');
   const [editingExpenseIndex, setEditingExpenseIndex] = useState(null);
+  const [editingIncomeIndex, setEditingIncomeIndex] = useState(null);
   const [editingSavingsIndex, setEditingSavingsIndex] = useState(null);
 
   // Confirmation dialogs state
@@ -136,14 +141,24 @@ function MonthlyBudget() {
     education: { label: 'Education', icon: <EducationIcon />, color: '#F7DC6F' },
     utilities: { label: 'Utilities', icon: <UtilitiesIcon />, color: '#BB8FCE' },
     childcare: { label: 'Childcare', icon: <ChildCareIcon />, color: '#85C1E9' },
-    debt_payments: { label: 'Debt Payments', icon: <DebtIcon />, color: '#F8C471' },
-    others: { label: 'Others', icon: <OtherIcon />, color: '#82E0AA' }
+    debt_payments: { label: 'Required Debt Payments', icon: <DebtIcon />, color: '#F8C471' },
+    others: { label: 'Miscellaneous', icon: <OtherIcon />, color: '#82E0AA' }
   };
 
   const colorPalette = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
     '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
     '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#F7DC6F'
+  ];
+
+  // Predefined savings options
+  const savingsOptions = [
+    { value: 'emergency_fund', label: 'Emergency Fund', icon: <SavingsIcon />, color: '#2E7D32' },
+    { value: 'retirement', label: 'Retirement Savings', icon: <TrendingUpIcon />, color: '#2782ca' },
+    { value: 'vacation', label: 'Vacation Fund', icon: <TravelIcon />, color: '#FF9800' },
+    { value: 'home', label: 'Home Down Payment', icon: <HomeIcon />, color: '#ca4b41' },
+    { value: 'education', label: 'Education Fund', icon: <EducationIcon />, color: '#F57C00' },
+    { value: 'custom', label: 'Custom Savings', icon: <OtherIcon />, color: '#607D8B' }
   ];
 
   // Load budget data on component mount
@@ -217,6 +232,13 @@ function MonthlyBudget() {
           additional_income: budget.additional_income || ''
         });
         
+        // Extract additional income items
+        if (budget.additional_income_items && Array.isArray(budget.additional_income_items)) {
+          setAdditionalIncomeItems(budget.additional_income_items);
+        } else {
+          setAdditionalIncomeItems([]);
+        }
+        
         // Extract expenses from MongoDB structure
         const budgetExpenses = budget.expenses || {};
         const newExpenses = {};
@@ -241,6 +263,7 @@ function MonthlyBudget() {
         setFormData({ income: '', additional_income: '' });
         setExpenses(Object.fromEntries(Object.keys(expenseCategories).map(key => [key, ''])));
         setAdditionalExpenses([]);
+        setAdditionalIncomeItems([]);
         setSavingsItems([]);
         setCurrentBudgetId(null);
       }
@@ -255,7 +278,9 @@ function MonthlyBudget() {
 
   // Calculate budget summary
   const calculateBudgetSummary = () => {
-    const totalIncome = (parseFloat(formData.income) || 0) + (parseFloat(formData.additional_income) || 0);
+    const primaryIncome = parseFloat(formData.income) || 0;
+    const totalAdditionalIncome = additionalIncomeItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    const totalIncome = primaryIncome + totalAdditionalIncome;
     
     const totalFixedExpenses = Object.values(expenses).reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
     const totalAdditionalExpenses = additionalExpenses.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -321,7 +346,7 @@ function MonthlyBudget() {
       labels: ['Income', 'Expenses', 'Savings', 'Net Balance'],
       datasets: [{
         data: [summary.totalIncome, summary.totalExpenses, summary.totalSavings, summary.netBalance],
-        backgroundColor: ['#2E7D32', '#D32F2F', '#1976D2', summary.netBalance >= 0 ? '#FF9800' : '#9C27B0'],
+        backgroundColor: ['#2E7D32', '#ca4b41', '#2782ca', summary.netBalance >= 0 ? '#FF9800' : '#ff0000'],
         borderWidth: 2,
         borderColor: '#fff'
       }]
@@ -403,6 +428,43 @@ function MonthlyBudget() {
     setShowAddExpenseDialog(true);
   };
 
+  // Add new income item
+  const handleAddIncome = () => {
+    if (newIncomeItem.name && newIncomeItem.amount) {
+      if (editingIncomeIndex !== null) {
+        // Update existing income item
+        const updatedIncomeItems = [...additionalIncomeItems];
+        updatedIncomeItems[editingIncomeIndex] = {
+          name: newIncomeItem.name,
+          amount: parseFloat(newIncomeItem.amount)
+        };
+        setAdditionalIncomeItems(updatedIncomeItems);
+        setEditingIncomeIndex(null);
+      } else {
+        // Add new income item
+        setAdditionalIncomeItems(prev => [...prev, {
+          name: newIncomeItem.name,
+          amount: parseFloat(newIncomeItem.amount)
+        }]);
+      }
+      setNewIncomeItem({ name: '', amount: '' });
+      setShowAddIncomeDialog(false);
+    }
+  };
+
+  // Edit income item
+  const handleEditIncome = (index) => {
+    const item = additionalIncomeItems[index];
+    setNewIncomeItem({ name: item.name, amount: item.amount.toString() });
+    setEditingIncomeIndex(index);
+    setShowAddIncomeDialog(true);
+  };
+
+  // Delete income item
+  const handleDeleteIncome = (index) => {
+    setAdditionalIncomeItems(prev => prev.filter((_, i) => i !== index));
+  };
+
   // Edit savings item
   const handleEditSavings = (index) => {
     const item = savingsItems[index];
@@ -473,6 +535,10 @@ function MonthlyBudget() {
       const budgetData = {
         income: parseFloat(formData.income) || 0,
         additional_income: parseFloat(formData.additional_income) || 0,
+        additional_income_items: additionalIncomeItems.map(item => ({
+          name: item.name,
+          amount: parseFloat(item.amount) || 0
+        })),
         expenses: Object.fromEntries(
           Object.entries(expenses).map(([key, value]) => [key === 'others' ? 'other' : key, parseFloat(value) || 0])
         ),
@@ -490,6 +556,7 @@ function MonthlyBudget() {
       };
 
       console.log('📊 Saving current month budget data:', budgetData);
+      console.log('💾 Savings items being saved:', budgetData.savings_items);
 
       let response;
       
@@ -712,7 +779,7 @@ function MonthlyBudget() {
             color: theme.palette.text.primary,
             mb: 4,
             textAlign: 'center',
-            background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
             backgroundClip: 'text',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -834,9 +901,9 @@ function MonthlyBudget() {
                         <Box sx={{ 
                           textAlign: 'center', 
                           p: 4, 
-                          background: 'linear-gradient(135deg, #2196F3 0%, #42A5F5 100%)',
+                          background: 'linear-gradient(135deg, #007fff 0%, #4da6ff 100%)',
                           borderRadius: 3,
-                          boxShadow: '0 6px 24px rgba(33, 150, 243, 0.3)',
+                          boxShadow: '0 6px 24px rgba(0, 102, 204, 0.3)',
                           color: 'white',
                           transition: 'transform 0.3s ease',
                           '&:hover': { transform: 'translateY(-6px)' },
@@ -857,11 +924,11 @@ function MonthlyBudget() {
                           p: 4, 
                           background: summary.netBalance >= 0 
                             ? 'linear-gradient(135deg, #FF9800 0%, #FFB74D 100%)'
-                            : 'linear-gradient(135deg, #9C27B0 0%, #BA68C8 100%)',
+                            : 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
                           borderRadius: 3,
                           boxShadow: summary.netBalance >= 0 
                             ? '0 6px 24px rgba(255, 152, 0, 0.3)'
-                            : '0 6px 24px rgba(156, 39, 176, 0.3)',
+                            : '0 6px 24px rgba(0, 102, 204, 0.3)',
                           color: 'white',
                           transition: 'transform 0.3s ease',
                           '&:hover': { transform: 'translateY(-6px)' },
@@ -915,12 +982,47 @@ function MonthlyBudget() {
                     
                     <Grid container spacing={4}>
                       <Grid item xs={12} sm={6}>
-                        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                          <Typography variant="h6" gutterBottom sx={{ mb: 2, fontWeight: 'bold' }}>
+                        <Box sx={{ 
+                          p: 3, 
+                          bgcolor: 'background.paper', 
+                          borderRadius: 3, 
+                          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                          border: `1px solid ${theme.palette.divider}`,
+                          position: 'relative',
+                          overflow: 'hidden',
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 4,
+                            background: '#2196f3',
+                          }
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                            <Box sx={{ 
+                              p: 1.5, 
+                              borderRadius: 2, 
+                              bgcolor: '#2196f3',
+                              mr: 2,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <MoneyIcon sx={{ color: 'white', fontSize: 24 }} />
+                            </Box>
+                            <Typography variant="h6" sx={{ 
+                              fontWeight: 'bold',
+                              color: '#2196f3'
+                            }}>
                             Primary Income
                           </Typography>
+                          </Box>
+                          
+                          <Box sx={{ position: 'relative' }}>
                           <Input
-                            label="Amount"
+                              label="Monthly Income Amount"
                             name="income"
                             value={formData.income}
                             onChange={handleIncomeChange}
@@ -929,41 +1031,251 @@ function MonthlyBudget() {
                             fullWidth
                             sx={{
                               '& .MuiInputBase-root': {
-                                height: 56,
-                                fontSize: '1.1rem',
+                                  height: 64,
+                                  fontSize: '1.2rem',
+                                  borderRadius: 2,
+                                  border: `2px solid ${theme.palette.divider}`,
+                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  '&:hover': {
+                                    borderColor: 'primary.main',
+                                  },
+                                  '&.Mui-focused': {
+                                    borderColor: 'primary.main',
+                                    boxShadow: '0 0 0 3px rgba(33, 150, 243, 0.1)',
+                                  },
                                 '& input': {
-                                  fontSize: '1.1rem',
-                                  padding: '16px 14px'
+                                    fontSize: '1.2rem',
+                                    padding: '20px 16px',
+                                    fontWeight: 600,
+                                    color: 'text.primary'
+                                  }
+                                },
+                                '& .MuiInputLabel-root': {
+                                  fontSize: '1rem',
+                                  fontWeight: 500,
+                                  '&.Mui-focused': {
+                                    color: 'primary.main',
                                 }
                               }
                             }}
                           />
+                            
+                            {/* Income Display */}
+                            {formData.income && parseFloat(formData.income) > 0 && (
+                              <Box sx={{ 
+                                mt: 2, 
+                                p: 2, 
+                                borderRadius: 2, 
+                                bgcolor: '#2196f3',
+                                textAlign: 'center'
+                              }}>
+                                <Typography variant="subtitle2" sx={{ 
+                                  color: 'white',
+                                  fontWeight: 600,
+                                  mb: 0.5
+                                }}>
+                                  Monthly Primary Income
+                                </Typography>
+                                <Typography variant="h4" sx={{ 
+                                  color: 'white',
+                                  fontWeight: 'bold'
+                                }}>
+                                  ${parseFloat(formData.income).toLocaleString()}
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
                         </Box>
                       </Grid>
                       <Grid item xs={12} sm={6}>
-                        <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                          <Typography variant="h6" gutterBottom sx={{ mb: 2, fontWeight: 'bold' }}>
+                        <Box sx={{ 
+                          p: 3, 
+                          bgcolor: 'background.paper', 
+                          borderRadius: 3, 
+                          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                          border: `1px solid ${theme.palette.divider}`,
+                          position: 'relative',
+                          overflow: 'hidden',
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 4,
+                            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                          }
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                            <Box sx={{ 
+                              p: 1.5, 
+                              borderRadius: 2, 
+                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                              mr: 2,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <TrendingUpIcon sx={{ color: 'white', fontSize: 24 }} />
+                            </Box>
+                            <Typography variant="h6" sx={{ 
+                              fontWeight: 'bold',
+                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                              backgroundClip: 'text',
+                              WebkitBackgroundClip: 'text',
+                              WebkitTextFillColor: 'transparent',
+                              color: 'transparent'
+                            }}>
                             Additional Income
                           </Typography>
-                          <Input
-                            label="Amount"
-                            name="additional_income"
-                            value={formData.additional_income}
-                            onChange={handleIncomeChange}
-                            type="number"
-                            startAdornment={<InputAdornment position="start">$</InputAdornment>}
-                            fullWidth
+                          </Box>
+                          
+                          {/* Additional Income Items List */}
+                          {additionalIncomeItems.length > 0 && (
+                            <Box sx={{ mb: 3 }}>
+                              <Typography variant="subtitle2" sx={{ 
+                                mb: 2, 
+                                color: 'text.secondary',
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.5,
+                                fontSize: '0.75rem'
+                              }}>
+                                Income Sources ({additionalIncomeItems.length})
+                              </Typography>
+                              <Stack spacing={1.5}>
+                                {additionalIncomeItems.map((item, index) => (
+                                  <Card key={index} sx={{ 
+                                    borderRadius: 2,
+                                    border: `1px solid ${theme.palette.divider}`,
+                                    bgcolor: 'background.default',
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      transform: 'translateY(-2px)',
+                                      boxShadow: '0 8px 25px rgba(255, 0, 0, 0.15)',
+                                      borderColor: 'primary.main'
+                                    }
+                                  }}>
+                                    <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                                          <Box sx={{ 
+                                            width: 8, 
+                                            height: 8, 
+                                            borderRadius: '50%', 
+                                            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                                            mr: 2,
+                                            flexShrink: 0
+                                          }} />
+                                          <Box sx={{ flex: 1 }}>
+                                            <Typography variant="subtitle1" sx={{ 
+                                              fontWeight: 600,
+                                              color: 'text.primary',
+                                              mb: 0.5
+                                            }}>
+                                              {item.name}
+                                            </Typography>
+                                            <Typography variant="h6" sx={{ 
+                                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                                              backgroundClip: 'text',
+                                              WebkitBackgroundClip: 'text',
+                                              WebkitTextFillColor: 'transparent',
+                                              color: 'transparent',
+                                              fontWeight: 'bold',
+                                              fontSize: '1.1rem'
+                                            }}>
+                                              ${item.amount.toLocaleString()}
+                                            </Typography>
+                                          </Box>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                          <IconButton 
+                                            onClick={() => handleEditIncome(index)}
+                                            size="small"
                             sx={{
-                              '& .MuiInputBase-root': {
-                                height: 56,
-                                fontSize: '1.1rem',
-                                '& input': {
-                                  fontSize: '1.1rem',
-                                  padding: '16px 14px'
-                                }
+                                              color: 'primary.main',
+                                              '&:hover': {
+                                                bgcolor: 'primary.light',
+                                                color: 'primary.contrastText'
+                                              }
+                                            }}
+                                          >
+                                            <EditIcon fontSize="small" />
+                                          </IconButton>
+                                          <IconButton 
+                                            onClick={() => handleDeleteIncome(index)}
+                                            size="small"
+                                            sx={{ 
+                                              color: 'error.main',
+                                              '&:hover': {
+                                                bgcolor: 'error.light',
+                                                color: 'error.contrastText'
+                                              }
+                                            }}
+                                          >
+                                            <DeleteIcon fontSize="small" />
+                                          </IconButton>
+                                        </Box>
+                                      </Box>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </Stack>
+                            </Box>
+                          )}
+                          
+                          {/* Add Additional Income Button */}
+                          <Button
+                            startIcon={<AddIcon />}
+                            onClick={() => setShowAddIncomeDialog(true)}
+                            variant="contained"
+                            sx={{ 
+                              width: '100%',
+                              py: 1.5,
+                              borderRadius: 2,
+                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                              boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
+                              fontWeight: 'bold',
+                              fontSize: '1rem',
+                              textTransform: 'none',
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 8px 25px rgba(255, 0, 0, 0.4)',
+                                background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                              },
+                              '&:active': {
+                                transform: 'translateY(0)',
                               }
                             }}
-                          />
+                          >
+                            {additionalIncomeItems.length === 0 ? 'Add Your First Income Source' : 'Add Another Income Source'}
+                          </Button>
+                          
+                          {/* Total Additional Income Display */}
+                          {additionalIncomeItems.length > 0 && (
+                            <Box sx={{ 
+                              mt: 2, 
+                              p: 2, 
+                              borderRadius: 2, 
+                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                              textAlign: 'center'
+                            }}>
+                              <Typography variant="subtitle2" sx={{ 
+                                color: 'white',
+                                fontWeight: 600,
+                                mb: 0.5
+                              }}>
+                                Total Additional Income
+                              </Typography>
+                              <Typography variant="h5" sx={{ 
+                                color: 'white',
+                                fontWeight: 'bold'
+                              }}>
+                                ${additionalIncomeItems.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
+                              </Typography>
+                            </Box>
+                          )}
                         </Box>
                       </Grid>
                     </Grid>
@@ -1006,47 +1318,110 @@ function MonthlyBudget() {
                 }}>
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                      <Typography variant="h6" sx={{ 
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ 
+                          p: 1.5, 
+                          borderRadius: 2, 
+                          bgcolor: '#8a6bb8',
+                          mr: 2,
                         display: 'flex', 
-                        alignItems: 'center'
-                      }}>
-                        <TrendingDownIcon sx={{ mr: 1, color: theme.palette.error.main }} />
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <TrendingDownIcon sx={{ color: 'white', fontSize: 24 }} />
+                        </Box>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 'bold',
+                          color: '#8a6bb8'
+                        }}>
                         Monthly Expenses
                       </Typography>
+                      </Box>
                       <Button
                         startIcon={<AddIcon />}
                         onClick={() => setShowAddExpenseDialog(true)}
-                        variant="outlined"
-                        color="primary"
+                        variant="contained"
+                        sx={{ 
+                          py: 1.5,
+                          px: 3,
+                          borderRadius: 2,
+                          background: '#8a6bb8',
+                          boxShadow: '0 4px 15px rgba(138, 107, 184, 0.3)',
+                          fontWeight: 'bold',
+                          fontSize: '1rem',
+                          textTransform: 'none',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 8px 25px rgba(138, 107, 184, 0.4)',
+                            background: '#9d7bc7',
+                          },
+                          '&:active': {
+                            transform: 'translateY(0)',
+                          }
+                        }}
                       >
                         Add Custom Expense
                       </Button>
                     </Box>
                     
                     {/* Monthly Expenses Categories */}
-                    <Typography variant="subtitle1" gutterBottom sx={{ mt: 3, mb: 2 }}>
-                      Monthly Expenses Categories
+                    <Box sx={{ mt: 3, mb: 3 }}>
+                      <Typography variant="subtitle2" sx={{ 
+                        mb: 2, 
+                        color: 'text.secondary',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                        fontSize: '0.75rem'
+                      }}>
+                        Expense Categories
                     </Typography>
+                    </Box>
                     <Grid container spacing={3}>
                       {Object.entries(expenseCategories).map(([key, category]) => (
                         <Grid item xs={12} sm={6} md={4} key={key}>
                           <Box sx={{ 
                             p: 4, 
-                            border: `2px solid ${category.color}30`, 
+                            border: `1px solid ${theme.palette.divider}`, 
                             borderRadius: 3,
-                            bgcolor: `${category.color}10`,
+                            bgcolor: 'background.paper',
                             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                            transition: 'all 0.3s ease',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            '&::before': {
+                              content: '""',
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              height: 3,
+                              background: '#8a6bb8',
+                            },
                             '&:hover': {
-                              boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
-                              transform: 'translateY(-2px)'
+                              boxShadow: '0 8px 25px rgba(255, 0, 0, 0.15)',
+                              transform: 'translateY(-2px)',
+                              borderColor: 'primary.main'
                             }
                           }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                              <Box sx={{ color: category.color, mr: 2, fontSize: '1.5rem' }}>
+                              <Box sx={{ 
+                                p: 1.5,
+                                borderRadius: 2,
+                                bgcolor: '#8a6bb8',
+                                mr: 2,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                <Box sx={{ color: 'white', fontSize: '1.2rem' }}>
                                 {category.icon}
                               </Box>
-                              <Typography variant="h6" fontWeight="bold" sx={{ color: category.color }}>
+                              </Box>
+                              <Typography variant="h6" fontWeight="bold" sx={{ 
+                                color: '#8a6bb8'
+                              }}>
                                 {category.label}
                               </Typography>
                             </Box>
@@ -1062,9 +1437,28 @@ function MonthlyBudget() {
                                 '& .MuiInputBase-root': {
                                   height: 56,
                                   fontSize: '1.1rem',
+                                  borderRadius: 2,
+                                  border: `2px solid ${theme.palette.divider}`,
+                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  '&:hover': {
+                                    borderColor: 'primary.main',
+                                  },
+                                  '&.Mui-focused': {
+                                    borderColor: 'primary.main',
+                                    boxShadow: '0 0 0 3px rgba(33, 150, 243, 0.1)',
+                                  },
                                   '& input': {
                                     fontSize: '1.1rem',
-                                    padding: '16px 14px'
+                                    padding: '16px 14px',
+                                    fontWeight: 600,
+                                    color: 'text.primary'
+                                  }
+                                },
+                                '& .MuiInputLabel-root': {
+                                  fontSize: '1rem',
+                                  fontWeight: 500,
+                                  '&.Mui-focused': {
+                                    color: 'primary.main',
                                   }
                                 }
                               }}
@@ -1076,68 +1470,163 @@ function MonthlyBudget() {
                     
                     {/* Additional Expenses */}
                     {additionalExpenses.length > 0 && (
-                      <>
-                        <Typography variant="h6" gutterBottom sx={{ mt: 6, mb: 3, fontWeight: 'bold' }}>
+                      <Box sx={{ mt: 6 }}>
+                        <Box sx={{ 
+                          p: 3, 
+                          bgcolor: 'background.paper', 
+                          borderRadius: 3, 
+                          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                          border: `1px solid ${theme.palette.divider}`,
+                          position: 'relative',
+                          overflow: 'hidden',
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: 4,
+                            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                          }
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                            <Box sx={{ 
+                              p: 1.5, 
+                              borderRadius: 2, 
+                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                              mr: 2,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <TrendingDownIcon sx={{ color: 'white', fontSize: 24 }} />
+                            </Box>
+                            <Typography variant="h6" sx={{ 
+                              fontWeight: 'bold',
+                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                              backgroundClip: 'text',
+                              WebkitBackgroundClip: 'text',
+                              WebkitTextFillColor: 'transparent',
+                              color: 'transparent'
+                            }}>
                           Custom Expenses
                         </Typography>
-                        <List>
+                          </Box>
+                          
+                          <Typography variant="subtitle2" sx={{ 
+                            mb: 2, 
+                            color: 'text.secondary',
+                            fontWeight: 600,
+                            textTransform: 'uppercase',
+                            letterSpacing: 0.5,
+                            fontSize: '0.75rem'
+                          }}>
+                            Custom Expense Items ({additionalExpenses.length})
+                          </Typography>
+                          
+                          <Stack spacing={1.5}>
                           {additionalExpenses.map((item, index) => (
-                            <ListItem key={index} sx={{ 
-                              px: 3, 
-                              py: 2,
-                              border: `2px solid ${theme.palette.divider}`,
+                              <Card key={index} sx={{ 
                               borderRadius: 2,
-                              mb: 2,
-                              bgcolor: 'background.paper',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                              transition: 'all 0.3s ease',
+                                border: `1px solid ${theme.palette.divider}`,
+                                bgcolor: 'background.default',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                               '&:hover': {
-                                boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                                transform: 'translateY(-2px)'
-                              }
-                            }}>
-                              <Grid container spacing={3} alignItems="center">
-                                <Grid item xs={4}>
-                                  <Typography variant="h6" fontWeight="bold">
+                                      transform: 'translateY(-2px)',
+                                      boxShadow: '0 8px 25px rgba(255, 0, 0, 0.15)',
+                                      borderColor: 'primary.main'
+                                    }
+                              }}>
+                                <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                                      <Box sx={{ 
+                                        width: 8, 
+                                        height: 8, 
+                                        borderRadius: '50%', 
+                                        background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                                        mr: 2,
+                                        flexShrink: 0
+                                      }} />
+                                      <Box sx={{ flex: 1 }}>
+                                        <Typography variant="subtitle1" sx={{ 
+                                          fontWeight: 600,
+                                          color: 'text.primary',
+                                          mb: 0.5
+                                        }}>
                                     {item.name}
                                   </Typography>
-                                </Grid>
-                                <Grid item xs={4}>
-                                  <Typography variant="h5" color="error.main" fontWeight="bold">
-                                    ${parseFloat(item.amount).toLocaleString()}
+                                        <Typography variant="h6" sx={{ 
+                                          background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                                          backgroundClip: 'text',
+                                          WebkitBackgroundClip: 'text',
+                                          WebkitTextFillColor: 'transparent',
+                                          color: 'transparent',
+                                          fontWeight: 'bold',
+                                          fontSize: '1.1rem'
+                                        }}>
+                                          ${item.amount.toLocaleString()}
                                   </Typography>
-                                </Grid>
-                                <Grid item xs={4}>
-                                  <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                                      </Box>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', gap: 0.5 }}>
                                     <IconButton
-                                      size="large"
                                       onClick={() => handleEditExpense(index)}
-                                      color="primary"
+                                        size="small"
                                       sx={{ 
+                                          color: 'primary.main',
+                                          '&:hover': {
                                         bgcolor: 'primary.light',
-                                        '&:hover': { bgcolor: 'primary.main', color: 'white' }
+                                            color: 'primary.contrastText'
+                                          }
                                       }}
                                     >
-                                      <EditIcon />
+                                        <EditIcon fontSize="small" />
                                     </IconButton>
                                     <IconButton
-                                      size="large"
                                       onClick={() => showDeleteExpenseConfirmation(index)}
-                                      color="error"
+                                        size="small"
                                       sx={{ 
+                                          color: 'error.main',
+                                          '&:hover': {
                                         bgcolor: 'error.light',
-                                        '&:hover': { bgcolor: 'error.main', color: 'white' }
+                                            color: 'error.contrastText'
+                                          }
                                       }}
                                     >
-                                      <DeleteIcon />
+                                        <DeleteIcon fontSize="small" />
                                     </IconButton>
                                   </Box>
-                                </Grid>
-                              </Grid>
-                            </ListItem>
-                          ))}
-                        </List>
-                      </>
+                                  </Box>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </Stack>
+                          
+                          {/* Total Custom Expenses Display */}
+                          <Box sx={{ 
+                            mt: 2, 
+                            p: 2, 
+                            borderRadius: 2, 
+                            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                            textAlign: 'center'
+                          }}>
+                            <Typography variant="subtitle2" sx={{ 
+                              color: 'white',
+                              fontWeight: 600,
+                              mb: 0.5
+                            }}>
+                              Total Custom Expenses
+                            </Typography>
+                            <Typography variant="h5" sx={{ 
+                              color: 'white',
+                              fontWeight: 'bold'
+                            }}>
+                              ${additionalExpenses.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
                     )}
                     
                     <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
@@ -1170,98 +1659,239 @@ function MonthlyBudget() {
 
               {/* Savings Tab */}
               {activeTab === 'savings' && (
-                <Card elevation={4} sx={{ 
+                <Box sx={{ 
+                  p: 3, 
+                  bgcolor: 'background.paper', 
                   borderRadius: 3,
-                  background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                  border: `1px solid ${theme.palette.divider}`,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 4,
+                    background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                  }
                 }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                      <Typography variant="h6" sx={{ 
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      borderRadius: 2, 
+                      background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                      mr: 2,
                         display: 'flex', 
-                        alignItems: 'center'
-                      }}>
-                        <SavingsIcon sx={{ mr: 1, color: theme.palette.info.main }} />
-                        Savings & Investments
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <SavingsIcon sx={{ color: 'white', fontSize: 24 }} />
+                    </Box>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 'bold',
+                      background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      color: 'transparent'
+                    }}>
+                        Savings
                       </Typography>
-                      <Button
-                        startIcon={<AddIcon />}
-                        onClick={() => setShowAddSavingsDialog(true)}
-                        variant="outlined"
-                        color="info"
-                      >
-                        Add Savings Item
-                      </Button>
                     </Box>
                     
                     {savingsItems.length === 0 ? (
                       <Box sx={{ textAlign: 'center', py: 8 }}>
-                        <SavingsIcon sx={{ fontSize: 96, color: 'text.secondary', mb: 3 }} />
-                        <Typography variant="h5" color="text.secondary" gutterBottom>
-                          No Savings Items
+                      <Box sx={{ 
+                        p: 3, 
+                        borderRadius: 3, 
+                        background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        mb: 3
+                      }}>
+                        <SavingsIcon sx={{ fontSize: 64, color: 'white' }} />
+                      </Box>
+                      <Typography variant="h5" color="text.secondary" gutterBottom sx={{ fontWeight: 'bold' }}>
+                        No Savings Items Yet
                         </Typography>
-                        <Typography variant="h6" color="text.secondary">
-                          Add your savings and investment items to track your financial goals.
+                      <Typography variant="h6" color="text.secondary" sx={{ mb: 3 }}>
+                        Start building your financial future by adding your savings and investment goals.
                         </Typography>
+                      <Button
+                        startIcon={<AddIcon />}
+                        onClick={() => setShowAddSavingsDialog(true)}
+                        variant="contained"
+                        sx={{ 
+                          py: 1.5,
+                          px: 4,
+                          borderRadius: 2,
+                          background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                          boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
+                          fontWeight: 'bold',
+                          fontSize: '1rem',
+                          textTransform: 'none',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 8px 25px rgba(255, 0, 0, 0.4)',
+                            background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                          },
+                          '&:active': {
+                            transform: 'translateY(0)',
+                          }
+                        }}
+                      >
+                        Add Your First Savings Goal
+                      </Button>
                       </Box>
                     ) : (
-                      <List>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ 
+                        mb: 2, 
+                        color: 'text.secondary',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                        fontSize: '0.75rem'
+                      }}>
+                        Savings Goals ({savingsItems.length})
+                      </Typography>
+                      
+                      <Stack spacing={1.5}>
                         {savingsItems.map((item, index) => (
-                          <ListItem key={index} sx={{ 
-                            px: 3, 
-                            py: 2,
-                            border: `2px solid ${theme.palette.divider}`,
+                          <Card key={index} sx={{ 
                             borderRadius: 2,
-                            mb: 2,
-                            bgcolor: 'background.paper',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                            transition: 'all 0.3s ease',
+                            border: `1px solid ${theme.palette.divider}`,
+                            bgcolor: 'background.default',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                             '&:hover': {
-                              boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                              transform: 'translateY(-2px)'
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 8px 25px rgba(255, 0, 0, 0.15)',
+                              borderColor: 'primary.main'
                             }
                           }}>
-                            <Grid container spacing={3} alignItems="center">
-                              <Grid item xs={4}>
-                                <Typography variant="h6" fontWeight="bold">
+                            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                                  <Box sx={{ 
+                                    width: 8, 
+                                    height: 8, 
+                                    borderRadius: '50%', 
+                                    background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                                    mr: 2,
+                                    flexShrink: 0
+                                  }} />
+                                  <Box sx={{ flex: 1 }}>
+                                    <Typography variant="subtitle1" sx={{ 
+                                      fontWeight: 600,
+                                      color: 'text.primary',
+                                      mb: 0.5
+                                    }}>
                                   {item.name}
                                 </Typography>
-                              </Grid>
-                              <Grid item xs={4}>
-                                <Typography variant="h5" color="info.main" fontWeight="bold">
-                                  ${parseFloat(item.amount).toLocaleString()}
+                                    <Typography variant="h6" sx={{ 
+                                      background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                                      backgroundClip: 'text',
+                                      WebkitBackgroundClip: 'text',
+                                      WebkitTextFillColor: 'transparent',
+                                      color: 'transparent',
+                                      fontWeight: 'bold',
+                                      fontSize: '1.1rem'
+                                    }}>
+                                      ${item.amount.toLocaleString()}
                                 </Typography>
-                              </Grid>
-                              <Grid item xs={4}>
-                                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                                  </Box>
+                                </Box>
+                                <Box sx={{ display: 'flex', gap: 0.5 }}>
                                   <IconButton
-                                    size="large"
                                     onClick={() => handleEditSavings(index)}
-                                    color="primary"
+                                    size="small"
                                     sx={{ 
+                                      color: 'primary.main',
+                                      '&:hover': {
                                       bgcolor: 'primary.light',
-                                      '&:hover': { bgcolor: 'primary.main', color: 'white' }
+                                        color: 'primary.contrastText'
+                                      }
                                     }}
                                   >
-                                    <EditIcon />
+                                    <EditIcon fontSize="small" />
                                   </IconButton>
                                   <IconButton
-                                    size="large"
                                     onClick={() => showDeleteSavingsConfirmation(index)}
-                                    color="error"
+                                    size="small"
                                     sx={{ 
+                                      color: 'error.main',
+                                      '&:hover': {
                                       bgcolor: 'error.light',
-                                      '&:hover': { bgcolor: 'error.main', color: 'white' }
+                                        color: 'error.contrastText'
+                                      }
                                     }}
                                   >
-                                    <DeleteIcon />
+                                    <DeleteIcon fontSize="small" />
                                   </IconButton>
                                 </Box>
-                              </Grid>
-                            </Grid>
-                          </ListItem>
+                              </Box>
+                            </CardContent>
+                          </Card>
                         ))}
-                      </List>
+                      </Stack>
+                      
+                      {/* Total Savings Display */}
+                      <Box sx={{ 
+                        mt: 2, 
+                        p: 2, 
+                        borderRadius: 2, 
+                        background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                        textAlign: 'center'
+                      }}>
+                        <Typography variant="subtitle2" sx={{ 
+                          color: 'white',
+                          fontWeight: 600,
+                          mb: 0.5
+                        }}>
+                          Total Savings
+                        </Typography>
+                        <Typography variant="h5" sx={{ 
+                          color: 'white',
+                          fontWeight: 'bold'
+                        }}>
+                          ${savingsItems.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
+                        </Typography>
+                      </Box>
+                      
+                      {/* Add More Button */}
+                      <Box sx={{ mt: 2, textAlign: 'center' }}>
+                        <Button
+                          startIcon={<AddIcon />}
+                          onClick={() => setShowAddSavingsDialog(true)}
+                          variant="contained"
+                          sx={{ 
+                            py: 1.5,
+                            px: 3,
+                            borderRadius: 2,
+                            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                            boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
+                            fontWeight: 'bold',
+                            fontSize: '1rem',
+                            textTransform: 'none',
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 8px 25px rgba(255, 0, 0, 0.4)',
+                              background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                            },
+                            '&:active': {
+                              transform: 'translateY(0)',
+                            }
+                          }}
+                        >
+                          Add Another Savings Goal
+                        </Button>
+                      </Box>
+                    </Box>
                     )}
                     
                     <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
@@ -1285,11 +1915,10 @@ function MonthlyBudget() {
                           }
                         }}
                       >
-                        {saving ? 'Saving Savings...' : 'Save Budget'}
+                      {saving ? 'Saving Budget...' : 'Save Budget'}
                       </CustomButton>
                     </Box>
-                  </CardContent>
-                </Card>
+                </Box>
               )}
 
               {/* Stats Tab */}
@@ -1417,59 +2046,161 @@ function MonthlyBudget() {
               <Grid item xs={12} xl={3}>
                 <Stack spacing={4}>
                   {/* Quick Summary */}
-                  <Card elevation={4} sx={{ 
+                  <Box sx={{ 
+                    p: 3, 
+                    bgcolor: 'background.paper', 
                     borderRadius: 3,
-                    background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                    border: `1px solid ${theme.palette.divider}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 4,
+                      background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                    }
                   }}>
-                    <CardContent sx={{ p: 4 }}>
-                      <Typography variant="h5" gutterBottom sx={{ mb: 4, fontWeight: 'bold', textAlign: 'center' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                      <Box sx={{ 
+                        p: 1.5, 
+                        borderRadius: 2, 
+                        background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                        mr: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <TrendingUpIcon sx={{ color: 'white', fontSize: 24 }} />
+                      </Box>
+                      <Typography variant="h5" sx={{ 
+                        fontWeight: 'bold',
+                        background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        color: 'transparent'
+                      }}>
                         Quick Summary
                       </Typography>
-                      
-                      <Box sx={{ mb: 4, p: 3, bgcolor: 'success.light', borderRadius: 2, textAlign: 'center' }}>
-                        <Typography variant="h6" color="success.dark" sx={{ mb: 1, fontWeight: 'bold' }}>
+                    </Box>
+                    
+                    <Stack spacing={2}>
+                      {/* Total Income */}
+                      <Box sx={{ 
+                        p: 3, 
+                        background: '#2196f3',
+                        borderRadius: 2, 
+                        textAlign: 'center',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 8px 25px rgba(33, 150, 243, 0.3)',
+                          background: '#2782ca',
+                        }
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                          <TrendingUpIcon sx={{ color: 'white', fontSize: 20, mr: 1 }} />
+                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
                           Total Income
                         </Typography>
-                        <Typography variant="h4" color="success.dark" sx={{ fontWeight: 'bold' }}>
+                        </Box>
+                        <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
                           ${summary.totalIncome.toLocaleString()}
                         </Typography>
                       </Box>
                       
-                      <Box sx={{ mb: 4, p: 3, bgcolor: 'error.light', borderRadius: 2, textAlign: 'center' }}>
-                        <Typography variant="h6" color="error.dark" sx={{ mb: 1, fontWeight: 'bold' }}>
+                      {/* Total Expenses */}
+                      <Box sx={{ 
+                        p: 3, 
+                        background: '#f44336',
+                        borderRadius: 2, 
+                        textAlign: 'center',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 8px 25px rgba(244, 67, 54, 0.3)',
+                          background: '#d32f2f',
+                        }
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                          <TrendingDownIcon sx={{ color: 'white', fontSize: 20, mr: 1 }} />
+                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
                           Total Expenses
                         </Typography>
-                        <Typography variant="h4" color="error.dark" sx={{ fontWeight: 'bold' }}>
+                        </Box>
+                        <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
                           ${summary.totalExpenses.toLocaleString()}
                         </Typography>
                       </Box>
                       
-                      <Box sx={{ mb: 4, p: 3, bgcolor: 'info.light', borderRadius: 2, textAlign: 'center' }}>
-                        <Typography variant="h6" color="info.dark" sx={{ mb: 1, fontWeight: 'bold' }}>
+                      {/* Total Savings */}
+                      <Box sx={{ 
+                        p: 3, 
+                        background: '#2196f3',
+                        borderRadius: 2, 
+                        textAlign: 'center',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 8px 25px rgba(33, 150, 243, 0.3)',
+                          background: '#2782ca',
+                        }
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                          <SavingsIcon sx={{ color: 'white', fontSize: 20, mr: 1 }} />
+                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
                           Total Savings
                         </Typography>
-                        <Typography variant="h4" color="info.dark" sx={{ fontWeight: 'bold' }}>
+                        </Box>
+                        <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
                           ${summary.totalSavings.toLocaleString()}
                         </Typography>
                       </Box>
                       
-                      <Divider sx={{ my: 4 }} />
+                      <Divider sx={{ my: 2, borderColor: 'rgba(255, 0, 0, 0.2)' }} />
                       
-                      <Box sx={{ p: 3, bgcolor: summary.netBalance >= 0 ? 'success.light' : 'error.light', borderRadius: 2, textAlign: 'center' }}>
-                        <Typography variant="h6" color={summary.netBalance >= 0 ? 'success.dark' : 'error.dark'} sx={{ mb: 1, fontWeight: 'bold' }}>
+                      {/* Net Balance */}
+                      <Box sx={{ 
+                        p: 3, 
+                        background: summary.netBalance >= 0 
+                          ? '#2196f3'
+                          : '#f44336',
+                        borderRadius: 2, 
+                        textAlign: 'center',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: summary.netBalance >= 0 
+                            ? '0 8px 25px rgba(33, 150, 243, 0.3)'
+                            : '0 8px 25px rgba(244, 67, 54, 0.3)',
+                          background: summary.netBalance >= 0 
+                            ? '#1976d2'
+                            : '#d32f2f',
+                        }
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                          {summary.netBalance >= 0 ? (
+                            <TrendingUpIcon sx={{ color: 'white', fontSize: 20, mr: 1 }} />
+                          ) : (
+                            <TrendingDownIcon sx={{ color: 'white', fontSize: 20, mr: 1 }} />
+                          )}
+                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
                           Net Balance
                         </Typography>
-                        <Typography 
-                          variant="h4" 
-                          color={summary.netBalance >= 0 ? 'success.dark' : 'error.dark'}
-                          sx={{ fontWeight: 'bold' }}
-                        >
+                        </Box>
+                        <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
                           ${summary.netBalance.toLocaleString()}
                         </Typography>
+                        <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 1 }}>
+                          {summary.netBalance >= 0 ? 'Positive Balance' : 'Negative Balance'}
+                        </Typography>
                       </Box>
-                    </CardContent>
-                  </Card>
+                    </Stack>
+                  </Box>
                 </Stack>
               </Grid>
             )}
@@ -1478,35 +2209,93 @@ function MonthlyBudget() {
       </Fade>
 
       {/* Add Expense Dialog */}
-      <Dialog open={showAddExpenseDialog} onClose={() => setShowAddExpenseDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog 
+        open={showAddExpenseDialog} 
+        onClose={() => setShowAddExpenseDialog(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 2,
+          background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+          color: 'white',
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 1,
+            background: 'rgba(255,255,255,0.2)'
+          }
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ 
+              p: 1, 
+              borderRadius: 1, 
+              bgcolor: 'rgba(255,255,255,0.2)',
+              mr: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <TrendingDownIcon sx={{ fontSize: 20 }} />
+            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
           {editingExpenseIndex !== null ? 'Edit Custom Expense' : 'Add Custom Expense'}
-        </DialogTitle>
-        <DialogContent sx={{ p: 4 }}>
-          <Box sx={{ pt: 2 }}>
-            <Typography variant="h6" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
-              Expense Details
             </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 4, bgcolor: 'background.paper' }}>
+          <Box sx={{ pt: 2 }}>
+            <Typography variant="subtitle1" gutterBottom sx={{ 
+              mb: 3, 
+              fontWeight: 600,
+              color: 'text.secondary'
+            }}>
+              Enter the details for your custom expense
+            </Typography>
+            
+            <Box sx={{ mb: 3 }}>
             <TextField
               label="Expense Name"
+                  placeholder="e.g., Gym Membership, Netflix Subscription"
               value={newExpenseItem.name}
               onChange={(e) => setNewExpenseItem(prev => ({ ...prev, name: e.target.value }))}
               fullWidth
               sx={{ 
-                mb: 4,
                 '& .MuiInputBase-root': {
                   height: 56,
                   fontSize: '1.1rem',
+                      borderRadius: 2,
                   '& input': {
                     fontSize: '1.1rem',
                     padding: '16px 14px'
                   }
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontSize: '1rem',
+                      '&.Mui-focused': {
+                        color: 'primary.main',
+                  }
                 }
               }}
             />
+            </Box>
+            
+            <Box>
             <TextField
-              label="Amount"
+                label="Monthly Amount"
               type="number"
+                placeholder="0"
               value={newExpenseItem.amount}
               onChange={(e) => setNewExpenseItem(prev => ({ ...prev, amount: e.target.value }))}
               startAdornment={<InputAdornment position="start">$</InputAdornment>}
@@ -1515,59 +2304,408 @@ function MonthlyBudget() {
                 '& .MuiInputBase-root': {
                   height: 56,
                   fontSize: '1.1rem',
+                    borderRadius: 2,
                   '& input': {
                     fontSize: '1.1rem',
-                    padding: '16px 14px'
+                      padding: '16px 14px',
+                      fontWeight: 600
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '1rem',
+                    '&.Mui-focused': {
+                      color: 'primary.main',
                   }
                 }
               }}
             />
+            </Box>
+            
+            {/* Preview */}
+            {newExpenseItem.name && newExpenseItem.amount && (
+              <Box sx={{ 
+                mt: 3, 
+                p: 2, 
+                borderRadius: 2, 
+                background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                textAlign: 'center'
+              }}>
+                <Typography variant="subtitle2" sx={{ 
+                  color: 'white',
+                  fontWeight: 600,
+                  mb: 0.5
+                }}>
+                  Preview
+                </Typography>
+                <Typography variant="h6" sx={{ 
+                  color: 'white',
+                  fontWeight: 'bold'
+                }}>
+                  {newExpenseItem.name}: ${parseFloat(newExpenseItem.amount || 0).toLocaleString()}
+                </Typography>
+              </Box>
+            )}
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
+        <DialogActions sx={{ 
+          p: 3, 
+          bgcolor: 'background.paper',
+          borderTop: '1px solid rgba(0,0,0,0.1)'
+        }}>
+          <Button 
+            onClick={() => {
             setShowAddExpenseDialog(false);
             setNewExpenseItem({ name: '', amount: '' });
             setEditingExpenseIndex(null);
-          }}>
+            }}
+            sx={{ 
+              px: 3,
+              py: 1,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600
+            }}
+          >
             Cancel
           </Button>
-          <Button onClick={handleAddExpense} variant="contained">
-            {editingExpenseIndex !== null ? 'Update' : 'Add'}
+          <Button 
+            onClick={handleAddExpense} 
+            variant="contained" 
+            sx={{ 
+              px: 4,
+              py: 1,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+              boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
+              textTransform: 'none',
+              fontWeight: 'bold',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                boxShadow: '0 6px 20px rgba(255, 0, 0, 0.4)',
+              }
+            }}
+          >
+            {editingExpenseIndex !== null ? 'Update Expense' : 'Add Expense'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Income Dialog */}
+      <Dialog 
+        open={showAddIncomeDialog} 
+        onClose={() => setShowAddIncomeDialog(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 2,
+          background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+          color: 'white',
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 1,
+            background: 'rgba(255,255,255,0.2)'
+          }
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ 
+              p: 1, 
+              borderRadius: 1, 
+              bgcolor: 'rgba(255,255,255,0.2)',
+              mr: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <TrendingUpIcon sx={{ fontSize: 20 }} />
+            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              {editingIncomeIndex !== null ? 'Edit Income Source' : 'Add Income Source'}
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 4, bgcolor: 'background.paper' }}>
+          <Box sx={{ pt: 2 }}>
+            <Typography variant="subtitle1" gutterBottom sx={{ 
+              mb: 3, 
+              fontWeight: 600,
+              color: 'text.secondary'
+            }}>
+              Enter the details for your income source
+            </Typography>
+            
+            <Box sx={{ mb: 3 }}>
+                <TextField
+                  label="Income Source Name"
+                  placeholder="e.g., Freelance Writing, Part-time Job"
+                  value={newIncomeItem.name}
+                  onChange={(e) => setNewIncomeItem(prev => ({ ...prev, name: e.target.value }))}
+                  fullWidth
+                  sx={{ 
+                    '& .MuiInputBase-root': {
+                      height: 56,
+                      fontSize: '1.1rem',
+                      borderRadius: 2,
+                      '& input': {
+                        fontSize: '1.1rem',
+                        padding: '16px 14px'
+                      }
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontSize: '1rem',
+                      '&.Mui-focused': {
+                        color: 'primary.main',
+                      }
+                    }
+                  }}
+                />
+            </Box>
+            
+            <Box>
+              <TextField
+                label="Monthly Amount"
+                type="number"
+                placeholder="0"
+                value={newIncomeItem.amount}
+                onChange={(e) => setNewIncomeItem(prev => ({ ...prev, amount: e.target.value }))}
+                startAdornment={<InputAdornment position="start">$</InputAdornment>}
+                fullWidth
+                sx={{
+                  '& .MuiInputBase-root': {
+                    height: 56,
+                    fontSize: '1.1rem',
+                    borderRadius: 2,
+                    '& input': {
+                      fontSize: '1.1rem',
+                      padding: '16px 14px',
+                      fontWeight: 600
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '1rem',
+                    '&.Mui-focused': {
+                      color: 'primary.main',
+                    }
+                  }
+                }}
+              />
+            </Box>
+            
+            {/* Preview */}
+            {newIncomeItem.name && newIncomeItem.amount && (
+              <Box sx={{ 
+                mt: 3, 
+                p: 2, 
+                borderRadius: 2, 
+                background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                textAlign: 'center'
+              }}>
+                <Typography variant="subtitle2" sx={{ 
+                  color: 'white',
+                  fontWeight: 600,
+                  mb: 0.5
+                }}>
+                  Preview
+                </Typography>
+                <Typography variant="h6" sx={{ 
+                  color: 'white',
+                  fontWeight: 'bold'
+                }}>
+                  {newIncomeItem.name}: ${parseFloat(newIncomeItem.amount || 0).toLocaleString()}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ 
+          p: 3, 
+          bgcolor: 'background.paper',
+          borderTop: '1px solid rgba(0,0,0,0.1)'
+        }}>
+          <Button 
+            onClick={() => {
+              setShowAddIncomeDialog(false);
+              setNewIncomeItem({ name: '', amount: '' });
+              setEditingIncomeIndex(null);
+            }}
+            sx={{ 
+              px: 3,
+              py: 1,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleAddIncome} 
+            variant="contained" 
+            sx={{ 
+              px: 4,
+              py: 1,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+              boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
+              textTransform: 'none',
+              fontWeight: 'bold',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                boxShadow: '0 6px 20px rgba(255, 0, 0, 0.4)',
+              }
+            }}
+          >
+            {editingIncomeIndex !== null ? 'Update Income' : 'Add Income'}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Add Savings Dialog */}
-      <Dialog open={showAddSavingsDialog} onClose={() => setShowAddSavingsDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingSavingsIndex !== null ? 'Edit Savings Item' : 'Add Savings Item'}
-        </DialogTitle>
-        <DialogContent sx={{ p: 4 }}>
-          <Box sx={{ pt: 2 }}>
-            <Typography variant="h6" gutterBottom sx={{ mb: 3, fontWeight: 'bold' }}>
-              Savings Details
+      <Dialog 
+        open={showAddSavingsDialog} 
+        onClose={() => setShowAddSavingsDialog(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 2,
+          background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+          color: 'white',
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 1,
+            background: 'rgba(255,255,255,0.2)'
+          }
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ 
+              p: 1, 
+              borderRadius: 1, 
+              bgcolor: 'rgba(255,255,255,0.2)',
+              mr: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <SavingsIcon sx={{ fontSize: 20 }} />
+            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              {editingSavingsIndex !== null ? 'Edit Savings Goal' : 'Add Savings Goal'}
             </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 4, bgcolor: 'background.paper' }}>
+          <Box sx={{ pt: 2 }}>
+            <Typography variant="subtitle1" gutterBottom sx={{ 
+              mb: 3, 
+              fontWeight: 600,
+              color: 'text.secondary'
+            }}>
+              Set up your savings or investment goal
+            </Typography>
+            
+            {/* Savings Type Selection */}
+            <Box sx={{ mb: 3 }}>
+              <FormControl fullWidth>
+                <InputLabel sx={{ 
+                  fontSize: '1rem',
+                  '&.Mui-focused': {
+                    color: 'primary.main',
+                  }
+                }}>Savings Type</InputLabel>
+              <Select
+                value={savingsType}
+                label="Savings Type"
+                onChange={(e) => {
+                  setSavingsType(e.target.value);
+                  if (e.target.value !== 'custom') {
+                    const selectedOption = savingsOptions.find(opt => opt.value === e.target.value);
+                    setNewSavingsItem(prev => ({ ...prev, name: selectedOption.label }));
+                  } else {
+                    setNewSavingsItem(prev => ({ ...prev, name: '' }));
+                  }
+                }}
+                sx={{
+                  '& .MuiInputBase-root': {
+                    height: 56,
+                      fontSize: '1.1rem',
+                      borderRadius: 2
+                  }
+                }}
+              >
+                {savingsOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ color: option.color }}>
+                        {option.icon}
+                      </Box>
+                      {option.label}
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            </Box>
+
+            {/* Custom Name Input (only for custom type) */}
+            {savingsType === 'custom' && (
+              <Box sx={{ mb: 3 }}>
             <TextField
-              label="Savings Name"
+                label="Custom Savings Name"
+                  placeholder="e.g., Vacation Fund, New Car"
               value={newSavingsItem.name}
               onChange={(e) => setNewSavingsItem(prev => ({ ...prev, name: e.target.value }))}
               fullWidth
               sx={{ 
-                mb: 4,
                 '& .MuiInputBase-root': {
                   height: 56,
                   fontSize: '1.1rem',
+                      borderRadius: 2,
                   '& input': {
                     fontSize: '1.1rem',
                     padding: '16px 14px'
+                    }
+                    },
+                    '& .MuiInputLabel-root': {
+                      fontSize: '1rem',
+                      '&.Mui-focused': {
+                        color: 'primary.main',
                   }
                 }
               }}
             />
+              </Box>
+            )}
+
+            <Box>
             <TextField
-              label="Amount"
+                label="Monthly Amount"
               type="number"
+                placeholder="0"
               value={newSavingsItem.amount}
               onChange={(e) => setNewSavingsItem(prev => ({ ...prev, amount: e.target.value }))}
               startAdornment={<InputAdornment position="start">$</InputAdornment>}
@@ -1576,25 +2714,89 @@ function MonthlyBudget() {
                 '& .MuiInputBase-root': {
                   height: 56,
                   fontSize: '1.1rem',
+                    borderRadius: 2,
                   '& input': {
                     fontSize: '1.1rem',
-                    padding: '16px 14px'
+                      padding: '16px 14px',
+                      fontWeight: 600
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '1rem',
+                    '&.Mui-focused': {
+                      color: 'primary.main',
                   }
                 }
               }}
             />
+            </Box>
+            
+            {/* Preview */}
+            {newSavingsItem.name && newSavingsItem.amount && (
+              <Box sx={{ 
+                mt: 3, 
+                p: 2, 
+                borderRadius: 2, 
+                background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                textAlign: 'center'
+              }}>
+                <Typography variant="subtitle2" sx={{ 
+                  color: 'white',
+                  fontWeight: 600,
+                  mb: 0.5
+                }}>
+                  Preview
+                </Typography>
+                <Typography variant="h6" sx={{ 
+                  color: 'white',
+                  fontWeight: 'bold'
+                }}>
+                  {newSavingsItem.name}: ${parseFloat(newSavingsItem.amount || 0).toLocaleString()}
+                </Typography>
+              </Box>
+            )}
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
+        <DialogActions sx={{ 
+          p: 3, 
+          bgcolor: 'background.paper',
+          borderTop: '1px solid rgba(0,0,0,0.1)'
+        }}>
+          <Button 
+            onClick={() => {
             setShowAddSavingsDialog(false);
             setNewSavingsItem({ name: '', amount: '' });
+            setSavingsType('custom');
             setEditingSavingsIndex(null);
-          }}>
+            }}
+            sx={{ 
+              px: 3,
+              py: 1,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600
+            }}
+          >
             Cancel
           </Button>
-          <Button onClick={handleAddSavings} variant="contained">
-            {editingSavingsIndex !== null ? 'Update' : 'Add'}
+          <Button 
+            onClick={handleAddSavings} 
+            variant="contained" 
+            sx={{ 
+              px: 4,
+              py: 1,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+              boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
+              textTransform: 'none',
+              fontWeight: 'bold',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                boxShadow: '0 6px 20px rgba(255, 0, 0, 0.4)',
+              }
+            }}
+          >
+            {editingSavingsIndex !== null ? 'Update Savings' : 'Add Savings'}
           </Button>
         </DialogActions>
       </Dialog>

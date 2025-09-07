@@ -298,7 +298,7 @@ function WealthProjector({ onNavigateToAccount }) {
       setIsLoading(true);
       console.log('🚀 Sending projection request with data:', formData);
       
-              const response = await axios.post('/api/mongodb/mongodb/project-wealth/', formData);
+              const response = await axios.post('/api/mongodb/project-wealth/', formData);
       console.log('✅ Projection response received:', response.data);
       
       if (response.data && response.data.projections) {

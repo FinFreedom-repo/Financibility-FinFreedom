@@ -405,7 +405,12 @@ const DebtPlanning = () => {
         ...months.reduce((acc, _, idx) => ({ ...acc, [`month_${idx}`]: 0 }), {})
       },
       {
-        category: 'Other',
+        category: 'Miscellaneous',
+        type: 'expense',
+        ...months.reduce((acc, _, idx) => ({ ...acc, [`month_${idx}`]: 0 }), {})
+      },
+      {
+        category: 'Required Debt Payments',
         type: 'expense',
         ...months.reduce((acc, _, idx) => ({ ...acc, [`month_${idx}`]: 0 }), {})
       },
@@ -1492,8 +1497,8 @@ const DebtPlanning = () => {
             education: getGridValue('Education'),
             utilities: getGridValue('Utilities'),
             childcare: getGridValue('Childcare'),
-            other: getGridValue('Other'),
-            debt_payments: 0
+            others: getGridValue('Miscellaneous'),
+            debt_payments: getGridValue('Required Debt Payments')
           },
           savings_items: getGridValue('Savings') ? [{ name: 'Savings', amount: getGridValue('Savings'), type: 'savings' }] : [],
           additional_items: [],
@@ -1655,9 +1660,9 @@ const DebtPlanning = () => {
         {/* ENHANCED: Real-time update progress indicator */}
         {isUpdatingCell && (
           <Fade in={true} timeout={300}>
-            <Alert 
-              severity="info" 
-              sx={{ mb: 3, background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.15), rgba(66, 165, 245, 0.1))' }}
+              <Alert 
+                severity="info" 
+                sx={{ mb: 3, background: 'linear-gradient(135deg, rgba(255, 0, 0, 0.15), rgba(0, 0, 255, 0.1))' }}
               action={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <CircularProgress size={20} />
@@ -1678,9 +1683,9 @@ const DebtPlanning = () => {
             mb: 3, 
             p: 3, 
             borderRadius: 3,
-            background: isDarkMode 
-              ? 'linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(76, 175, 80, 0.1) 100%)' 
-              : 'linear-gradient(135deg, rgba(33, 150, 243, 0.05) 0%, rgba(76, 175, 80, 0.05) 100%)',
+              background: isDarkMode 
+                ? 'linear-gradient(135deg, rgba(255, 0, 0, 0.1) 0%, rgba(0, 0, 255, 0.1) 100%)' 
+                : 'linear-gradient(135deg, rgba(255, 0, 0, 0.05) 0%, rgba(0, 0, 255, 0.05) 100%)',
             border: isDarkMode 
               ? '1px solid rgba(33, 150, 243, 0.2)' 
               : '1px solid rgba(33, 150, 243, 0.1)',
@@ -1694,9 +1699,9 @@ const DebtPlanning = () => {
               left: 0,
               right: 0,
               bottom: 0,
-              background: isDarkMode 
-                ? 'linear-gradient(90deg, transparent 0%, rgba(33, 150, 243, 0.1) 50%, transparent 100%)'
-                : 'linear-gradient(90deg, transparent 0%, rgba(33, 150, 243, 0.05) 50%, transparent 100%)',
+                background: isDarkMode 
+                  ? 'linear-gradient(90deg, transparent 0%, rgba(255, 0, 0, 0.1) 50%, transparent 100%)'
+                  : 'linear-gradient(90deg, transparent 0%, rgba(255, 0, 0, 0.05) 50%, transparent 100%)',
               animation: 'shimmer 2s infinite',
               '@keyframes shimmer': {
                 '0%': { transform: 'translateX(-100%)' },
@@ -1771,11 +1776,11 @@ const DebtPlanning = () => {
                     backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                     '& .MuiLinearProgress-bar': {
                       borderRadius: 6,
-                      background: propagationProgress <= 35 
-                        ? 'linear-gradient(90deg, #ff9800 0%, #ffc107 100%)' // Orange for Processing
-                        : propagationProgress <= 70 
-                        ? 'linear-gradient(90deg, #2196f3 0%, #03a9f4 100%)' // Blue for Updating
-                        : 'linear-gradient(90deg, #4caf50 0%, #8bc34a 100%)', // Green for Loading
+                        background: propagationProgress <= 35 
+                          ? 'linear-gradient(90deg, #ff0000 0%, #ff4444 100%)' // Red for Processing
+                          : propagationProgress <= 70 
+                          ? 'linear-gradient(90deg, #ff0000 0%, #0000ff 100%)' // Red to Blue for Updating
+                          : 'linear-gradient(90deg, #0000ff 0%, #4444ff 100%)', // Blue for Loading
                       transition: 'all 0.3s ease'
                     }
                   }}
@@ -1789,21 +1794,21 @@ const DebtPlanning = () => {
                   px: 1
                 }}>
                   <Typography variant="caption" sx={{ 
-                    color: propagationProgress >= 35 ? (isDarkMode ? '#4caf50' : '#2e7d32') : (isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'),
+                     color: propagationProgress >= 35 ? (isDarkMode ? '#00ff00' : '#008000') : (isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'),
                     fontWeight: propagationProgress >= 35 ? 600 : 400,
                     transition: 'all 0.3s ease'
                   }}>
                     🏃‍♂️ Processing
                   </Typography>
                   <Typography variant="caption" sx={{ 
-                    color: propagationProgress >= 70 ? (isDarkMode ? '#4caf50' : '#2e7d32') : (isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'),
+                     color: propagationProgress >= 70 ? (isDarkMode ? '#00ff00' : '#008000') : (isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'),
                     fontWeight: propagationProgress >= 70 ? 600 : 400,
                     transition: 'all 0.3s ease'
                   }}>
                     ⚡ Updating
                   </Typography>
                   <Typography variant="caption" sx={{ 
-                    color: propagationProgress >= 100 ? (isDarkMode ? '#4caf50' : '#2e7d32') : (isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'),
+                     color: propagationProgress >= 100 ? (isDarkMode ? '#00ff00' : '#008000') : (isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'),
                     fontWeight: propagationProgress >= 100 ? 600 : 400,
                     transition: 'all 0.3s ease'
                   }}>
@@ -1887,10 +1892,10 @@ const DebtPlanning = () => {
                   }
                 },
                 '&.future-month-row': {
-                  backgroundColor: '#2e7d32 !important',
+                     backgroundColor: '#008000 !important',
                   color: 'white !important',
                   '& .ag-cell': {
-                    backgroundColor: '#2e7d32 !important',
+                    backgroundColor: '#008000 !important',
                     color: 'white !important',
                     borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
                   }
@@ -2564,10 +2569,10 @@ const DebtPlanning = () => {
                   }
                 },
                 '&.future-month-row': {
-                  backgroundColor: '#2e7d32 !important',
+                     backgroundColor: '#008000 !important',
                   color: 'white !important',
                   '& .ag-cell': {
-                    backgroundColor: '#2e7d32 !important',
+                    backgroundColor: '#008000 !important',
                     color: 'white !important',
                     borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
                   }
@@ -2847,7 +2852,7 @@ const DebtPlanning = () => {
                   <Grid container spacing={3} sx={{ mb: 3 }}>
                     <Grid item xs={12} sm={6} md={3}>
                       <Card sx={{ 
-                        background: 'linear-gradient(45deg, #f44336, #d32f2f)',
+                         background: 'linear-gradient(45deg, #ff0000, #cc0000)',
                         color: 'white',
                         textAlign: 'center',
                         p: 2,
@@ -2867,7 +2872,7 @@ const DebtPlanning = () => {
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                       <Card sx={{ 
-                        background: '#f44336',
+                         background: '#ff0000',
                         color: 'white',
                         textAlign: 'center',
                         p: 2,
@@ -2889,7 +2894,7 @@ const DebtPlanning = () => {
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                       <Card sx={{ 
-                        background: 'linear-gradient(45deg, #2196f3, #1976d2)',
+                         background: 'linear-gradient(45deg, #0000ff, #0000cc)',
                         color: 'white',
                         textAlign: 'center',
                         p: 2,
@@ -2912,7 +2917,7 @@ const DebtPlanning = () => {
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                       <Card sx={{ 
-                        background: '#2196f3',
+                        background: '#0000ff',
                         color: 'white',
                         textAlign: 'center',
                         p: 2,
@@ -2976,9 +2981,9 @@ const DebtPlanning = () => {
                 }}>
                   {/* Header */}
                   <Box sx={{
-                    background: isDarkMode 
-                      ? 'linear-gradient(135deg, #1a1a2e, #16213e)' 
-                      : 'linear-gradient(135deg, #f8f9fa, #e9ecef)',
+                      background: isDarkMode 
+                        ? 'linear-gradient(135deg, #1a1a1a, #2a1a1a)' 
+                        : 'linear-gradient(135deg, #fff8f8, #f0f0ff)',
                     p: 3,
                     borderBottom: isDarkMode 
                       ? '1px solid rgba(255, 255, 255, 0.1)' 
@@ -2987,7 +2992,7 @@ const DebtPlanning = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Box sx={{ 
-                          bgcolor: '#2196f3', 
+                           bgcolor: '#0000ff',
                           mr: 2,
                           width: 40,
                           height: 40,
@@ -3028,7 +3033,7 @@ const DebtPlanning = () => {
                           textTransform: 'none',
                           boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
                           '&:hover': {
-                            background: '#4caf50',
+                            background: '#00ff00',
                             transform: 'translateY(-2px)',
                             boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4)'
                           },
@@ -3053,7 +3058,7 @@ const DebtPlanning = () => {
                       backdropFilter: 'blur(10px)'
                     }}>
                       <Box sx={{ textAlign: 'center' }}>
-                        <CircularProgress size={60} sx={{ color: '#2196f3', mb: 2 }} />
+                         <CircularProgress size={60} sx={{ color: '#0000ff', mb: 2 }} />
                         <Typography variant="body1" sx={{ 
                           color: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : '#666',
                           fontWeight: 500
@@ -3085,7 +3090,7 @@ const DebtPlanning = () => {
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          <CheckCircleIcon sx={{ fontSize: 40, color: '#4caf50' }} />
+                           <CheckCircleIcon sx={{ fontSize: 40, color: '#00ff00' }} />
                         </Box>
                         <Typography variant="h6" sx={{ 
                           fontWeight: 'bold',
@@ -3210,11 +3215,11 @@ const DebtPlanning = () => {
                                       label={`${(parseFloat(debt.interest_rate || debt.rate) || 0).toFixed(2)}%`}
                                       size="small"
                                       sx={{
-                                        background: (parseFloat(debt.interest_rate || debt.rate) || 0) > 20 
-                                          ? '#f44336'
-                                          : (parseFloat(debt.interest_rate || debt.rate) || 0) > 15 
-                                            ? '#f44336'
-                                            : '#2196f3',
+                                          background: (parseFloat(debt.interest_rate || debt.rate) || 0) > 20 
+                                            ? '#ff0000'
+                                            : (parseFloat(debt.interest_rate || debt.rate) || 0) > 15 
+                                              ? '#ff0000'
+                                              : '#0000ff',
                                         color: 'white',
                                         fontWeight: 600,
                                         fontSize: '0.8rem'
@@ -3255,10 +3260,10 @@ const DebtPlanning = () => {
                                     size="small"
                                     onClick={() => openDebtDialog(debt)}
                                     sx={{
-                                      color: '#2196f3',
-                                      background: isDarkMode ? 'rgba(33, 150, 243, 0.1)' : 'rgba(33, 150, 243, 0.1)',
+                                       color: '#0000ff',
+                                       background: isDarkMode ? 'rgba(0, 0, 255, 0.1)' : 'rgba(0, 0, 255, 0.1)',
                                       '&:hover': {
-                                        background: isDarkMode ? 'rgba(33, 150, 243, 0.2)' : 'rgba(33, 150, 243, 0.2)',
+                                        background: isDarkMode ? 'rgba(0, 0, 255, 0.2)' : 'rgba(0, 0, 255, 0.2)',
                                         transform: 'scale(1.1)'
                                       },
                                       transition: 'all 0.3s ease'
@@ -3721,7 +3726,7 @@ const DebtPlanning = () => {
             variant="contained"
             disabled={debtFormLoading}
             sx={{
-              background: '#f44336',
+                         background: '#ff0000',
               color: 'white',
               fontWeight: 600,
               px: 4,
