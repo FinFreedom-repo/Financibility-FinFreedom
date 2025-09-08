@@ -508,6 +508,86 @@ class SettingsService(MongoDBService):
             "timezone": "UTC"
         }
 
+class WealthProjectionSettingsService(MongoDBService):
+    """Service for managing wealth projection settings"""
+    
+    def get_settings(self, user_id: str) -> Dict:
+        """Get wealth projection settings for a user"""
+        try:
+            # Ensure user_id is properly converted to ObjectId
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
+            
+            settings = self.db.wealth_projection_settings.find_one({"user_id": user_id})
+            if settings:
+                # Convert ObjectId to string for JSON serialization
+                settings['_id'] = str(settings['_id'])
+                settings['user_id'] = str(settings['user_id'])
+            return settings
+            
+        except Exception as e:
+            logger.error(f"Error getting wealth projection settings: {e}")
+            return None
+    
+    def save_settings(self, user_id: str, settings_data: Dict) -> Dict:
+        """Save or update wealth projection settings"""
+        try:
+            # Ensure user_id is properly converted to ObjectId
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
+            
+            # Add timestamps
+            now = datetime.utcnow()
+            settings_data['user_id'] = user_id
+            settings_data['updated_at'] = now
+            
+            # Try to find existing settings
+            existing = self.db.wealth_projection_settings.find_one({"user_id": user_id})
+            
+            if existing:
+                # Update existing settings
+                settings_data['created_at'] = existing.get('created_at', now)
+                result = self.db.wealth_projection_settings.update_one(
+                    {"user_id": user_id},
+                    {"$set": settings_data}
+                )
+                if result.modified_count > 0:
+                    # Return updated settings
+                    updated = self.db.wealth_projection_settings.find_one({"user_id": user_id})
+                    updated['_id'] = str(updated['_id'])
+                    updated['user_id'] = str(updated['user_id'])
+                    return updated
+            else:
+                # Create new settings
+                settings_data['created_at'] = now
+                result = self.db.wealth_projection_settings.insert_one(settings_data)
+                if result.inserted_id:
+                    # Return created settings
+                    created = self.db.wealth_projection_settings.find_one({"_id": result.inserted_id})
+                    created['_id'] = str(created['_id'])
+                    created['user_id'] = str(created['user_id'])
+                    return created
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error saving wealth projection settings: {e}")
+            return None
+    
+    def delete_settings(self, user_id: str) -> bool:
+        """Delete wealth projection settings for a user"""
+        try:
+            # Ensure user_id is properly converted to ObjectId
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
+            
+            result = self.db.wealth_projection_settings.delete_one({"user_id": user_id})
+            return result.deleted_count > 0
+            
+        except Exception as e:
+            logger.error(f"Error deleting wealth projection settings: {e}")
+            return False
+
 class AccountService(MongoDBService):
     """Service for account management operations"""
     

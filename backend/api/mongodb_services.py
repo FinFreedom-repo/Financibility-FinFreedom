@@ -141,6 +141,24 @@ class MongoUserProfile(Document):
     
     meta = {'collection': 'user_profiles', 'db_alias': 'default'}
 
+class MongoWealthProjectionSettings(Document):
+    id = IntField(primary_key=True)
+    user_id = IntField(required=True, unique=True)
+    age = IntField()
+    max_age = IntField()
+    start_wealth = FloatField()
+    debt = FloatField()
+    debt_interest = FloatField()
+    asset_interest = FloatField()
+    inflation = FloatField()
+    tax_rate = FloatField()
+    annual_contributions = FloatField()
+    checking_interest = FloatField()
+    created_at = DateTimeField()
+    updated_at = DateTimeField()
+    
+    meta = {'collection': 'wealth_projection_settings', 'db_alias': 'default'}
+
 # MongoDB Services
 class MongoDBService:
     """Service class for MongoDB operations"""

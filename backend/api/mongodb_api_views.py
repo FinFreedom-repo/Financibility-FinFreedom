@@ -13,7 +13,7 @@ import json
 import logging
 
 from .mongodb_service import (
-    UserService, AccountService, DebtService, BudgetService, TransactionService, JWTAuthService
+    UserService, AccountService, DebtService, BudgetService, TransactionService, JWTAuthService, WealthProjectionSettingsService
 )
 from .mongodb_json_encoder import convert_objectid_to_str
 from .wealth_projection import calculate_wealth_projection
@@ -1118,3 +1118,110 @@ def mongodb_project_wealth(request):
     except Exception as e:
         logger.error(f"Wealth projection error: {str(e)}")
         return JsonResponse({'error': f'Wealth projection failed: {str(e)}'}, status=500)
+
+
+@api_view(['GET'])
+@authentication_classes([MongoDBJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def mongodb_get_wealth_projection_settings(request):
+    """
+    Get wealth projection settings for the authenticated user.
+    """
+    try:
+        # Get user from token
+        user = MongoDBApiViews.get_user_from_token(request)
+        if not user:
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+        
+        # Get settings from MongoDB
+        settings_service = WealthProjectionSettingsService()
+        settings = settings_service.get_settings(str(user['_id']))
+        
+        if settings:
+            logger.info(f"Retrieved wealth projection settings for user {user['_id']}")
+            return JsonResponse({
+                'success': True,
+                'settings': settings
+            })
+        else:
+            # Return default settings if none exist
+            default_settings = {
+                'age': 25,
+                'max_age': 100,
+                'start_wealth': 0,
+                'debt': 0,
+                'debt_interest': 6.0,
+                'asset_interest': 10.5,
+                'inflation': 2.5,
+                'tax_rate': 25.0,
+                'annual_contributions': 1000,
+                'checking_interest': 4.0
+            }
+            return JsonResponse({
+                'success': True,
+                'settings': default_settings,
+                'is_default': True
+            })
+        
+    except Exception as e:
+        logger.error(f"Error getting wealth projection settings: {str(e)}")
+        return JsonResponse({'error': f'Failed to get settings: {str(e)}'}, status=500)
+
+
+@api_view(['POST'])
+@authentication_classes([MongoDBJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def mongodb_save_wealth_projection_settings(request):
+    """
+    Save wealth projection settings for the authenticated user.
+    """
+    try:
+        # Get user from token
+        user = MongoDBApiViews.get_user_from_token(request)
+        if not user:
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+        
+        # Parse request data
+        data = json.loads(request.body)
+        logger.info(f"Saving wealth projection settings for user {user['_id']}: {data}")
+        
+        # Validate required fields
+        required_fields = ['age', 'start_wealth', 'annual_contributions']
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse({'error': f'Missing required field: {field}'}, status=400)
+        
+        # Set default values for optional fields
+        defaults = {
+            'max_age': 100,
+            'debt': 0,
+            'debt_interest': 6.0,
+            'asset_interest': 10.5,
+            'inflation': 2.5,
+            'tax_rate': 25.0,
+            'checking_interest': 4.0
+        }
+        
+        for field, default_value in defaults.items():
+            if field not in data:
+                data[field] = default_value
+        
+        # Save settings to MongoDB
+        settings_service = WealthProjectionSettingsService()
+        saved_settings = settings_service.save_settings(str(user['_id']), data)
+        
+        if saved_settings:
+            logger.info(f"Successfully saved wealth projection settings for user {user['_id']}")
+            return JsonResponse({
+                'success': True,
+                'message': 'Settings saved successfully',
+                'settings': saved_settings
+            })
+        else:
+            return JsonResponse({'error': 'Failed to save settings'}, status=500)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        logger.error(f"Error saving wealth projection settings: {str(e)}")
+        return JsonResponse({'error': f'Failed to save settings: {str(e)}'}, status=500)
