@@ -1,25 +1,24 @@
 def calculate_wealth_projection(data):
     """
-    Calculate wealth projection based on input parameters.
+    Calculate wealth projection based on input parameters with 4 scenarios.
     
     Args:
         data (dict): Dictionary containing:
             - age (int): Current age
             - maxAge (int): Maximum age for projection
-            - startWealth (float): Starting wealth
-            - debt (float): Total debt
-            - debtInterest (float): Debt interest rate (percentage)
-            - assetInterest (float): Asset interest rate (percentage)
-            - inflation (float): Expected inflation rate (percentage)
-            - taxRate (float): Tax rate (percentage)
-            - annualContributions (float): Annual contributions
-            - checkingInterest (float): Checking account interest rate (percentage)
+            - startWealth (float): Starting wealth (W₀)
+            - debt (float): Total debt (ignored in first version)
+            - debtInterest (float): Debt interest rate (ignored in first version)
+            - assetInterest (float): Asset interest rate (rₐ)
+            - inflation (float): Expected inflation rate (i)
+            - taxRate (float): Tax rate (t)
+            - annualContributions (float): Annual contributions (C)
+            - checkingInterest (float): Checking account interest rate (r𝚌)
     
     Returns:
-        list: List of dictionaries containing year-by-year projections
+        list: List of dictionaries containing year-by-year projections for 4 scenarios
     """
     # Convert percentage rates to decimals
-    debt_interest_rate = float(data['debtInterest']) / 100
     asset_interest_rate = float(data['assetInterest']) / 100
     inflation_rate = float(data['inflation']) / 100
     tax_rate = float(data['taxRate']) / 100
@@ -29,10 +28,10 @@ def calculate_wealth_projection(data):
     current_age = int(data['age'])
     max_age = int(data.get('maxAge', 100))  # Default to 100 if not provided
     years_to_project = max_age - current_age
-    wealth = float(data['startWealth'])
-    debt = float(data['debt'])
     annual_contribution = float(data['annualContributions'])
-    checking_wealth = float(data['startWealth'])  # Initialize checking account wealth
+    
+    # Initialize wealth for all 4 scenarios
+    W0 = float(data['startWealth'])  # Starting wealth
     
     # Store projections
     projections = []
@@ -41,59 +40,60 @@ def calculate_wealth_projection(data):
     projections.append({
         'year': 0,
         'age': current_age,
-        'wealth': round(wealth, 2),
-        'debt': round(debt, 2),
-        'net_worth': round(wealth - debt, 2),
-        'adjusted_wealth': round(wealth, 2),  # No inflation adjustment for year 0
-        'adjusted_debt': round(debt, 2),      # No inflation adjustment for year 0
-        'adjusted_net_worth': round(wealth - debt, 2),
-        'checking_wealth': round(checking_wealth, 2),
-        'adjusted_checking_wealth': round(checking_wealth, 2)
+        'scenario_1': round(W0, 2),  # Investment Growth After Tax
+        'scenario_2': round(W0, 2),  # Investment Growth After Tax & Inflation
+        'scenario_3': round(W0, 2),  # Checking Account Growth (No Taxes)
+        'scenario_4': round(W0, 2),  # Checking Account Growth After Tax
+        'wealth': round(W0, 2),  # Keep original field for backward compatibility
+        'debt': 0,  # Ignore debt in first version
+        'net_worth': round(W0, 2),
+        'adjusted_wealth': round(W0, 2),
+        'adjusted_debt': 0,
+        'adjusted_net_worth': round(W0, 2),
+        'checking_wealth': round(W0, 2),
+        'adjusted_checking_wealth': round(W0, 2)
     })
+    
+    # Initialize wealth values for each scenario
+    W1 = W0  # Investment Growth After Tax
+    W2 = W0  # Investment Growth After Tax & Inflation  
+    W3 = W0  # Checking Account Growth (No Taxes)
+    W4 = W0  # Checking Account Growth After Tax
     
     # Calculate for the remaining years (starting from year 1)
     for year in range(1, years_to_project + 1):
-        # Calculate interest on assets (after tax)
-        asset_interest = wealth * asset_interest_rate
-        asset_interest_after_tax = asset_interest * (1 - tax_rate)
+        # Scenario 1: Investment Growth After Tax
+        # Wₙ₊₁ = (Wₙ + C) × (1 + rₐ × (1 - t))
+        W1 = (W1 + annual_contribution) * (1 + asset_interest_rate * (1 - tax_rate))
         
-        # Calculate interest on debt
-        debt_interest = debt * debt_interest_rate
+        # Scenario 2: Investment Growth After Tax & Inflation
+        # Wₙ₊₁ = (Wₙ + C) × (1 + (rₐ × (1 - t)) - i)
+        W2 = (W2 + annual_contribution) * (1 + (asset_interest_rate * (1 - tax_rate)) - inflation_rate)
         
-        # Calculate checking account interest (after tax)
-        checking_interest = checking_wealth * checking_interest_rate
-        checking_interest_after_tax = checking_interest * (1 - tax_rate)
+        # Scenario 3: Checking Account Growth (No Taxes)
+        # Wₙ₊₁ = (Wₙ + C) × (1 + r𝚌)
+        W3 = (W3 + annual_contribution) * (1 + checking_interest_rate)
         
-        # Update debt first (add interest and subtract available contribution)
-        debt += debt_interest
-        remaining_contribution = annual_contribution
-        if debt > 0:
-            debt_payment = min(debt, remaining_contribution)
-            debt -= debt_payment
-            remaining_contribution -= debt_payment
-        
-        # Update wealth with remaining contribution
-        wealth += asset_interest_after_tax + remaining_contribution
-        checking_wealth += checking_interest_after_tax + remaining_contribution
-        
-        # Adjust for inflation
-        inflation_factor = (1 + inflation_rate) ** year
-        adjusted_wealth = wealth / inflation_factor
-        adjusted_debt = debt / inflation_factor
-        adjusted_checking_wealth = checking_wealth / inflation_factor
+        # Scenario 4: Checking Account Growth After Tax
+        # Wₙ₊₁ = (Wₙ + C) × (1 + r𝚌 × (1 - t))
+        W4 = (W4 + annual_contribution) * (1 + checking_interest_rate * (1 - tax_rate))
         
         # Store projection for this year
         projections.append({
             'year': year,
             'age': current_age + year,
-            'wealth': round(wealth, 2),
-            'debt': round(debt, 2),
-            'net_worth': round(wealth - debt, 2),
-            'adjusted_wealth': round(adjusted_wealth, 2),
-            'adjusted_debt': round(adjusted_debt, 2),
-            'adjusted_net_worth': round(adjusted_wealth - adjusted_debt, 2),
-            'checking_wealth': round(checking_wealth, 2),
-            'adjusted_checking_wealth': round(adjusted_checking_wealth, 2)
+            'scenario_1': round(W1, 2),  # Investment Growth After Tax
+            'scenario_2': round(W2, 2),  # Investment Growth After Tax & Inflation
+            'scenario_3': round(W3, 2),  # Checking Account Growth (No Taxes)
+            'scenario_4': round(W4, 2),  # Checking Account Growth After Tax
+            'wealth': round(W1, 2),  # Keep original field for backward compatibility
+            'debt': 0,  # Ignore debt in first version
+            'net_worth': round(W1, 2),
+            'adjusted_wealth': round(W1 / ((1 + inflation_rate) ** year), 2),
+            'adjusted_debt': 0,
+            'adjusted_net_worth': round(W1 / ((1 + inflation_rate) ** year), 2),
+            'checking_wealth': round(W3, 2),
+            'adjusted_checking_wealth': round(W3 / ((1 + inflation_rate) ** year), 2)
         })
     
     return projections 

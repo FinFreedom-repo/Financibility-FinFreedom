@@ -99,6 +99,35 @@ function WealthProjector({ onNavigateToAccount }) {
       setIsLoading(true);
       console.log('🔄 Loading user data for Wealth Projector...');
       
+      // Load wealth projection settings first
+      console.log('💰 Loading wealth projection settings...');
+      try {
+        const settingsResponse = await axios.get('/api/mongodb/wealth-projection-settings/');
+        console.log('✅ Settings response:', settingsResponse.data);
+        if (settingsResponse.data && settingsResponse.data.success && settingsResponse.data.settings) {
+          const settings = settingsResponse.data.settings;
+          console.log('📊 Loading saved settings:', settings);
+          setFormData({
+            age: settings.age || 25,
+            maxAge: settings.max_age || 100,
+            startWealth: settings.start_wealth || 0,
+            debt: settings.debt || 0,
+            debtInterest: settings.debt_interest || 6,
+            assetInterest: settings.asset_interest || 10.5,
+            inflation: settings.inflation || 2.5,
+            taxRate: settings.tax_rate || 25,
+            annualContributions: settings.annual_contributions || 1000,
+            checkingInterest: settings.checking_interest || 4
+          });
+          console.log('✅ Settings loaded successfully');
+          setDataLoaded(true);
+          return; // Exit early if settings were loaded
+        }
+      } catch (settingsError) {
+        console.warn('⚠️ Could not load wealth projection settings:', settingsError);
+        // Continue with loading other data
+      }
+      
       // Load user profile
       console.log('📋 Loading user profile...');
       try {
@@ -126,7 +155,14 @@ function WealthProjector({ onNavigateToAccount }) {
           
           // Calculate annual contributions from budget (monthly savings * 12)
           const budget = budgetResponse.data[0];
-          const monthlyIncome = parseFloat(budget.income || 0) + parseFloat(budget.additional_income || 0);
+          let monthlyIncome = parseFloat(budget.income || 0) + parseFloat(budget.additional_income || 0);
+          
+          // Add additional income items
+          if (budget.additional_income_items && Array.isArray(budget.additional_income_items)) {
+            budget.additional_income_items.forEach(item => {
+              monthlyIncome += parseFloat(item.amount || 0);
+            });
+          }
           
           // Calculate total monthly expenses
           let monthlyExpenses = (
@@ -140,7 +176,8 @@ function WealthProjector({ onNavigateToAccount }) {
             parseFloat(budget.education || 0) +
             parseFloat(budget.utilities || 0) +
             parseFloat(budget.childcare || 0) +
-            parseFloat(budget.other || 0)
+            parseFloat(budget.others || 0) +  // Changed from 'other' to 'others'
+            parseFloat(budget.debt_payments || 0)  // Add debt payments
           );
           
           // Add additional expenses
@@ -175,42 +212,54 @@ function WealthProjector({ onNavigateToAccount }) {
       // Load accounts data (Starting Wealth = Total Account Balances)
       console.log('🏦 Loading accounts data...');
       try {
-        const accountsResponse = await accountsDebtsService.getAccounts();
-        console.log('✅ Accounts response:', accountsResponse);
-        if (accountsResponse && Array.isArray(accountsResponse)) {
-          const totalAssets = accountsResponse.reduce((sum, account) => {
+        const accountsResponse = await axios.get('/api/mongodb/accounts/');
+        console.log('✅ Accounts response:', accountsResponse.data);
+        console.log('📊 Accounts response type:', typeof accountsResponse.data);
+        console.log('📊 Accounts response length:', accountsResponse.data?.length);
+        
+        if (accountsResponse.data && Array.isArray(accountsResponse.data)) {
+          console.log('📊 Processing accounts array:', accountsResponse.data);
+          const totalAssets = accountsResponse.data.reduce((sum, account) => {
             const balance = parseFloat(account.balance || 0);
-            console.log(`  - Account ${account.name}: $${balance}`);
+            console.log(`  - Account ${account.name}: $${balance} (raw: ${account.balance})`);
             return sum + balance;
           }, 0);
           console.log('💰 Total assets from accounts:', totalAssets);
           setFormData(prev => ({ ...prev, startWealth: totalAssets }));
         } else {
           console.warn('⚠️ No accounts data found or invalid response');
+          console.warn('⚠️ Response data:', accountsResponse.data);
         }
       } catch (accountsError) {
         console.warn('⚠️ Could not load accounts data:', accountsError);
+        console.warn('⚠️ Error details:', accountsError.response?.data);
         // Continue with default starting wealth
       }
 
       // Load debts data (Current Debt = Total Outstanding Debts)
       console.log('💳 Loading debts data...');
       try {
-        const debtsResponse = await accountsDebtsService.getDebts();
-        console.log('✅ Debts response:', debtsResponse);
-        if (debtsResponse && Array.isArray(debtsResponse)) {
-          const totalDebts = debtsResponse.reduce((sum, debt) => {
+        const debtsResponse = await axios.get('/api/mongodb/debts/');
+        console.log('✅ Debts response:', debtsResponse.data);
+        console.log('📊 Debts response type:', typeof debtsResponse.data);
+        console.log('📊 Debts response length:', debtsResponse.data?.length);
+        
+        if (debtsResponse.data && Array.isArray(debtsResponse.data)) {
+          console.log('📊 Processing debts array:', debtsResponse.data);
+          const totalDebts = debtsResponse.data.reduce((sum, debt) => {
             const balance = parseFloat(debt.balance || 0);
-            console.log(`  - Debt ${debt.name}: $${balance}`);
+            console.log(`  - Debt ${debt.name}: $${balance} (raw: ${debt.balance})`);
             return sum + balance;
           }, 0);
           console.log('💳 Total debts:', totalDebts);
           setFormData(prev => ({ ...prev, debt: totalDebts }));
         } else {
           console.warn('⚠️ No debts data found or invalid response');
+          console.warn('⚠️ Response data:', debtsResponse.data);
         }
       } catch (debtsError) {
         console.warn('⚠️ Could not load debts data:', debtsError);
+        console.warn('⚠️ Error details:', debtsError.response?.data);
         // Continue with default debt amount
       }
 
@@ -287,6 +336,51 @@ function WealthProjector({ onNavigateToAccount }) {
     return Object.keys(errors).length === 0;
   };
 
+  const saveSettings = async () => {
+    try {
+      setIsLoading(true);
+      console.log('💾 Saving wealth projection settings:', formData);
+      
+      const settingsData = {
+        age: formData.age,
+        max_age: formData.maxAge,
+        start_wealth: formData.startWealth,
+        debt: formData.debt,
+        debt_interest: formData.debtInterest,
+        asset_interest: formData.assetInterest,
+        inflation: formData.inflation,
+        tax_rate: formData.taxRate,
+        annual_contributions: formData.annualContributions,
+        checking_interest: formData.checkingInterest
+      };
+      
+      const response = await axios.post('/api/mongodb/wealth-projection-settings/save/', settingsData);
+      console.log('✅ Settings saved successfully:', response.data);
+      
+      if (response.data && response.data.success) {
+        setSuccessMessage('Settings saved successfully!');
+        setShowSuccessSnackbar(true);
+      } else {
+        throw new Error('Failed to save settings');
+      }
+    } catch (error) {
+      console.error('❌ Error saving settings:', error);
+      console.error('Error response:', error.response?.data);
+      
+      let errorMessage = 'Failed to save settings';
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setErrorMessage(errorMessage);
+      setShowErrorSnackbar(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const calculateProjection = async () => {
     if (!validateForm()) {
       setErrorMessage('Please fix the validation errors before calculating');
@@ -298,7 +392,7 @@ function WealthProjector({ onNavigateToAccount }) {
       setIsLoading(true);
       console.log('🚀 Sending projection request with data:', formData);
       
-              const response = await axios.post('/api/mongodb/project-wealth/', formData);
+      const response = await axios.post('/api/mongodb/project-wealth/', formData);
       console.log('✅ Projection response received:', response.data);
       
       if (response.data && response.data.projections) {
@@ -355,16 +449,16 @@ function WealthProjector({ onNavigateToAccount }) {
     const labels = projectionData.map(item => item.age);
     const datasets = [
       {
-        label: 'Net Worth',
-        data: projectionData.map(item => item.net_worth),
-        borderColor: '#4CAF50', // Vibrant green
-        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+        label: 'Investment Growth After Tax',
+        data: projectionData.map(item => item.scenario_1),
+        borderColor: '#FF0000', // Red
+        backgroundColor: 'rgba(255, 0, 0, 0.1)',
         borderWidth: 3,
-        fill: true,
+        fill: false,
         tension: 0.6,
         pointRadius: 0,
         pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#4CAF50',
+        pointHoverBackgroundColor: '#FF0000',
         pointHoverBorderColor: '#fff',
         pointHoverBorderWidth: 2,
         animation: {
@@ -373,16 +467,16 @@ function WealthProjector({ onNavigateToAccount }) {
         }
       },
       {
-        label: 'Assets',
-        data: projectionData.map(item => item.wealth),
-        borderColor: '#2196F3', // Bright blue
-        backgroundColor: 'rgba(33, 150, 243, 0.05)',
-        borderWidth: 2,
+        label: 'Investment Growth After Tax & Inflation',
+        data: projectionData.map(item => item.scenario_2),
+        borderColor: '#0000FF', // Blue
+        backgroundColor: 'rgba(0, 0, 255, 0.05)',
+        borderWidth: 3,
         fill: false,
-        tension: 0.5,
+        tension: 0.6,
         pointRadius: 0,
-        pointHoverRadius: 5,
-        pointHoverBackgroundColor: '#2196F3',
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#0000FF',
         pointHoverBorderColor: '#fff',
         pointHoverBorderWidth: 2,
         animation: {
@@ -391,21 +485,39 @@ function WealthProjector({ onNavigateToAccount }) {
         }
       },
       {
-        label: 'Debt',
-        data: projectionData.map(item => item.debt),
-        borderColor: '#FF5722', // Vibrant orange-red
-        backgroundColor: 'rgba(255, 87, 34, 0.05)',
-        borderWidth: 2,
+        label: 'Checking Account Growth (No Taxes)',
+        data: projectionData.map(item => item.scenario_3),
+        borderColor: '#00FF00', // Green
+        backgroundColor: 'rgba(0, 255, 0, 0.05)',
+        borderWidth: 3,
         fill: false,
-        tension: 0.5,
+        tension: 0.6,
         pointRadius: 0,
-        pointHoverRadius: 5,
-        pointHoverBackgroundColor: '#FF5722',
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#00FF00',
         pointHoverBorderColor: '#fff',
         pointHoverBorderWidth: 2,
         animation: {
           duration: 1600,
           easing: 'easeInOutQuad'
+        }
+      },
+      {
+        label: 'Checking Account Growth After Tax',
+        data: projectionData.map(item => item.scenario_4),
+        borderColor: '#FFFF00', // Yellow
+        backgroundColor: 'rgba(255, 255, 0, 0.05)',
+        borderWidth: 3,
+        fill: false,
+        tension: 0.6,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#FFFF00',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2,
+        animation: {
+          duration: 1400,
+          easing: 'easeInOutSine'
         }
       }
     ];
@@ -772,7 +884,17 @@ function WealthProjector({ onNavigateToAccount }) {
                       </AccordionDetails>
                     </Accordion>
 
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mt: 3 }}>
+                      <CustomButton
+                        variant="outlined"
+                        color="primary"
+                        onClick={saveSettings}
+                        startIcon={isLoading ? <CircularProgress size={20} /> : <SettingsIcon />}
+                        disabled={isLoading}
+                        size="large"
+                      >
+                        {isLoading ? 'Saving...' : 'Save Settings'}
+                      </CustomButton>
                       <CustomButton
                         variant="contained"
                         color="primary"
@@ -955,22 +1077,28 @@ function WealthProjector({ onNavigateToAccount }) {
                       
                       {/* Chart Legend with Enhanced Styling */}
                       <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, background: alpha('#4CAF50', 0.1), border: `1px solid ${alpha('#4CAF50', 0.2)}` }}>
-                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: '#4CAF50', mr: 1 }} />
-                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#4CAF50' }}>
-                            Net Worth
+                        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, background: alpha('#FF0000', 0.1), border: `1px solid ${alpha('#FF0000', 0.2)}` }}>
+                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: '#FF0000', mr: 1 }} />
+                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#FF0000' }}>
+                            Investment After Tax
                           </Typography>
                         </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, background: alpha('#2196F3', 0.1), border: `1px solid ${alpha('#2196F3', 0.2)}` }}>
-                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: '#2196F3', mr: 1 }} />
-                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#2196F3' }}>
-                            Assets
+                        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, background: alpha('#0000FF', 0.1), border: `1px solid ${alpha('#0000FF', 0.2)}` }}>
+                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: '#0000FF', mr: 1 }} />
+                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#0000FF' }}>
+                            Investment After Tax & Inflation
                           </Typography>
                         </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, background: alpha('#FF5722', 0.1), border: `1px solid ${alpha('#FF5722', 0.2)}` }}>
-                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: '#FF5722', mr: 1 }} />
-                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#FF5722' }}>
-                            Debt
+                        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, background: alpha('#00FF00', 0.1), border: `1px solid ${alpha('#00FF00', 0.2)}` }}>
+                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: '#00FF00', mr: 1 }} />
+                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#00FF00' }}>
+                            Checking (No Taxes)
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, background: alpha('#FFFF00', 0.1), border: `1px solid ${alpha('#FFFF00', 0.2)}` }}>
+                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: '#FFFF00', mr: 1 }} />
+                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#FFFF00' }}>
+                            Checking After Tax
                           </Typography>
                         </Box>
                       </Box>
@@ -989,19 +1117,28 @@ function WealthProjector({ onNavigateToAccount }) {
                         </Typography>
                       </Box>
                       <Typography variant="body1" paragraph>
-                        The Wealth Projector helps you visualize your financial future by modeling how your wealth will grow over time based on your current financial situation and assumptions about returns, inflation, and contributions.
+                        The Wealth Projector helps you visualize your financial future by modeling how your wealth will grow over time using 4 different scenarios based on your current financial situation and assumptions about returns, inflation, and contributions.
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary" paragraph>
+                        <strong>4 Projection Scenarios:</strong>
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary" component="div">
+                        • <strong style={{color: '#FF0000'}}>Red Line:</strong> Investment Growth After Tax - Wₙ₊₁ = (Wₙ + C) × (1 + rₐ × (1 - t))<br/>
+                        • <strong style={{color: '#0000FF'}}>Blue Line:</strong> Investment Growth After Tax & Inflation - Wₙ₊₁ = (Wₙ + C) × (1 + (rₐ × (1 - t)) - i)<br/>
+                        • <strong style={{color: '#00FF00'}}>Green Line:</strong> Checking Account Growth (No Taxes) - Wₙ₊₁ = (Wₙ + C) × (1 + r𝚌)<br/>
+                        • <strong style={{color: '#FFFF00'}}>Yellow Line:</strong> Checking Account Growth After Tax - Wₙ₊₁ = (Wₙ + C) × (1 + r𝚌 × (1 - t))
                       </Typography>
                       <Typography variant="body2" color="textSecondary" paragraph>
                         <strong>Input Fields Explained:</strong>
                       </Typography>
                       <Typography variant="body2" color="textSecondary" component="div">
-                        • <strong>Starting Wealth:</strong> Total of all your account balances (checking, savings, investments)<br/>
-                        • <strong>Current Debt:</strong> Total of all your outstanding debts (credit cards, loans, etc.)<br/>
-                        • <strong>Annual Contributions:</strong> Amount you can save/invest each year (calculated from your budget)<br/>
-                        • <strong>Asset Interest Rate:</strong> Expected annual return on your investments<br/>
-                        • <strong>Debt Interest Rate:</strong> Average interest rate on your debts<br/>
-                        • <strong>Inflation Rate:</strong> Expected annual inflation rate<br/>
-                        • <strong>Tax Rate:</strong> Tax rate on investment returns
+                        • <strong>Starting Wealth (W₀):</strong> Total of all your account balances<br/>
+                        • <strong>Annual Contributions (C):</strong> Amount you can save/invest each year<br/>
+                        • <strong>Asset Interest Rate (rₐ):</strong> Expected annual return on your investments<br/>
+                        • <strong>Checking Interest Rate (r𝚌):</strong> Interest rate on checking/savings accounts<br/>
+                        • <strong>Inflation Rate (i):</strong> Expected annual inflation rate<br/>
+                        • <strong>Tax Rate (t):</strong> Tax rate on investment returns<br/>
+                        • <strong>Save Settings:</strong> Store your inputs in MongoDB Atlas for future use
                       </Typography>
                     </CardContent>
                   </CustomCard>
