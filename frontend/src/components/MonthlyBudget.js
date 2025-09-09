@@ -2674,30 +2674,30 @@ function MonthlyBudget() {
             {/* Custom Name Input (only for custom type) */}
             {savingsType === 'custom' && (
               <Box sx={{ mb: 3 }}>
-            <TextField
+              <TextField
                 label="Custom Savings Name"
                   placeholder="e.g., Vacation Fund, New Car"
-              value={newSavingsItem.name}
-              onChange={(e) => setNewSavingsItem(prev => ({ ...prev, name: e.target.value }))}
-              fullWidth
-              sx={{ 
-                '& .MuiInputBase-root': {
-                  height: 56,
-                  fontSize: '1.1rem',
-                      borderRadius: 2,
-                  '& input': {
+                value={newSavingsItem.name}
+                onChange={(e) => setNewSavingsItem(prev => ({ ...prev, name: e.target.value }))}
+                fullWidth
+                sx={{ 
+                  '& .MuiInputBase-root': {
+                    height: 56,
                     fontSize: '1.1rem',
-                    padding: '16px 14px'
+                      borderRadius: 2,
+                    '& input': {
+                      fontSize: '1.1rem',
+                      padding: '16px 14px'
                     }
                     },
                     '& .MuiInputLabel-root': {
                       fontSize: '1rem',
                       '&.Mui-focused': {
                         color: 'primary.main',
+                    }
                   }
-                }
-              }}
-            />
+                }}
+              />
               </Box>
             )}
 

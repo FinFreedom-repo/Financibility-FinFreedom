@@ -17,6 +17,7 @@ from .mongodb_api_views import (
     mongodb_get_month_budget_test, mongodb_save_month_budget, mongodb_batch_update_budgets,
     mongodb_get_transactions, mongodb_create_transaction, mongodb_update_transaction, mongodb_delete_transaction,
     mongodb_project_wealth, mongodb_get_wealth_projection_settings, mongodb_save_wealth_projection_settings,
+    mongodb_project_wealth_enhanced, mongodb_import_financials,
     BudgetViews, DebtViews
 )
 from .mongodb_debt_planner import mongodb_debt_planner, mongodb_debt_planner_test
@@ -95,8 +96,10 @@ urlpatterns = [
     
     # Wealth projection endpoints
     path('project-wealth/', mongodb_project_wealth, name='mongodb_project_wealth'),
+    path('project-wealth-enhanced/', mongodb_project_wealth_enhanced, name='mongodb_project_wealth_enhanced'),
     path('wealth-projection-settings/', mongodb_get_wealth_projection_settings, name='mongodb_get_wealth_projection_settings'),
     path('wealth-projection-settings/save/', mongodb_save_wealth_projection_settings, name='mongodb_save_wealth_projection_settings'),
+    path('import-financials/', mongodb_import_financials, name='mongodb_import_financials'),
     
     # Test authentication endpoint
     path('test-login/', test_login, name='test_login'),

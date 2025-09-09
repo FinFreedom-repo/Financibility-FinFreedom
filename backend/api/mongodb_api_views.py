@@ -1225,3 +1225,139 @@ def mongodb_save_wealth_projection_settings(request):
     except Exception as e:
         logger.error(f"Error saving wealth projection settings: {str(e)}")
         return JsonResponse({'error': f'Failed to save settings: {str(e)}'}, status=500)
+
+
+# New API endpoints for enhanced wealth projector
+
+@api_view(['POST'])
+@authentication_classes([MongoDBJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def mongodb_project_wealth_enhanced(request):
+    """
+    Enhanced wealth projection with debt repayment simulation
+    """
+    try:
+        # Get user from token
+        user = MongoDBApiViews.get_user_from_token(request)
+        if not user:
+            return JsonResponse({'error': 'Invalid or missing authentication token'}, status=401)
+        
+        # Parse request data
+        data = json.loads(request.body)
+        
+        # Validate required fields
+        required_fields = ['age', 'maxAge', 'startWealth', 'annualContributions', 'assetInterest']
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse({'error': f'Missing required field: {field}'}, status=400)
+        
+        # Set defaults for optional fields
+        defaults = {
+            'debt': 0.0,
+            'debtInterest': 0.0,
+            'inflation': 2.5,
+            'taxRate': 25.0,
+            'checkingInterest': 4.0
+        }
+        
+        for field, default_value in defaults.items():
+            if field not in data:
+                data[field] = default_value
+        
+        # Calculate wealth projection with debt repayment
+        projections = calculate_wealth_projection(data)
+        
+        logger.info(f"Successfully calculated enhanced wealth projection for user {user['_id']}")
+        return JsonResponse({
+            'success': True,
+            'projections': projections,
+            'summary': {
+                'total_years': len(projections) - 1,
+                'final_wealth_scenario_1': projections[-1]['scenario_1'],
+                'final_wealth_scenario_2': projections[-1]['scenario_2'],
+                'final_wealth_scenario_3': projections[-1]['scenario_3'],
+                'final_wealth_scenario_4': projections[-1]['scenario_4'],
+                'final_debt': projections[-1]['debt_line'],
+                'final_net_worth': projections[-1]['net_worth']
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        logger.error(f"Error calculating enhanced wealth projection: {str(e)}")
+        return JsonResponse({'error': f'Failed to calculate projection: {str(e)}'}, status=500)
+
+
+@api_view(['GET'])
+@authentication_classes([MongoDBJWTAuthentication])
+@permission_classes([IsAuthenticated])
+def mongodb_import_financials(request):
+    """
+    Import financial data from user's stored accounts, debts, and budget
+    """
+    try:
+        # Get user from token
+        user = MongoDBApiViews.get_user_from_token(request)
+        if not user:
+            return JsonResponse({'error': 'Invalid or missing authentication token'}, status=401)
+        
+        user_id = str(user['_id'])
+        
+        # Initialize services
+        account_service = AccountService()
+        debt_service = DebtService()
+        budget_service = BudgetService()
+        
+        # Get user's accounts
+        accounts = account_service.get_user_accounts(user_id)
+        total_assets = sum(float(account.get('balance', 0)) for account in accounts)
+        
+        # Get user's debts
+        debts = debt_service.get_user_debts(user_id)
+        total_debt = sum(float(debt.get('balance', 0)) for debt in debts)
+        
+        # Calculate average debt interest rate
+        debt_interest_rates = [float(debt.get('interest_rate', 0)) for debt in debts if debt.get('interest_rate')]
+        avg_debt_interest = sum(debt_interest_rates) / len(debt_interest_rates) if debt_interest_rates else 0.0
+        
+        # Get user's budget for annual contributions
+        budgets = budget_service.get_user_budgets(user_id)
+        budget = budgets[0] if budgets else None
+        annual_contributions = 0.0
+        
+        if budget:
+            # Calculate annual contributions from budget
+            monthly_income = float(budget.get('income', 0))
+            additional_income_items = budget.get('additional_income_items', [])
+            additional_income = sum(float(item.get('amount', 0)) for item in additional_income_items)
+            total_monthly_income = monthly_income + additional_income
+            
+            # Calculate monthly expenses
+            expenses = budget.get('expenses', {})
+            monthly_expenses = sum(float(expenses.get(category, 0)) for category in expenses)
+            
+            # Annual contribution = (monthly income - monthly expenses) * 12
+            monthly_savings = total_monthly_income - monthly_expenses
+            annual_contributions = monthly_savings * 12
+        
+        # Return imported financial data
+        financial_data = {
+            'startWealth': round(total_assets, 2),
+            'debt': round(total_debt, 2),
+            'debtInterest': round(avg_debt_interest, 2),
+            'annualContributions': round(annual_contributions, 2),
+            'accounts_count': len(accounts),
+            'debts_count': len(debts),
+            'has_budget': budget is not None
+        }
+        
+        logger.info(f"Successfully imported financial data for user {user_id}: {financial_data}")
+        return JsonResponse({
+            'success': True,
+            'financial_data': financial_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error importing financial data: {str(e)}")
+        return JsonResponse({'error': f'Failed to import financial data: {str(e)}'}, status=500)

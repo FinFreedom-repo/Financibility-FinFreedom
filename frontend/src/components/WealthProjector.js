@@ -390,25 +390,68 @@ function WealthProjector({ onNavigateToAccount }) {
 
     try {
       setIsLoading(true);
-      console.log('🚀 Sending projection request with data:', formData);
+      console.log('🚀 Sending enhanced projection request with data:', formData);
       
-      const response = await axios.post('/api/mongodb/project-wealth/', formData);
-      console.log('✅ Projection response received:', response.data);
+      const response = await axios.post('/api/mongodb/project-wealth-enhanced/', formData);
+      console.log('✅ Enhanced projection response received:', response.data);
       
       if (response.data && response.data.projections) {
         setProjectionData(response.data.projections);
         setShowChart(true);
-        setSuccessMessage('Projection calculated successfully!');
+        setSuccessMessage('Enhanced projection calculated successfully!');
         setShowSuccessSnackbar(true);
-        console.log('📊 Projection data set successfully');
+        console.log('📊 Enhanced projection data set successfully');
       } else {
         throw new Error('Invalid response format from server');
       }
     } catch (error) {
-      console.error('❌ Error calculating projection:', error);
+      console.error('❌ Error calculating enhanced projection:', error);
       console.error('Error response:', error.response?.data);
       
-      let errorMessage = 'Failed to calculate projection';
+      let errorMessage = 'Failed to calculate enhanced projection';
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setErrorMessage(errorMessage);
+      setShowErrorSnackbar(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const importFinancials = async () => {
+    try {
+      setIsLoading(true);
+      console.log('🔄 Importing financial data...');
+      
+      const response = await axios.get('/api/mongodb/import-financials/');
+      console.log('✅ Import financials response:', response.data);
+      
+      if (response.data && response.data.financial_data) {
+        const financialData = response.data.financial_data;
+        
+        setFormData(prev => ({
+          ...prev,
+          startWealth: financialData.startWealth,
+          debt: financialData.debt,
+          debtInterest: financialData.debtInterest,
+          annualContributions: financialData.annualContributions
+        }));
+        
+        setSuccessMessage(`Financial data imported successfully! Found ${financialData.accounts_count} accounts, ${financialData.debts_count} debts, and ${financialData.has_budget ? 'budget data' : 'no budget data'}.`);
+        setShowSuccessSnackbar(true);
+        console.log('📊 Financial data imported successfully');
+      } else {
+        throw new Error('Invalid response format from server');
+      }
+    } catch (error) {
+      console.error('❌ Error importing financial data:', error);
+      console.error('Error response:', error.response?.data);
+      
+      let errorMessage = 'Failed to import financial data';
       if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.message) {
@@ -461,6 +504,8 @@ function WealthProjector({ onNavigateToAccount }) {
         pointHoverBackgroundColor: '#FF0000',
         pointHoverBorderColor: '#fff',
         pointHoverBorderWidth: 2,
+        pointBackgroundColor: '#FF0000',
+        pointBorderColor: '#FF0000',
         animation: {
           duration: 2000,
           easing: 'easeInOutQuart'
@@ -469,16 +514,18 @@ function WealthProjector({ onNavigateToAccount }) {
       {
         label: 'Investment Growth After Tax & Inflation',
         data: projectionData.map(item => item.scenario_2),
-        borderColor: '#0000FF', // Blue
-        backgroundColor: 'rgba(0, 0, 255, 0.05)',
+        borderColor: '#FF8C00', // Dark Orange
+        backgroundColor: 'rgba(255, 140, 0, 0.1)',
         borderWidth: 3,
         fill: false,
         tension: 0.6,
         pointRadius: 0,
         pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#0000FF',
+        pointHoverBackgroundColor: '#FF8C00',
         pointHoverBorderColor: '#fff',
         pointHoverBorderWidth: 2,
+        pointBackgroundColor: '#FF8C00',
+        pointBorderColor: '#FF8C00',
         animation: {
           duration: 1800,
           easing: 'easeInOutCubic'
@@ -488,7 +535,7 @@ function WealthProjector({ onNavigateToAccount }) {
         label: 'Checking Account Growth (No Taxes)',
         data: projectionData.map(item => item.scenario_3),
         borderColor: '#00FF00', // Green
-        backgroundColor: 'rgba(0, 255, 0, 0.05)',
+        backgroundColor: 'rgba(0, 255, 0, 0.1)',
         borderWidth: 3,
         fill: false,
         tension: 0.6,
@@ -497,6 +544,8 @@ function WealthProjector({ onNavigateToAccount }) {
         pointHoverBackgroundColor: '#00FF00',
         pointHoverBorderColor: '#fff',
         pointHoverBorderWidth: 2,
+        pointBackgroundColor: '#00FF00',
+        pointBorderColor: '#00FF00',
         animation: {
           duration: 1600,
           easing: 'easeInOutQuad'
@@ -505,18 +554,40 @@ function WealthProjector({ onNavigateToAccount }) {
       {
         label: 'Checking Account Growth After Tax',
         data: projectionData.map(item => item.scenario_4),
-        borderColor: '#FFFF00', // Yellow
-        backgroundColor: 'rgba(255, 255, 0, 0.05)',
+        borderColor: '#0000FF', // Blue
+        backgroundColor: 'rgba(0, 0, 255, 0.1)',
         borderWidth: 3,
         fill: false,
         tension: 0.6,
         pointRadius: 0,
         pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#FFFF00',
+        pointHoverBackgroundColor: '#0000FF',
         pointHoverBorderColor: '#fff',
         pointHoverBorderWidth: 2,
+        pointBackgroundColor: '#0000FF',
+        pointBorderColor: '#0000FF',
         animation: {
           duration: 1400,
+          easing: 'easeInOutSine'
+        }
+      },
+      {
+        label: 'Debt Over Time',
+        data: projectionData.map(item => item.debt_line),
+        borderColor: '#800080', // Purple
+        backgroundColor: 'rgba(128, 0, 128, 0.1)',
+        borderWidth: 3,
+        fill: false,
+        tension: 0.6,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#800080',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2,
+        pointBackgroundColor: '#800080',
+        pointBorderColor: '#800080',
+        animation: {
+          duration: 1200,
           easing: 'easeInOutSine'
         }
       }
@@ -525,9 +596,11 @@ function WealthProjector({ onNavigateToAccount }) {
     return { labels, datasets };
   }, [projectionData, theme]);
 
-  const chartOptions = {
+  const chartOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
+    // Disable default color generation to use our custom colors
+    color: false,
     animation: {
       duration: 2000,
       easing: 'easeInOutQuart',
@@ -562,20 +635,20 @@ function WealthProjector({ onNavigateToAccount }) {
         title: {
           display: true,
           text: 'Age',
-          color: theme.palette.text.primary,
+          color: isDarkMode ? '#ffffff' : '#000000',
           font: {
             size: 14,
             weight: 'bold'
           }
         },
         ticks: {
-          color: theme.palette.text.secondary,
+          color: isDarkMode ? '#ffffff' : '#000000',
           font: {
             size: 12
           }
         },
         grid: {
-          color: 'rgba(0, 0, 0, 0.05)',
+          color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
           drawBorder: false
         }
       },
@@ -584,14 +657,14 @@ function WealthProjector({ onNavigateToAccount }) {
         title: {
           display: true,
           text: 'Amount ($)',
-          color: theme.palette.text.primary,
+          color: isDarkMode ? '#ffffff' : '#000000',
           font: {
             size: 14,
             weight: 'bold'
           }
         },
         ticks: {
-          color: theme.palette.text.secondary,
+          color: isDarkMode ? '#ffffff' : '#000000',
           font: {
             size: 12
           },
@@ -600,17 +673,17 @@ function WealthProjector({ onNavigateToAccount }) {
           }
         },
         grid: {
-          color: 'rgba(0, 0, 0, 0.05)',
+          color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
           drawBorder: false
         }
       }
     },
     plugins: {
       tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        borderColor: 'rgba(255, 255, 255, 0.2)',
+        backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+        titleColor: isDarkMode ? '#ffffff' : '#000000',
+        bodyColor: isDarkMode ? '#ffffff' : '#000000',
+        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)',
         borderWidth: 1,
         cornerRadius: 8,
         displayColors: true,
@@ -627,14 +700,30 @@ function WealthProjector({ onNavigateToAccount }) {
         position: 'top',
         align: 'center',
         labels: {
-          color: theme.palette.text.primary,
+          color: isDarkMode ? '#ffffff' : '#000000',
           font: {
             size: 13,
             weight: '500'
           },
           usePointStyle: true,
           pointStyle: 'circle',
-          padding: 20
+          padding: 20,
+          generateLabels: function(chart) {
+            const data = chart.data;
+            if (data.labels.length && data.datasets.length) {
+              return data.datasets.map((dataset, i) => ({
+                text: dataset.label,
+                fillStyle: dataset.borderColor,
+                strokeStyle: dataset.borderColor,
+                lineWidth: 2,
+                pointStyle: 'circle',
+                hidden: !chart.isDatasetVisible(i),
+                datasetIndex: i,
+                fontColor: isDarkMode ? '#ffffff' : '#000000'
+              }));
+            }
+            return [];
+          }
         }
       }
     },
@@ -647,7 +736,7 @@ function WealthProjector({ onNavigateToAccount }) {
         borderWidth: 3
       }
     }
-  };
+  }), [isDarkMode, theme]);
 
   const getKeyMetrics = () => {
     if (!projectionData) return null;
@@ -676,7 +765,7 @@ function WealthProjector({ onNavigateToAccount }) {
         <Box>
           <Typography variant="h4" gutterBottom sx={{ 
             fontWeight: 'bold', 
-            color: theme.palette.text.primary,
+            color: isDarkMode ? '#ffffff' : '#000000',
             mb: 3
           }}>
             Wealth Projector
@@ -896,6 +985,17 @@ function WealthProjector({ onNavigateToAccount }) {
                         {isLoading ? 'Saving...' : 'Save Settings'}
                       </CustomButton>
                       <CustomButton
+                        variant="outlined"
+                        color="secondary"
+                        onClick={importFinancials}
+                        startIcon={isLoading ? <CircularProgress size={20} /> : <AccountBalanceIcon />}
+                        disabled={isLoading}
+                        size="large"
+                        sx={{ mr: 2 }}
+                      >
+                        {isLoading ? 'Importing...' : 'Import Financials'}
+                      </CustomButton>
+                      <CustomButton
                         variant="contained"
                         color="primary"
                         onClick={calculateProjection}
@@ -1038,10 +1138,15 @@ function WealthProjector({ onNavigateToAccount }) {
                           <TimelineIcon sx={{ color: '#fff', fontSize: 24 }} />
                         </Box>
                         <Box>
-                          <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.palette.text.primary }}>
+                          <Typography variant="h6" sx={{ 
+                            fontWeight: 'bold', 
+                            color: isDarkMode ? '#ffffff' : '#000000' 
+                          }}>
                             Wealth Projection Over Time
                           </Typography>
-                          <Typography variant="body2" color="textSecondary">
+                          <Typography variant="body2" sx={{ 
+                            color: isDarkMode ? '#e0e0e0' : '#424242' 
+                          }}>
                             Interactive chart showing your financial growth trajectory
                           </Typography>
                         </Box>
@@ -1075,33 +1180,6 @@ function WealthProjector({ onNavigateToAccount }) {
                         />
                       </Box>
                       
-                      {/* Chart Legend with Enhanced Styling */}
-                      <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, background: alpha('#FF0000', 0.1), border: `1px solid ${alpha('#FF0000', 0.2)}` }}>
-                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: '#FF0000', mr: 1 }} />
-                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#FF0000' }}>
-                            Investment After Tax
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, background: alpha('#0000FF', 0.1), border: `1px solid ${alpha('#0000FF', 0.2)}` }}>
-                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: '#0000FF', mr: 1 }} />
-                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#0000FF' }}>
-                            Investment After Tax & Inflation
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, background: alpha('#00FF00', 0.1), border: `1px solid ${alpha('#00FF00', 0.2)}` }}>
-                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: '#00FF00', mr: 1 }} />
-                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#00FF00' }}>
-                            Checking (No Taxes)
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, background: alpha('#FFFF00', 0.1), border: `1px solid ${alpha('#FFFF00', 0.2)}` }}>
-                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', background: '#FFFF00', mr: 1 }} />
-                          <Typography variant="body2" sx={{ fontWeight: 500, color: '#FFFF00' }}>
-                            Checking After Tax
-                          </Typography>
-                        </Box>
-                      </Box>
                     </CardContent>
                   </CustomCard>
                 )}
@@ -1112,33 +1190,50 @@ function WealthProjector({ onNavigateToAccount }) {
                     <CardContent>
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                         <InfoIcon sx={{ mr: 1, color: theme.palette.info.main }} />
-                        <Typography variant="h6">
+                        <Typography variant="h6" sx={{ 
+                          color: isDarkMode ? '#ffffff' : '#000000' 
+                        }}>
                           How to Use the Wealth Projector
                         </Typography>
                       </Box>
-                      <Typography variant="body1" paragraph>
-                        The Wealth Projector helps you visualize your financial future by modeling how your wealth will grow over time using 4 different scenarios based on your current financial situation and assumptions about returns, inflation, and contributions.
+                      <Typography variant="body1" paragraph sx={{ 
+                        color: isDarkMode ? '#e0e0e0' : '#424242' 
+                      }}>
+                        The Enhanced Wealth Projector helps you visualize your financial future by modeling how your wealth will grow over time using 5 different scenarios, including debt repayment simulation, based on your current financial situation and assumptions about returns, inflation, and contributions.
                       </Typography>
-                      <Typography variant="body2" color="textSecondary" paragraph>
-                        <strong>4 Projection Scenarios:</strong>
+                      <Typography variant="body2" paragraph sx={{ 
+                        color: isDarkMode ? '#e0e0e0' : '#424242',
+                        fontWeight: 'bold'
+                      }}>
+                        5 Projection Scenarios:
                       </Typography>
-                      <Typography variant="body2" color="textSecondary" component="div">
-                        • <strong style={{color: '#FF0000'}}>Red Line:</strong> Investment Growth After Tax - Wₙ₊₁ = (Wₙ + C) × (1 + rₐ × (1 - t))<br/>
-                        • <strong style={{color: '#0000FF'}}>Blue Line:</strong> Investment Growth After Tax & Inflation - Wₙ₊₁ = (Wₙ + C) × (1 + (rₐ × (1 - t)) - i)<br/>
-                        • <strong style={{color: '#00FF00'}}>Green Line:</strong> Checking Account Growth (No Taxes) - Wₙ₊₁ = (Wₙ + C) × (1 + r𝚌)<br/>
-                        • <strong style={{color: '#FFFF00'}}>Yellow Line:</strong> Checking Account Growth After Tax - Wₙ₊₁ = (Wₙ + C) × (1 + r𝚌 × (1 - t))
+                      <Typography variant="body2" component="div" sx={{ 
+                        color: isDarkMode ? '#e0e0e0' : '#424242' 
+                      }}>
+                        • <strong style={{color: '#FF0000'}}>Red Line:</strong> Investment Growth After Tax - Wₙ₊₁ = Wₙ × (1 + rₐ × (1 - t))<br/>
+                        • <strong style={{color: '#FF8C00'}}>Orange Line:</strong> Investment Growth After Tax & Inflation - Wₙ₊₁ = Wₙ × (1 + (rₐ × (1 - t)) - i)<br/>
+                        • <strong style={{color: '#00FF00'}}>Green Line:</strong> Checking Account Growth (No Taxes) - Wₙ₊₁ = Wₙ × (1 + r𝚌)<br/>
+                        • <strong style={{color: '#0000FF'}}>Blue Line:</strong> Checking Account Growth After Tax - Wₙ₊₁ = Wₙ × (1 + r𝚌 × (1 - t))<br/>
+                        • <strong style={{color: '#800080'}}>Purple Line:</strong> Debt Over Time - Shows how your debt changes with interest and payments
                       </Typography>
-                      <Typography variant="body2" color="textSecondary" paragraph>
-                        <strong>Input Fields Explained:</strong>
+                      <Typography variant="body2" paragraph sx={{ 
+                        color: isDarkMode ? '#e0e0e0' : '#424242',
+                        fontWeight: 'bold'
+                      }}>
+                        Input Fields Explained:
                       </Typography>
-                      <Typography variant="body2" color="textSecondary" component="div">
+                      <Typography variant="body2" component="div" sx={{ 
+                        color: isDarkMode ? '#e0e0e0' : '#424242' 
+                      }}>
                         • <strong>Starting Wealth (W₀):</strong> Total of all your account balances<br/>
                         • <strong>Annual Contributions (C):</strong> Amount you can save/invest each year<br/>
                         • <strong>Asset Interest Rate (rₐ):</strong> Expected annual return on your investments<br/>
                         • <strong>Checking Interest Rate (r𝚌):</strong> Interest rate on checking/savings accounts<br/>
                         • <strong>Inflation Rate (i):</strong> Expected annual inflation rate<br/>
                         • <strong>Tax Rate (t):</strong> Tax rate on investment returns<br/>
-                        • <strong>Save Settings:</strong> Store your inputs in MongoDB Atlas for future use
+                        • <strong>Debt Interest Rate (r_d):</strong> Average interest rate on your debts<br/>
+                        • <strong>Save Settings:</strong> Store your inputs in MongoDB Atlas for future use<br/>
+                        • <strong>Import Financials:</strong> Auto-fill form with data from your accounts, debts, and budget
                       </Typography>
                     </CardContent>
                   </CustomCard>
