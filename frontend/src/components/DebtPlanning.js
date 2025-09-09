@@ -350,7 +350,7 @@ const DebtPlanning = () => {
     
     const gridData = [
       {
-        category: 'Income',
+        category: 'Primary Income',
         type: 'income',
         ...months.reduce((acc, _, idx) => ({ ...acc, [`month_${idx}`]: 0 }), {})
       },
@@ -438,10 +438,32 @@ const DebtPlanning = () => {
       const monthIdx = months.findIndex(m => m.month === budget.month && m.year === budget.year);
       if (monthIdx !== -1) {
         dbMonthIndices.add(monthIdx);
-        // Income
-        const incomeRow = gridData.find(row => row.category === 'Income');
-        if (incomeRow) {
-          incomeRow[`month_${monthIdx}`] = (budget.income || 0) + (budget.additional_income || 0);
+        // Primary Income
+        const primaryIncomeRow = gridData.find(row => row.category === 'Primary Income');
+        if (primaryIncomeRow) {
+          primaryIncomeRow[`month_${monthIdx}`] = budget.income || 0;
+        }
+        
+        // Additional Income Items - Add as separate rows
+        if (budget.additional_income_items && Array.isArray(budget.additional_income_items)) {
+          budget.additional_income_items.forEach(incomeItem => {
+            const itemName = incomeItem.name || 'Additional Income';
+            let additionalIncomeRow = gridData.find(row => row.category === itemName && row.type === 'additional_income');
+            
+            if (!additionalIncomeRow) {
+              // Create new Additional Income row
+              additionalIncomeRow = {
+                category: itemName,
+                type: 'additional_income',
+                ...months.reduce((acc, _, idx) => ({ ...acc, [`month_${idx}`]: 0 }), {})
+              };
+              // Insert after Primary Income
+              const primaryIncomeIndex = gridData.findIndex(row => row.category === 'Primary Income');
+              gridData.splice(primaryIncomeIndex + 1, 0, additionalIncomeRow);
+            }
+            
+            additionalIncomeRow[`month_${monthIdx}`] = incomeItem.amount || 0;
+          });
         }
         
         // Expenses
@@ -492,9 +514,12 @@ const DebtPlanning = () => {
 
   // Calculate net savings from a single budget
   const calculateNetSavingsFromBudget = (budget) => {
-    const income = (budget.income || 0) + (budget.additional_income || 0);
+    const primaryIncome = budget.income || 0;
+    const additionalIncome = budget.additional_income_items ? 
+      budget.additional_income_items.reduce((sum, item) => sum + (item.amount || 0), 0) : 0;
+    const totalIncome = primaryIncome + additionalIncome;
     const expenses = Object.values(budget.expenses || {}).reduce((sum, val) => sum + (val || 0), 0);
-    return income - expenses;
+    return totalIncome - expenses;
   };
 
   // Create sample budget data if none exists
@@ -503,17 +528,17 @@ const DebtPlanning = () => {
     
     const sampleBudgetData = [
       {
-        category: 'Income',
+        category: 'Primary Income',
         type: 'income',
-        month_0: 30000, // Current month
-        month_1: 30000, // Next month
-        month_2: 30000,
-        month_3: 30000,
-        month_4: 30000,
-        month_5: 30000,
-        month_6: 30000,
-        month_7: 30000,
-        month_8: 30000,
+        month_0: 5000, // Current month
+        month_1: 5000, // Next month
+        month_2: 5000,
+        month_3: 5000,
+        month_4: 5000,
+        month_5: 5000,
+        month_6: 5000,
+        month_7: 5000,
+        month_8: 5000,
         month_9: 30000,
         month_10: 30000,
         month_11: 30000,
@@ -709,12 +734,32 @@ const DebtPlanning = () => {
     
     return new Promise((resolve) => {
       setLocalGridData(prev => {
-        const updated = prev.map(row => {
+        let updated = prev.map(row => {
           if (row.category === category) {
             return { ...row, [`month_${monthIdx}`]: parseFloat(newValue) || 0 };
           }
           return row;
         });
+        
+        // If this is an Additional Income item and the row doesn't exist, create it
+        if (category !== 'Primary Income' && category !== 'Net Savings' && category !== 'Remaining Debt' && 
+            !updated.find(row => row.category === category)) {
+          console.log(`🆕 Creating new Additional Income row for ${category}`);
+          const additionalIncomeRow = {
+            category: category,
+            type: 'additional_income',
+            ...months.reduce((acc, _, idx) => ({ ...acc, [`month_${idx}`]: 0 }), {})
+          };
+          additionalIncomeRow[`month_${monthIdx}`] = parseFloat(newValue) || 0;
+          
+          // Insert after Primary Income
+          const primaryIncomeIndex = updated.findIndex(row => row.category === 'Primary Income');
+          if (primaryIncomeIndex !== -1) {
+            updated.splice(primaryIncomeIndex + 1, 0, additionalIncomeRow);
+          } else {
+            updated.push(additionalIncomeRow);
+          }
+        }
         
         // Recalculate net savings after updating the cell
         const recalculated = recalculateNetSavings(updated);
@@ -769,6 +814,8 @@ const DebtPlanning = () => {
   const propagateCurrentMonthChanges = useCallback(async (currentMonthIdx, category, newValue, months, updatedGridData) => {
     const currentVal = parseFloat(newValue) || 0;
     console.log(`🚀 OPTIMIZED PROPAGATION: ${category} = ${currentVal} to future months`);
+    console.log(`🔍 All grid data categories:`, updatedGridData.map(row => ({ category: row.category, type: row.type })));
+    console.log(`🔍 Checking if ${category} is Additional Income:`, updatedGridData.find(row => row.category === category && row.type === 'additional_income'));
     
     setIsPropagatingChanges(true);
     setPropagationProgress(0);
@@ -779,9 +826,13 @@ const DebtPlanning = () => {
     const totalFutureMonths = months.filter((_, idx) => idx > currentMonthIdx && months[idx]?.type === 'future').length;
     
     // Update all future months immediately in frontend state
+    console.log(`🔄 Starting propagation loop for ${category} from month ${currentMonthIdx + 1} to ${months.length - 1}`);
     for (let i = currentMonthIdx + 1; i < months.length; i++) {
       const futureMonth = months[i];
-      if (!futureMonth || futureMonth.type !== 'future') continue;
+      if (!futureMonth || futureMonth.type !== 'future') {
+        console.log(`⏭️ Skipping month ${i} - not future month`);
+        continue;
+      }
       
       // Skip locked (user-edited) cells
       const lockedForMonth = new Set((lockedCells[i] || []));
@@ -791,9 +842,11 @@ const DebtPlanning = () => {
       }
       
       // Update grid cell immediately in frontend
+      console.log(`🔄 Propagating ${category} = ${currentVal} to month ${i} (${futureMonth.label})`);
       setLocalGridData(prev => {
         const updated = prev.map(row => {
           if (row.category === category) {
+            console.log(`✅ Found row for ${category}, updating month_${i} to ${currentVal}`);
             return { ...row, [`month_${i}`]: currentVal };
           }
           return row;
@@ -804,23 +857,21 @@ const DebtPlanning = () => {
       // Track changes for batched database update (only within Atlas window)
       const withinAtlasWindow = i <= currentMonthIdx + 12;
       if (withinAtlasWindow) {
-        // For income propagation, we need to preserve the additional income and only adjust primary income
-        if (category === 'Income') {
-          // Get the current month's additional income to preserve it
-          const currentMonthBackend = backendBudgets.find(
-            b => b.month === months[currentMonthIdx].month && b.year === months[currentMonthIdx].year
-          );
-          const currentAdditionalIncome = parseFloat(currentMonthBackend?.additional_income || 0) || 0;
-          
-          // The currentVal is the total income, so we need to calculate the new primary income
-          const newPrimaryIncome = Math.max(0, currentVal - currentAdditionalIncome);
-          
+        // Handle propagation for different income types
+        if (category === 'Primary Income') {
           changesToSave.push({
             month: futureMonth.month,
             year: futureMonth.year,
-            category: 'Income',
-            value: currentVal, // Total income
-            additional_income: currentAdditionalIncome // Preserve additional income
+            category: 'Primary Income',
+            value: currentVal
+          });
+        } else if (updatedGridData.find(row => row.category === category && row.type === 'additional_income')) {
+          changesToSave.push({
+            month: futureMonth.month,
+            year: futureMonth.year,
+            category: category,
+            value: currentVal,
+            additional_income_item: true
           });
         } else {
           changesToSave.push({
@@ -853,19 +904,20 @@ const DebtPlanning = () => {
       });
       
       // Track historical changes for database
-      if (category === 'Income') {
-        // Get the current month's additional income to preserve it
-        const currentMonthBackend = backendBudgets.find(
-          b => b.month === months[currentMonthIdx].month && b.year === months[currentMonthIdx].year
-        );
-        const currentAdditionalIncome = parseFloat(currentMonthBackend?.additional_income || 0) || 0;
-        
+      if (category === 'Primary Income') {
         changesToSave.push({
           month: histMonth.month,
           year: histMonth.year,
-          category: 'Income',
-          value: currentVal, // Total income
-          additional_income: currentAdditionalIncome // Preserve additional income
+          category: 'Primary Income',
+          value: currentVal
+        });
+      } else if (updatedGridData.find(row => row.category === category && row.type === 'additional_income')) {
+        changesToSave.push({
+          month: histMonth.month,
+          year: histMonth.year,
+          category: category,
+          value: currentVal,
+          additional_income_item: true
         });
       } else {
         changesToSave.push({
@@ -1255,7 +1307,10 @@ const DebtPlanning = () => {
       
       // ENHANCED: If current month was edited, propagate to future months
       if (months[colIdx].type === 'current' && data.category !== 'Remaining Debt' && data.category !== 'Net Savings') {
+        console.log(`🚀 Triggering propagation for ${data.category} in current month`);
         await propagateCurrentMonthChanges(colIdx, data.category, newValue, months, updatedGridData);
+      } else {
+        console.log(`❌ Not propagating ${data.category} - current month: ${months[colIdx].type === 'current'}, category: ${data.category}`);
       }
       
       // ENHANCED: Trigger immediate debt payoff recalculation
@@ -1324,7 +1379,7 @@ const DebtPlanning = () => {
       
       gridData.forEach(row => {
         const monthValue = parseFloat(row[`month_${idx}`]) || 0;
-        if (row.type === 'income') income += monthValue;
+        if (row.type === 'income' || row.type === 'additional_income') income += monthValue;
         else if (row.type === 'expense') expenses += monthValue;
         else if (row.type === 'savings') savings += monthValue;
       });
@@ -1439,14 +1494,20 @@ const DebtPlanning = () => {
         // Update existing budget
         const updateData = { ...existingBudget };
         
-        if (category === 'Income') {
-          // Adjust primary income to honor edited TOTAL income while keeping additional income unchanged
-          const existingAdditional = parseFloat(updateData.additional_income || 0) || 0;
-          const editedTotalIncome = parseFloat(value) || 0;
-          const newPrimaryIncome = Math.max(0, editedTotalIncome - existingAdditional);
-          updateData.income = newPrimaryIncome;
-        } else if (category === 'Additional Income') {
-          updateData.additional_income = value;
+        if (category === 'Primary Income') {
+          updateData.income = parseFloat(value) || 0;
+        } else if (localGridData.find(row => row.category === category && row.type === 'additional_income')) {
+          // Handle Additional Income items
+          if (!updateData.additional_income_items) updateData.additional_income_items = [];
+          const existingItemIndex = updateData.additional_income_items.findIndex(item => item.name === category);
+          if (existingItemIndex !== -1) {
+            updateData.additional_income_items[existingItemIndex].amount = parseFloat(value) || 0;
+          } else {
+            updateData.additional_income_items.push({
+              name: category,
+              amount: parseFloat(value) || 0
+            });
+          }
         } else if (category === 'Savings') {
           if (!updateData.savings_items) updateData.savings_items = [];
           updateData.savings_items = [{ name: 'Savings', amount: value, type: 'savings' }];
@@ -1505,12 +1566,25 @@ const DebtPlanning = () => {
           manually_edited_categories: []
         };
         // Override the edited category with the user's value
-        if (category === 'Income') {
-          const editedTotalIncome = parseFloat(value) || 0;
-          baseBudget.income = Math.max(0, editedTotalIncome - (parseFloat(baseBudget.additional_income) || 0));
+        if (category === 'Primary Income') {
+          baseBudget.income = parseFloat(value) || 0;
+        } else if (localGridData.find(row => row.category === category && row.type === 'additional_income')) {
+          // Handle Additional Income items
+          if (!baseBudget.additional_income_items) baseBudget.additional_income_items = [];
+          const existingItemIndex = baseBudget.additional_income_items.findIndex(item => item.name === category);
+          if (existingItemIndex !== -1) {
+            baseBudget.additional_income_items[existingItemIndex].amount = parseFloat(value) || 0;
+          } else {
+            baseBudget.additional_income_items.push({
+              name: category,
+              amount: parseFloat(value) || 0
+            });
+          }
+        } else if (category === 'Savings') {
+          baseBudget.savings_items = [{ name: 'Savings', amount: value, type: 'savings' }];
+        } else {
+          baseBudget.expenses[category.toLowerCase()] = value;
         }
-        else if (category === 'Savings') baseBudget.savings_items = [{ name: 'Savings', amount: value, type: 'savings' }];
-        else baseBudget.expenses[category.toLowerCase()] = value;
         baseBudget.manually_edited_categories = [category];
 
         const createRes = await axios.post('/api/mongodb/budgets/create/', baseBudget);
@@ -1563,6 +1637,7 @@ const DebtPlanning = () => {
           if (params.data.category === 'Net Savings') return 'net-savings-category-cell';
           if (params.data.category === 'Remaining Debt') return 'remaining-debt-category-cell';
           if (params.data.type === 'income') return 'income-category-cell';
+          if (params.data.type === 'additional_income') return 'additional-income-category-cell';
           if (params.data.type === 'expense') return 'expense-category-cell';
           if (params.data.type === 'savings') return 'savings-category-cell';
           return '';
@@ -1573,10 +1648,12 @@ const DebtPlanning = () => {
             <Typography variant="body2" sx={{ 
               fontWeight: data.category === 'Net Savings' || data.category === 'Remaining Debt' ? 'bold' : '600',
               color: data.category === 'Net Savings' ? theme.palette.primary.main : 
-                     data.category === 'Remaining Debt' ? theme.palette.warning.main : 'inherit',
-              fontSize: '0.95rem'
+                     data.category === 'Remaining Debt' ? theme.palette.warning.main : 
+                     data.type === 'additional_income' ? theme.palette.secondary.main : 'inherit',
+              fontSize: '0.95rem',
+              fontStyle: data.type === 'additional_income' ? 'italic' : 'normal'
             }}>
-              {data.category}
+              {data.type === 'additional_income' ? `+ ${data.category}` : data.category}
             </Typography>
           );
         }
