@@ -1008,7 +1008,8 @@ const DebtPlanning = () => {
       name: debt.name,
       balance: parseFloat(debt.balance) || 0,
       rate: (parseFloat(debt.interest_rate) || 0) / 100,
-      minimumPayment: parseFloat(debt.minimum_payment) || 0
+      minimumPayment: parseFloat(debt.minimum_payment) || 0,
+      debt_type: debt.debt_type || 'other'
     }));
 
     const currentMonthIdx = months.findIndex(m => m.type === 'current');
@@ -1050,8 +1051,16 @@ const DebtPlanning = () => {
       let totalPaidToDebt = 0;
 
       if (availableForDebt > 0 && debtBalances.some(d => d.balance > 0)) {
-        // Sort debts by strategy
+        // Sort debts by strategy with credit cards prioritized first
         const sortedDebts = [...debtBalances].sort((a, b) => {
+          // First priority: Credit cards before other debt types
+          const aIsCreditCard = a.debt_type === 'credit_card';
+          const bIsCreditCard = b.debt_type === 'credit_card';
+          
+          if (aIsCreditCard && !bIsCreditCard) return -1; // a (credit card) comes first
+          if (!aIsCreditCard && bIsCreditCard) return 1;  // b (credit card) comes first
+          
+          // If both are same type (both credit cards or both other types), sort by strategy
           if (strategyType === 'snowball') {
             return a.balance - b.balance; // Smallest balance first
           } else {
@@ -1631,6 +1640,7 @@ const DebtPlanning = () => {
         field: 'category',
         pinned: 'left',
         editable: false,
+        sortable: false,
         minWidth: 220,
         width: 220,
         cellClass: params => {
@@ -1666,6 +1676,7 @@ const DebtPlanning = () => {
         headerName: month.label,
         field: `month_${idx}`,
         width: 120,
+        sortable: false,
         editable: params => {
           if (params.data.category === 'Net Savings') return false;
           if (params.data.category === 'Remaining Debt') return false;
@@ -1676,39 +1687,124 @@ const DebtPlanning = () => {
         },
         cellClass: params => {
           const classes = [];
-          if (month.type === 'historical') classes.push('historical-month-row');
-          if (month.type === 'current') classes.push('current-month-row');
-          if (month.type === 'future') classes.push('future-month-row');
+          
+          // Time-based styling for all categories
+          if (month.type === 'historical') {
+            classes.push('time-historical-cell');
+          } else if (month.type === 'current') {
+            classes.push('time-current-cell');
+          } else if (month.type === 'future') {
+            classes.push('time-future-cell');
+          }
+          
+          // Specific timeline category styling - apply to both row and cell
           if (params.data.category === 'Net Savings') {
             const value = parseFloat(params.value) || 0;
             classes.push(value >= 0 ? 'net-positive-cell' : 'net-negative-cell');
+            // Add timeline-specific classes
+            if (month.type === 'historical') {
+              classes.push('timeline-net-savings-historical');
+            } else if (month.type === 'current') {
+              classes.push('timeline-net-savings-current');
+            } else if (month.type === 'future') {
+              classes.push('timeline-net-savings-future');
+            }
+          } else if (params.data.category === 'Total Paid to Debt') {
+            if (month.type === 'historical') {
+              classes.push('timeline-total-paid-historical');
+            } else if (month.type === 'current') {
+              classes.push('timeline-total-paid-current');
+            } else if (month.type === 'future') {
+              classes.push('timeline-total-paid-future');
+            }
+          } else if (params.data.category === 'Interest Paid') {
+            if (month.type === 'historical') {
+              classes.push('timeline-interest-paid-historical');
+            } else if (month.type === 'current') {
+              classes.push('timeline-interest-paid-current');
+            } else if (month.type === 'future') {
+              classes.push('timeline-interest-paid-future');
+            }
+          } else if (params.data.category === 'Remaining Debt') {
+            if (month.type === 'historical') {
+              classes.push('timeline-remaining-debt-historical');
+            } else if (month.type === 'current') {
+              classes.push('timeline-remaining-debt-current');
+            } else if (month.type === 'future') {
+              classes.push('timeline-remaining-debt-future');
+            }
+          } else if (params.data.type === 'debt') {
+            // Individual debt rows
+            if (month.type === 'historical') {
+              classes.push('timeline-debt-historical');
+            } else if (month.type === 'current') {
+              classes.push('timeline-debt-current');
+            } else if (month.type === 'future') {
+              classes.push('timeline-debt-future');
+            }
           }
+          
           return classes.join(' ');
         },
         cellRenderer: params => {
           const value = parseFloat(params.value) || 0;
           let color = 'inherit';
           let fontWeight = 'normal';
+          let backgroundColor = 'transparent';
           
-          if (params.data.category === 'Net Savings') {
-            color = value >= 0 ? theme.palette.success.main : theme.palette.error.main;
+          // Check if this is a timeline-specific category
+          const isTimelineCategory = params.data.category === 'Net Savings' || 
+                                   params.data.category === 'Total Paid to Debt' || 
+                                   params.data.category === 'Interest Paid' || 
+                                   params.data.category === 'Remaining Debt' || 
+                                   params.data.type === 'debt';
+          
+          if (isTimelineCategory) {
+            // Apply timeline-specific styling
+            if (month.type === 'historical') {
+              backgroundColor = '#0027dbcf';
+              color = '#ffffff';
+              fontWeight = '600';
+            } else if (month.type === 'current') {
+              backgroundColor = '#4caf50';
+              color = '#ffffff';
             fontWeight = 'bold';
-          } else if (params.data.category === 'Remaining Debt') {
-            color = theme.palette.warning.main;
+            } else if (month.type === 'future') {
+              backgroundColor = '#f44336';
+              color = '#ffffff';
             fontWeight = 'bold';
-          } else if (params.data.type === 'income') {
-            color = theme.palette.success.main;
+            }
+          } else {
+            // Apply general time-based styling for other categories
+            if (month.type === 'historical') {
+              color = '#ffffff';
             fontWeight = '600';
-          } else if (params.data.type === 'expense') {
-            color = theme.palette.error.main;
-            fontWeight = '600';
-          } else if (params.data.type === 'savings') {
-            color = theme.palette.info.main;
-            fontWeight = '600';
+            } else if (month.type === 'current') {
+              color = '#ffffff';
+              fontWeight = 'bold';
+            } else if (month.type === 'future') {
+              color = '#ffffff';
+              fontWeight = 'bold';
+            }
           }
           
           return (
-            <Typography variant="body2" sx={{ color, fontWeight, textAlign: 'right' }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color, 
+                fontWeight, 
+                textAlign: 'right',
+                backgroundColor: backgroundColor,
+                padding: '4px 8px',
+                borderRadius: '2px',
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end'
+              }}
+            >
               {formatCurrency(value)}
             </Typography>
           );
@@ -1737,8 +1833,8 @@ const DebtPlanning = () => {
         {/* ENHANCED: Real-time update progress indicator */}
         {isUpdatingCell && (
           <Fade in={true} timeout={300}>
-              <Alert 
-                severity="info" 
+            <Alert 
+              severity="info" 
                 sx={{ mb: 3, background: 'linear-gradient(135deg, rgba(255, 0, 0, 0.15), rgba(0, 0, 255, 0.1))' }}
               action={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1760,7 +1856,7 @@ const DebtPlanning = () => {
             mb: 3, 
             p: 3, 
             borderRadius: 3,
-              background: isDarkMode 
+            background: isDarkMode 
                 ? 'linear-gradient(135deg, rgba(255, 0, 0, 0.1) 0%, rgba(0, 0, 255, 0.1) 100%)' 
                 : 'linear-gradient(135deg, rgba(255, 0, 0, 0.05) 0%, rgba(0, 0, 255, 0.05) 100%)',
             border: isDarkMode 
@@ -1776,7 +1872,7 @@ const DebtPlanning = () => {
               left: 0,
               right: 0,
               bottom: 0,
-                background: isDarkMode 
+              background: isDarkMode 
                   ? 'linear-gradient(90deg, transparent 0%, rgba(255, 0, 0, 0.1) 50%, transparent 100%)'
                   : 'linear-gradient(90deg, transparent 0%, rgba(255, 0, 0, 0.05) 50%, transparent 100%)',
               animation: 'shimmer 2s infinite',
@@ -1853,9 +1949,9 @@ const DebtPlanning = () => {
                     backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
                     '& .MuiLinearProgress-bar': {
                       borderRadius: 6,
-                        background: propagationProgress <= 35 
+                      background: propagationProgress <= 35 
                           ? 'linear-gradient(90deg, #ff0000 0%, #ff4444 100%)' // Red for Processing
-                          : propagationProgress <= 70 
+                        : propagationProgress <= 70 
                           ? 'linear-gradient(90deg, #ff0000 0%, #0000ff 100%)' // Red to Blue for Updating
                           : 'linear-gradient(90deg, #0000ff 0%, #4444ff 100%)', // Blue for Loading
                       transition: 'all 0.3s ease'
@@ -2035,6 +2131,90 @@ const DebtPlanning = () => {
             </Box>
           )}
           
+          <style>
+            {`
+              /* Time-based styling for all categories */
+              .time-historical-cell {
+                background-color: #0027dbcf !important; /* Dark gray for historical months */
+              }
+              
+              .time-current-cell {
+                background-color: #4caf50 !important; /* Green for current month */
+              }
+              
+              .time-future-cell {
+                background-color: #f44336 !important; /* Full red for future months */
+              }
+              
+              /* Legacy class for backward compatibility */
+              .additional-income-historical-cell {
+                background-color:rgb(0, 67, 252) !important;
+              }
+              
+              /* Timeline-specific category styling with maximum specificity */
+              .ag-theme-alpine .ag-row.timeline-net-savings-historical .ag-cell {
+                background-color: #0027dbcf !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-net-savings-current .ag-cell {
+                background-color: #4caf50 !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-net-savings-future .ag-cell {
+                background-color: #f44336 !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-total-paid-historical .ag-cell {
+                background-color: #0027dbcf !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-total-paid-current .ag-cell {
+                background-color: #4caf50 !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-total-paid-future .ag-cell {
+                background-color: #f44336 !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-interest-paid-historical .ag-cell {
+                background-color: #0027dbcf !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-interest-paid-current .ag-cell {
+                background-color: #4caf50 !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-interest-paid-future .ag-cell {
+                background-color: #f44336 !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-remaining-debt-historical .ag-cell {
+                background-color: #0027dbcf !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-remaining-debt-current .ag-cell {
+                background-color: #4caf50 !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-remaining-debt-future .ag-cell {
+                background-color: #f44336 !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-debt-historical .ag-cell {
+                background-color: #0027dbcf !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-debt-current .ag-cell {
+                background-color: #4caf50 !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-debt-future .ag-cell {
+                background-color: #f44336 !important;
+                color: white !important;
+              }
+            `}
+          </style>
+          
           <div className="ag-theme-alpine" style={{ width: '100%', overflowX: 'auto' }}>
             <AgGridReact
               key={`budget-grid-${historicalMonthsShown}-${projectionMonths}-${gridUpdateCounter.current}-${gridForceUpdate}`}
@@ -2045,26 +2225,30 @@ const DebtPlanning = () => {
               onCellValueChanged={onCellValueChanged}
               suppressMovableColumns={true}
               suppressMenuHide={true}
+              suppressSorting={true}
+              suppressColumnVirtualisation={true}
+              suppressRowClickSelection={true}
+              suppressRowHoverHighlight={true}
+              suppressColumnMoveAnimation={true}
+              suppressAnimationFrame={true}
               stopEditingWhenCellsLoseFocus={true}
               singleClickEdit={true}
               defaultColDef={{ 
                 resizable: false, 
                 suppressSizeToFit: true, 
                 suppressAutoSize: true, 
+                sortable: false,
                 minWidth: 120, 
                 width: 120, 
                 maxWidth: 120 
               }}
               headerHeight={48}
-              suppressColumnVirtualisation={false}
               rowHeight={72}
               cellSelection={false}
               rowSelection={{ enableClickSelection: false }}
               theme="legacy"
               // Enable horizontal scrolling
               suppressHorizontalScroll={false}
-              // Pin the category column for better readability
-              suppressColumnMoveAnimation={true}
             />
           </div>
         </Box>
@@ -2501,6 +2685,7 @@ const DebtPlanning = () => {
         field: 'category',
         pinned: 'left',
         editable: false,
+        sortable: false,
         minWidth: 220,
         width: 220,
         cellClass: params => {
@@ -2533,6 +2718,7 @@ const DebtPlanning = () => {
         headerName: month.label,
         field: `month_${idx}`,
         width: 120,
+        sortable: false,
         editable: false, // Timeline grid is read-only
         cellClass: params => {
           const classes = [];
@@ -2549,7 +2735,32 @@ const DebtPlanning = () => {
           const value = parseFloat(params.value) || 0;
           let color = 'inherit';
           let fontWeight = 'normal';
+          let backgroundColor = 'transparent';
           
+          // Check if this is a timeline-specific category
+          const isTimelineCategory = params.data.category === 'Net Savings' || 
+                                   params.data.category === 'Total Paid to Debt' || 
+                                   params.data.category === 'Interest Paid' || 
+                                   params.data.category === 'Remaining Debt' || 
+                                   params.data.type === 'debt';
+          
+          if (isTimelineCategory) {
+            // Apply timeline-specific styling
+            if (month.type === 'historical') {
+              backgroundColor = '#0027dbcf';
+              color = '#ffffff';
+              fontWeight = '600';
+            } else if (month.type === 'current') {
+              backgroundColor = '#4caf50';
+              color = '#ffffff';
+              fontWeight = 'bold';
+            } else if (month.type === 'future') {
+              backgroundColor = '#f44336';
+              color = '#ffffff';
+              fontWeight = 'bold';
+            }
+          } else {
+            // Apply general styling for other categories
           if (params.data.category === 'Net Savings') {
             color = value >= 0 ? theme.palette.success.main : theme.palette.error.main;
             fontWeight = 'bold';
@@ -2562,10 +2773,29 @@ const DebtPlanning = () => {
           } else if (params.data.type === 'debt') {
             color = theme.palette.error.main;
             fontWeight = '600';
+            }
           }
           
           return (
-            <Typography variant="body2" sx={{ color, fontWeight, textAlign: 'right' }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color, 
+                fontWeight, 
+                textAlign: 'right',
+                backgroundColor: backgroundColor,
+                padding: '0',
+                margin: '0',
+                borderRadius: '0',
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                minHeight: '100%',
+                boxSizing: 'border-box'
+              }}
+            >
               {formatCurrency(value)}
             </Typography>
           );
@@ -2622,37 +2852,121 @@ const DebtPlanning = () => {
                 borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
                 '& .ag-cell': {
                   borderRight: '1px solid rgba(0, 0, 0, 0.1)',
-                  padding: '8px',
+                  padding: '0 !important',
+                  margin: '0 !important',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'flex-end'
+                  justifyContent: 'flex-end',
+                  boxSizing: 'border-box',
+                  '& > *': {
+                    width: '100% !important',
+                    height: '100% !important',
+                    margin: '0 !important',
+                    padding: '0 !important'
+                  }
                 },
-                '&.historical-month-row': {
-                  backgroundColor: '#424242 !important',
+                '&.time-historical-cell': {
+                  backgroundColor: '#0027dbcf !important',
                   color: 'white !important',
                   '& .ag-cell': {
-                    backgroundColor: '#424242 !important',
+                    backgroundColor: '#0027dbcf !important',
                     color: 'white !important',
                     borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
                   }
                 },
-                '&.current-month-row': {
-                  backgroundColor: '#d32f2f !important',
+                '&.time-current-cell': {
+                  backgroundColor: '#4caf50 !important',
                   color: 'white !important',
                   '& .ag-cell': {
-                    backgroundColor: '#d32f2f !important',
+                    backgroundColor: '#4caf50 !important',
                     color: 'white !important',
                     borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
                   }
                 },
-                '&.future-month-row': {
-                     backgroundColor: '#008000 !important',
+                '&.time-future-cell': {
+                  backgroundColor: '#f44336 !important',
                   color: 'white !important',
                   '& .ag-cell': {
-                    backgroundColor: '#008000 !important',
+                    backgroundColor: '#f44336 !important',
                     color: 'white !important',
                     borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
                   }
+                },
+                // Specific category styling for timeline grid - using higher specificity
+                '&.timeline-net-savings-historical .ag-cell': {
+                  backgroundColor: '#0027dbcf !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-net-savings-current .ag-cell': {
+                  backgroundColor: '#4caf50 !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-net-savings-future .ag-cell': {
+                  backgroundColor: '#f44336 !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-total-paid-historical .ag-cell': {
+                  backgroundColor: '#0027dbcf !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-total-paid-current .ag-cell': {
+                  backgroundColor: '#4caf50 !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-total-paid-future .ag-cell': {
+                  backgroundColor: '#f44336 !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-interest-paid-historical .ag-cell': {
+                  backgroundColor: '#0027dbcf !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-interest-paid-current .ag-cell': {
+                  backgroundColor: '#4caf50 !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-interest-paid-future .ag-cell': {
+                  backgroundColor: '#f44336 !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-remaining-debt-historical .ag-cell': {
+                  backgroundColor: '#0027dbcf !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-remaining-debt-current .ag-cell': {
+                  backgroundColor: '#4caf50 !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-remaining-debt-future .ag-cell': {
+                  backgroundColor: '#f44336 !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-debt-historical .ag-cell': {
+                  backgroundColor: '#0027dbcf !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-debt-current .ag-cell': {
+                  backgroundColor: '#4caf50 !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                },
+                '&.timeline-debt-future .ag-cell': {
+                  backgroundColor: '#f44336 !important',
+                  color: 'white !important',
+                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
                 }
               },
               '& .ag-pinned-left': {
@@ -2684,24 +2998,28 @@ const DebtPlanning = () => {
               domLayout="autoHeight"
               suppressMovableColumns={true}
               suppressMenuHide={true}
+              suppressSorting={true}
+              suppressColumnVirtualisation={true}
+              suppressRowClickSelection={true}
+              suppressRowHoverHighlight={true}
+              suppressColumnMoveAnimation={true}
+              suppressAnimationFrame={true}
               defaultColDef={{ 
                 resizable: false, 
                 suppressSizeToFit: true, 
                 suppressAutoSize: true, 
+                sortable: false,
                 minWidth: 120, 
                 width: 120, 
                 maxWidth: 120 
               }}
               headerHeight={48}
-              suppressColumnVirtualisation={false}
               rowHeight={72}
               cellSelection={false}
               rowSelection={{ enableClickSelection: false }}
               theme="legacy"
               // Enable horizontal scrolling
               suppressHorizontalScroll={false}
-              // Pin the category column for better readability
-              suppressColumnMoveAnimation={true}
             />
           </div>
         </Box>
@@ -2733,16 +3051,16 @@ const DebtPlanning = () => {
       <Tabs value={selectedTabIndex} onChange={(_, newValue) => setSelectedTabIndex(newValue)} sx={{ mb: 3 }}>
         <Tab label="Budget Projection" />
         <Tab label="Debt Overview" />
-        <Tab label="Payoff Strategies" />
       </Tabs>
 
       {selectedTabIndex === 0 && (
         <Card sx={{ p: 3 }}>
+          {/* Debt Payoff Timeline & Strategies Section - Now at the top */}
           <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-            Editable Budget Projection with Real-Time Updates
+            Debt Payoff Timeline & Strategies
           </Typography>
           
-          {/* Month Range Controls */}
+          {/* Month Range Controls for Timeline */}
           <Box sx={{ mb: 3, display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="body2" sx={{ minWidth: '120px' }}>
@@ -2778,7 +3096,16 @@ const DebtPlanning = () => {
             </Typography>
           </Box>
           
+          {renderDebtPayoffTimeline()}
+          
+          {/* Editable Budget Projection with Real-Time Updates Section */}
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+              Editable Budget Projection with Real-Time Updates
+            </Typography>
+          
           {renderEnhancedGrid()}
+          </Box>
         </Card>
       )}
 
@@ -3058,7 +3385,7 @@ const DebtPlanning = () => {
                 }}>
                   {/* Header */}
                   <Box sx={{
-                      background: isDarkMode 
+                    background: isDarkMode 
                         ? 'linear-gradient(135deg, #1a1a1a, #2a1a1a)' 
                         : 'linear-gradient(135deg, #fff8f8, #f0f0ff)',
                     p: 3,
@@ -3292,9 +3619,9 @@ const DebtPlanning = () => {
                                       label={`${(parseFloat(debt.interest_rate || debt.rate) || 0).toFixed(2)}%`}
                                       size="small"
                                       sx={{
-                                          background: (parseFloat(debt.interest_rate || debt.rate) || 0) > 20 
+                                        background: (parseFloat(debt.interest_rate || debt.rate) || 0) > 20 
                                             ? '#ff0000'
-                                            : (parseFloat(debt.interest_rate || debt.rate) || 0) > 15 
+                                          : (parseFloat(debt.interest_rate || debt.rate) || 0) > 15 
                                               ? '#ff0000'
                                               : '#0000ff',
                                         color: 'white',
@@ -3375,52 +3702,6 @@ const DebtPlanning = () => {
               </Box>
             )}
           </Card>
-        </Card>
-      )}
-
-      {selectedTabIndex === 2 && (
-        <Card sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-            Debt Payoff Timeline & Strategies
-          </Typography>
-          
-          {/* Month Range Controls - Same as Budget Projection */}
-          <Box sx={{ mb: 3, display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2" sx={{ minWidth: '120px' }}>
-                Historical Months:
-              </Typography>
-              <TextField
-                type="number"
-                size="small"
-                value={historicalMonthsShown}
-                onChange={(e) => setHistoricalMonthsShown(Math.max(0, parseInt(e.target.value) || 0))}
-                inputProps={{ min: 0, max: 12, style: { width: '60px' } }}
-                sx={{ width: '80px' }}
-              />
-            </Box>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2" sx={{ minWidth: '120px' }}>
-                Projected Months:
-              </Typography>
-              <TextField
-                type="number"
-                size="small"
-                value={projectionMonths}
-                onChange={(e) => setProjectionMonths(Math.max(1, Math.min(maxProjectionMonths, parseInt(e.target.value) || 12)))}
-                inputProps={{ min: 1, max: maxProjectionMonths, style: { width: '60px' } }}
-                sx={{ width: '80px' }}
-              />
-            </Box>
-            
-            <Typography variant="caption" color="textSecondary">
-              Total: {historicalMonthsShown + 1 + projectionMonths} months 
-              ({historicalMonthsShown} past + 1 current + {projectionMonths} future)
-            </Typography>
-          </Box>
-          
-          {renderDebtPayoffTimeline()}
         </Card>
       )}
 

@@ -84,6 +84,7 @@ function WealthProjector({ onNavigateToAccount }) {
   const [useRealData, setUseRealData] = useState(false);
   const [expandedAccordion, setExpandedAccordion] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [chartMode, setChartMode] = useState(0); // 0: No Inflation, 1: Inflation Adjusted, 2: Checking
 
   useEffect(() => {
     loadUserData();
@@ -490,90 +491,27 @@ function WealthProjector({ onNavigateToAccount }) {
     if (!projectionData) return null;
 
     const labels = projectionData.map(item => item.age);
-    const datasets = [
+    
+    // Calculate Net Worth for each scenario
+    const netWorthData = projectionData.map(item => item.scenario_1 - item.debt_line);
+    const netWorthInflAdjData = projectionData.map(item => item.scenario_2 - item.debt_line);
+    const netWorthCheckingData = projectionData.map(item => item.scenario_3 - item.debt_line);
+    const netWorthCheckingInflAdjData = projectionData.map(item => item.scenario_4 - item.debt_line);
+    const assetsData = projectionData.map(item => item.scenario_1);
+    const debtData = projectionData.map(item => item.debt_line);
+    
+    // Calculate inflation adjustment factor for each year
+    const inflationRate = formData.inflation / 100;
+    const inflationAdjustmentData = projectionData.map((item, index) => {
+      const year = index;
+      return 1 / Math.pow(1 + inflationRate, year);
+    });
+    
+    // Base datasets - always show Assets and Debt
+    const baseDatasets = [
       {
-        label: 'Investment Growth After Tax',
-        data: projectionData.map(item => item.scenario_1),
-        borderColor: '#FF0000', // Red
-        backgroundColor: 'rgba(255, 0, 0, 0.1)',
-        borderWidth: 3,
-        fill: false,
-        tension: 0.6,
-        pointRadius: 0,
-        pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#FF0000',
-        pointHoverBorderColor: '#fff',
-        pointHoverBorderWidth: 2,
-        pointBackgroundColor: '#FF0000',
-        pointBorderColor: '#FF0000',
-        animation: {
-          duration: 2000,
-          easing: 'easeInOutQuart'
-        }
-      },
-      {
-        label: 'Investment Growth After Tax & Inflation',
-        data: projectionData.map(item => item.scenario_2),
-        borderColor: '#FF8C00', // Dark Orange
-        backgroundColor: 'rgba(255, 140, 0, 0.1)',
-        borderWidth: 3,
-        fill: false,
-        tension: 0.6,
-        pointRadius: 0,
-        pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#FF8C00',
-        pointHoverBorderColor: '#fff',
-        pointHoverBorderWidth: 2,
-        pointBackgroundColor: '#FF8C00',
-        pointBorderColor: '#FF8C00',
-        animation: {
-          duration: 1800,
-          easing: 'easeInOutCubic'
-        }
-      },
-      {
-        label: 'Checking Account Growth (No Taxes)',
-        data: projectionData.map(item => item.scenario_3),
-        borderColor: '#00FF00', // Green
-        backgroundColor: 'rgba(0, 255, 0, 0.1)',
-        borderWidth: 3,
-        fill: false,
-        tension: 0.6,
-        pointRadius: 0,
-        pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#00FF00',
-        pointHoverBorderColor: '#fff',
-        pointHoverBorderWidth: 2,
-        pointBackgroundColor: '#00FF00',
-        pointBorderColor: '#00FF00',
-        animation: {
-          duration: 1600,
-          easing: 'easeInOutQuad'
-        }
-      },
-      {
-        label: 'Checking Account Growth After Tax',
-        data: projectionData.map(item => item.scenario_4),
-        borderColor: '#0000FF', // Blue
-        backgroundColor: 'rgba(0, 0, 255, 0.1)',
-        borderWidth: 3,
-        fill: false,
-        tension: 0.6,
-        pointRadius: 0,
-        pointHoverRadius: 6,
-        pointHoverBackgroundColor: '#0000FF',
-        pointHoverBorderColor: '#fff',
-        pointHoverBorderWidth: 2,
-        pointBackgroundColor: '#0000FF',
-        pointBorderColor: '#0000FF',
-        animation: {
-          duration: 1400,
-          easing: 'easeInOutSine'
-        }
-      },
-      {
-        label: 'Debt Over Time',
-        data: projectionData.map(item => item.debt_line),
+        label: 'Assets',
+        data: assetsData,
         borderColor: '#800080', // Purple
         backgroundColor: 'rgba(128, 0, 128, 0.1)',
         borderWidth: 3,
@@ -590,11 +528,127 @@ function WealthProjector({ onNavigateToAccount }) {
           duration: 1200,
           easing: 'easeInOutSine'
         }
+      },
+      {
+        label: 'Debt',
+        data: debtData,
+        borderColor: '#FF1493', // Deep Pink
+        backgroundColor: 'rgba(255, 20, 147, 0.1)',
+        borderWidth: 3,
+        fill: false,
+        tension: 0.6,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#FF1493',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2,
+        pointBackgroundColor: '#FF1493',
+        pointBorderColor: '#FF1493',
+        animation: {
+          duration: 1000,
+          easing: 'easeInOutSine'
+        }
       }
     ];
 
+    // Net Worth datasets based on chart mode
+    let netWorthDatasets = [];
+    
+    if (chartMode === 0) { // No Inflation Adjustment
+      netWorthDatasets = [
+        {
+          label: 'Net Worth',
+          data: netWorthData,
+          borderColor: '#FF0000', // Red
+          backgroundColor: 'rgba(255, 0, 0, 0.1)',
+          borderWidth: 3,
+          fill: false,
+          tension: 0.6,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#FF0000',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+          pointBackgroundColor: '#FF0000',
+          pointBorderColor: '#FF0000',
+          animation: {
+            duration: 2000,
+            easing: 'easeInOutQuart'
+          }
+        }
+      ];
+    } else if (chartMode === 1) { // Inflation Adjusted
+      netWorthDatasets = [
+        {
+          label: 'Net Worth (Infl Adj.)',
+          data: netWorthInflAdjData,
+          borderColor: '#FF8C00', // Dark Orange
+          backgroundColor: 'rgba(255, 140, 0, 0.1)',
+          borderWidth: 3,
+          fill: false,
+          tension: 0.6,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#FF8C00',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+          pointBackgroundColor: '#FF8C00',
+          pointBorderColor: '#FF8C00',
+          animation: {
+            duration: 1800,
+            easing: 'easeInOutCubic'
+          }
+        }
+      ];
+    } else if (chartMode === 2) { // Checking
+      netWorthDatasets = [
+        {
+          label: 'Net Worth (if in checking)',
+          data: netWorthCheckingData,
+          borderColor: '#00FF00', // Green
+          backgroundColor: 'rgba(0, 255, 0, 0.1)',
+          borderWidth: 3,
+          fill: false,
+          tension: 0.6,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#00FF00',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+          pointBackgroundColor: '#00FF00',
+          pointBorderColor: '#00FF00',
+          animation: {
+            duration: 1600,
+            easing: 'easeInOutQuad'
+          }
+        },
+        {
+          label: 'Net Worth (if in checking, Infl Adj.)',
+          data: netWorthCheckingInflAdjData,
+          borderColor: '#0000FF', // Blue
+          backgroundColor: 'rgba(0, 0, 255, 0.1)',
+          borderWidth: 3,
+          fill: false,
+          tension: 0.6,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#0000FF',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+          pointBackgroundColor: '#0000FF',
+          pointBorderColor: '#0000FF',
+          animation: {
+            duration: 1400,
+            easing: 'easeInOutSine'
+          }
+        }
+      ];
+    }
+
+    const datasets = [...netWorthDatasets, ...baseDatasets];
+
     return { labels, datasets };
-  }, [projectionData, theme]);
+  }, [projectionData, theme, formData.inflation, chartMode]);
 
   const chartOptions = useMemo(() => ({
     responsive: true,
@@ -697,7 +751,7 @@ function WealthProjector({ onNavigateToAccount }) {
         }
       },
       legend: {
-        position: 'top',
+        position: 'bottom',
         align: 'center',
         labels: {
           color: isDarkMode ? '#ffffff' : '#000000',
@@ -1122,6 +1176,33 @@ function WealthProjector({ onNavigateToAccount }) {
                     }}
                   >
                     <CardContent sx={{ p: 3 }}>
+                      {/* Chart Mode Slider */}
+                      <Box sx={{ mb: 3 }}>
+                        <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+                          Chart Display Mode
+                        </Typography>
+                        <Box sx={{ px: 2 }}>
+                          <Slider
+                            value={chartMode}
+                            onChange={(event, newValue) => setChartMode(newValue)}
+                            step={1}
+                            min={0}
+                            max={2}
+                            marks={[
+                              { value: 0, label: 'No Inflation Adjustment' },
+                              { value: 1, label: 'Inflation Adjusted' },
+                              { value: 2, label: 'Checking' }
+                            ]}
+                            sx={{
+                              '& .MuiSlider-markLabel': {
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold'
+                              }
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                      
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                         <Box
                           sx={{

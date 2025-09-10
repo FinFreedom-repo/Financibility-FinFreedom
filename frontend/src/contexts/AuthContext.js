@@ -18,14 +18,49 @@ export const AuthProvider = ({ children }) => {
         return;
       }
       
-      // Only use development mode if explicitly enabled and no real token exists
-      const isDevelopment = process.env.REACT_APP_DEV_MODE === 'true' && !token;
+      // Check if server has restarted by comparing startup times
+      try {
+        console.log('AuthContext: Checking if server has restarted...');
+        const serverInfoResponse = await axios.get('/api/mongodb/server-info/');
+        const currentServerStartup = serverInfoResponse.data.startup_time;
+        const lastKnownStartup = localStorage.getItem('server_startup_time');
+        
+        if (lastKnownStartup && lastKnownStartup !== currentServerStartup) {
+          console.log('AuthContext: Server has restarted, clearing all auth data');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('cached_username');
+          localStorage.removeItem('cached_user_id');
+          localStorage.removeItem('token_timestamp');
+          localStorage.removeItem('server_startup_time');
+          delete axios.defaults.headers.common['Authorization'];
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
+        // Store current server startup time
+        localStorage.setItem('server_startup_time', currentServerStartup);
+      } catch (serverInfoError) {
+        console.warn('AuthContext: Could not check server info, proceeding with token validation');
+      }
       
-      if (isDevelopment) {
-        console.log('AuthContext: Development mode - setting default user');
-        setUser({ id: 1, username: 'development_user' });
-        setLoading(false);
-        return;
+      // Check if token is older than 5 minutes (300 seconds)
+      const tokenTimestamp = localStorage.getItem('token_timestamp');
+      if (tokenTimestamp) {
+        const tokenAge = Date.now() - parseInt(tokenTimestamp);
+        if (tokenAge > 300000) { // 5 minutes in milliseconds
+          console.log('AuthContext: Token is older than 5 minutes, clearing auth data');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('cached_username');
+          localStorage.removeItem('cached_user_id');
+          localStorage.removeItem('token_timestamp');
+          delete axios.defaults.headers.common['Authorization'];
+          setUser(null);
+          setLoading(false);
+          return;
+        }
       }
       
       try {
@@ -42,91 +77,23 @@ export const AuthProvider = ({ children }) => {
         // Cache user info for offline scenarios
         localStorage.setItem('cached_username', response.data.user.username);
         localStorage.setItem('cached_user_id', response.data.user.id.toString());
+        
+        // Update token timestamp
+        localStorage.setItem('token_timestamp', Date.now().toString());
       } catch (error) {
         console.error('AuthContext: Token verification failed:', error);
         
-        // Only attempt refresh if we got a clear authentication error
-        // Also treat 500 errors during token verification as auth errors
-        const isAuthError = error.response?.status === 401 || 
-                           error.response?.status === 403 ||
-                           (error.response?.status === 500 && error.config?.url?.includes('/profile/'));
-        
-        if (isAuthError) {
-          // Try to refresh the token
-          const refreshToken = localStorage.getItem('refresh_token');
-          if (refreshToken) {
-            try {
-              console.log('AuthContext: Attempting to refresh token...');
-              const refreshResponse = await axios.post('/api/mongodb/auth/mongodb/refresh/', {
-                refresh: refreshToken
-              });
-              
-              const newToken = refreshResponse.data.access;
-              localStorage.setItem('access_token', newToken);
-              axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-              
-              // Retry getting user profile
-              const profileResponse = await axios.get('/api/mongodb/auth/mongodb/profile/');
-              setUser({ id: profileResponse.data.user.id, username: profileResponse.data.user.username });
-              
-              // Update cached user info
-              localStorage.setItem('cached_username', profileResponse.data.user.username);
-              localStorage.setItem('cached_user_id', profileResponse.data.user.id.toString());
-              
-              console.log('AuthContext: Token refreshed successfully');
-            } catch (refreshError) {
-              console.error('AuthContext: Token refresh failed:', refreshError);
-              // Clear all tokens and user state only if refresh also fails
-              localStorage.removeItem('access_token');
-              localStorage.removeItem('refresh_token');
-              localStorage.removeItem('cached_username');
-              localStorage.removeItem('cached_user_id');
-              delete axios.defaults.headers.common['Authorization'];
-              setUser(null);
-            }
-          } else {
-            // No refresh token, clear everything
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('cached_username');
-            localStorage.removeItem('cached_user_id');
-            delete axios.defaults.headers.common['Authorization'];
-            setUser(null);
-          }
-        } else {
-          // Network error (not server error) - keep user logged in with cached data
-          // Only use cached data for actual network issues, not auth/server errors
-          const isNetworkError = !error.response || error.code === 'NETWORK_ERROR' || error.code === 'ECONNABORTED';
-          
-          if (isNetworkError) {
-            console.warn('AuthContext: Network error during token verification, keeping user logged in with cached data');
-            const cachedUsername = localStorage.getItem('cached_username');
-            const cachedUserId = localStorage.getItem('cached_user_id');
-            
-            if (cachedUsername && cachedUserId) {
-              setUser({ id: parseInt(cachedUserId), username: cachedUsername });
-              console.log('AuthContext: Using cached user data:', { id: parseInt(cachedUserId), username: cachedUsername });
-            } else {
-              // No cached data available, clear everything
-              localStorage.removeItem('access_token');
-              localStorage.removeItem('refresh_token');
-              localStorage.removeItem('cached_username');
-              localStorage.removeItem('cached_user_id');
-              delete axios.defaults.headers.common['Authorization'];
-              setUser(null);
-              console.log('AuthContext: No cached data, clearing all auth data');
-            }
-          } else {
-            // Other server errors - clear auth data
-            console.error('AuthContext: Server error during token verification, clearing auth data');
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('cached_username');
-            localStorage.removeItem('cached_user_id');
-            delete axios.defaults.headers.common['Authorization'];
-            setUser(null);
-          }
-        }
+        // Any error during token verification should clear auth data
+        // This prevents auto-login when there are any issues
+        console.error('AuthContext: Error during token verification, clearing auth data');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('cached_username');
+        localStorage.removeItem('cached_user_id');
+        localStorage.removeItem('token_timestamp');
+        localStorage.removeItem('server_startup_time');
+        delete axios.defaults.headers.common['Authorization'];
+        setUser(null);
       }
       
       setLoading(false);
@@ -167,7 +134,16 @@ export const AuthProvider = ({ children }) => {
       
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
+      localStorage.setItem('token_timestamp', Date.now().toString());
       axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+      
+      // Store server startup time for restart detection
+      try {
+        const serverInfoResponse = await axios.get('/api/mongodb/server-info/');
+        localStorage.setItem('server_startup_time', serverInfoResponse.data.startup_time);
+      } catch (e) {
+        console.warn('Could not get server startup time');
+      }
       
       // Use the user data from the login response
       const userData = { 
@@ -200,6 +176,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('cached_username');
     localStorage.removeItem('cached_user_id');
+    localStorage.removeItem('token_timestamp');
+    localStorage.removeItem('server_startup_time');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
   };

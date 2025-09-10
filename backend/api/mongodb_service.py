@@ -5,6 +5,7 @@ MongoDB Service Layer - Replaces Django ORM for MongoDB operations
 import os
 import bcrypt
 import jwt
+import hashlib
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from pymongo import MongoClient
@@ -1256,9 +1257,17 @@ class JWTAuthService:
     """Service for JWT token management"""
     
     def __init__(self):
-        self.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-here')
+        # Use JWT-specific secret key that changes on server restart
+        try:
+            from django.conf import settings
+            self.secret_key = getattr(settings, 'JWT_SECRET_KEY', settings.SECRET_KEY)
+        except:
+            # Fallback to environment variables if Django is not configured
+            self.secret_key = os.getenv('JWT_SECRET_KEY', os.getenv('SECRET_KEY', 'your-secret-key-here'))
+        
         self.algorithm = 'HS256'
-        self.access_token_expire_minutes = 60 * 24  # 24 hours
+        self.access_token_expire_minutes = 5  # 5 minutes for security
+        self.token_usage_tracker = {}  # Track token usage times
     
     def create_access_token(self, data: Dict) -> str:
         """Create JWT access token"""
@@ -1277,13 +1286,63 @@ class JWTAuthService:
         return encoded_jwt
     
     def verify_token(self, token: str) -> Optional[Dict]:
-        """Verify JWT token"""
+        """Verify JWT token with usage tracking and 5-minute inactivity timeout"""
         try:
+            # First check if token is valid JWT
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
+            
+            # Check if token has been used before
+            current_time = datetime.utcnow()
+            token_hash = hashlib.sha256(token.encode()).hexdigest()
+            
+            if token_hash in self.token_usage_tracker:
+                # Check if 5 minutes have passed since last usage
+                last_used = self.token_usage_tracker[token_hash]
+                time_since_last_use = current_time - last_used
+                
+                if time_since_last_use.total_seconds() > 300:  # 5 minutes = 300 seconds
+                    logger.info(f"Token expired due to 5-minute inactivity: {token_hash[:8]}...")
+                    # Remove expired token from tracker
+                    del self.token_usage_tracker[token_hash]
+                    return None
+            else:
+                # New token, add to tracker
+                self.token_usage_tracker[token_hash] = current_time
+            
+            # Update last used time
+            self.token_usage_tracker[token_hash] = current_time
+            
+            # Clean up old tokens (older than 10 minutes) to prevent memory leaks
+            self._cleanup_old_tokens()
+            
             return payload
+            
         except jwt.ExpiredSignatureError:
             logger.error("Token has expired")
             return None
         except jwt.PyJWTError as e:
             logger.error(f"JWT error: {e}")
-            return None 
+            return None
+    
+    def _cleanup_old_tokens(self):
+        """Clean up tokens older than 10 minutes to prevent memory leaks"""
+        current_time = datetime.utcnow()
+        expired_tokens = []
+        
+        for token_hash, last_used in self.token_usage_tracker.items():
+            if (current_time - last_used).total_seconds() > 600:  # 10 minutes
+                expired_tokens.append(token_hash)
+        
+        for token_hash in expired_tokens:
+            del self.token_usage_tracker[token_hash]
+    
+    def invalidate_token(self, token: str):
+        """Invalidate a specific token"""
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        if token_hash in self.token_usage_tracker:
+            del self.token_usage_tracker[token_hash]
+    
+    def clear_all_tokens(self):
+        """Clear all token usage tracking (call on server restart)"""
+        self.token_usage_tracker.clear()
+        logger.info("All token usage tracking cleared") 
