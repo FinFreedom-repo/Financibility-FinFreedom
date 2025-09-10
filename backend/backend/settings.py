@@ -211,3 +211,30 @@ DUAL_WRITE_CATEGORIES = _env_bool("DUAL_WRITE_CATEGORIES", False)
 # Transactions
 USE_MONGO_TRANSACTIONS = _env_bool("USE_MONGO_TRANSACTIONS", True)
 DUAL_WRITE_TRANSACTIONS = _env_bool("DUAL_WRITE_TRANSACTIONS", False)
+
+# Invalidate all JWT tokens on server startup
+import uuid
+from datetime import datetime
+
+def setup_server_startup():
+    """Setup server startup - invalidate all JWT tokens and set startup time"""
+    try:
+        # Set server startup time
+        startup_time = datetime.now().isoformat()
+        os.environ['SERVER_STARTUP_TIME'] = startup_time
+        
+        # Generate a new random secret key to invalidate all existing JWT tokens
+        new_secret = f"financability-{uuid.uuid4().hex}-{datetime.now().timestamp()}"
+        os.environ['JWT_SECRET_KEY'] = new_secret
+        
+        print("✅ Server startup complete:")
+        print(f"   - Startup time: {startup_time}")
+        print(f"   - New JWT secret key generated - all existing tokens invalidated")
+        
+        return new_secret
+    except Exception as e:
+        print(f"⚠️ Could not complete server startup setup: {e}")
+        return os.getenv('SECRET_KEY', 'your-secret-key-here')
+
+# Setup server startup
+JWT_SECRET_KEY = setup_server_startup()

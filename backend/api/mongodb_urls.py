@@ -29,9 +29,21 @@ def health_check(request):
     """Simple health check endpoint"""
     return JsonResponse({"status": "healthy", "message": "MongoDB API is running"})
 
+def server_info(request):
+    """Server information including startup timestamp"""
+    import os
+    from datetime import datetime
+    startup_time = os.getenv('SERVER_STARTUP_TIME', datetime.now().isoformat())
+    return JsonResponse({
+        "status": "running",
+        "startup_time": startup_time,
+        "current_time": datetime.now().isoformat()
+    })
+
 urlpatterns = [
     # Health check endpoint
     path('', health_check, name='health_check'),
+    path('server-info/', server_info, name='server_info'),
     
     # Authentication endpoints
     path('auth/mongodb/login/', mongodb_login, name='mongodb_login'),
