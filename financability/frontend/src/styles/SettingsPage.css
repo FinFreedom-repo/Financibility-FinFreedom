@@ -1,0 +1,585 @@
+/* Settings Page Styles */
+.settings-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 0;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Dark mode background */
+[data-mui-color-scheme="dark"] .settings-container,
+.settings-container.dark-mode {
+  background: linear-gradient(135deg, #121212 0%, #1e1e1e 100%) !important;
+}
+
+/* Header Section */
+.settings-header {
+  padding: 32px 40px;
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  box-shadow: 0 4px 20px rgba(25, 118, 210, 0.15);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+
+.settings-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+  pointer-events: none;
+}
+
+.settings-header-content {
+  position: relative;
+  z-index: 1;
+}
+
+.settings-title-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.settings-avatar {
+  width: 64px !important;
+  height: 64px !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+  color: #1976d2 !important;
+  font-size: 28px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.settings-title {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  margin-bottom: 8px !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.settings-subtitle {
+  color: rgba(255,255,255,0.9) !important;
+  font-weight: 400 !important;
+}
+
+/* Content Wrapper */
+.settings-content {
+  flex: 1;
+  padding: 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  background: transparent;
+  transition: all 0.3s ease;
+}
+
+/* Grid Layout */
+.settings-grid {
+  margin-top: 0;
+}
+
+/* Card Styles */
+.settings-card {
+  border-radius: 20px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1) !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: 1px solid rgba(25, 118, 210, 0.1) !important;
+  overflow: hidden;
+  position: relative;
+  background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.95) 100%) !important;
+  backdrop-filter: blur(10px);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 48px rgba(25, 118, 210, 0.15) !important;
+  border-color: rgba(25, 118, 210, 0.2) !important;
+}
+
+.settings-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #1976d2 0%, #f44336 100%);
+}
+
+.settings-card-content {
+  padding: 32px !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Section Headers */ 
+.settings-section-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid rgba(25, 118, 210, 0.15);
+}
+
+.settings-section-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(25, 118, 210, 0.3);
+  transition: all 0.3s ease;
+}
+
+.settings-section-title {
+  font-weight: 700 !important;
+  color: #1976d2 !important;
+  margin: 0 !important;
+  font-size: 1.25rem !important;
+}
+
+/* Toggle Container Styles */
+.settings-toggle-container {
+  padding: 8px 0;
+}
+
+.settings-toggle-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(244, 67, 54, 0.05) 100%);
+  border: 1px solid rgba(25, 118, 210, 0.1);
+  transition: all 0.3s ease;
+}
+
+.settings-toggle-content:hover {
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.08) 0%, rgba(244, 67, 54, 0.08) 100%);
+  border-color: rgba(25, 118, 210, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(25, 118, 210, 0.1);
+}
+
+.settings-toggle-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.settings-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-toggle-primary {
+  font-weight: 600 !important;
+  color: #2c3e50 !important;
+  font-size: 1.1rem !important;
+}
+
+.settings-toggle-secondary {
+  color: #7f8c8d !important;
+  font-size: 0.9rem !important;
+}
+
+.settings-list-icon {
+  color: #1976d2 !important;
+  min-width: 40px !important;
+}
+
+/* Switch Styles */
+.settings-switch .MuiSwitch-switchBase {
+  color: #bdc3c7 !important;
+}
+
+.settings-switch .MuiSwitch-switchBase.Mui-checked {
+  color: #f44336 !important;
+}
+
+.settings-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background-color: #f44336 !important;
+}
+
+/* Dark mode switch styles */
+[data-mui-color-scheme="dark"] .settings-switch .MuiSwitch-switchBase,
+.settings-container.dark-mode .settings-switch .MuiSwitch-switchBase {
+  color: #ffffff !important;
+}
+
+[data-mui-color-scheme="dark"] .settings-switch .MuiSwitch-switchBase.Mui-checked,
+.settings-container.dark-mode .settings-switch .MuiSwitch-switchBase.Mui-checked {
+  color: #ffffff !important;
+}
+
+[data-mui-color-scheme="dark"] .settings-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track,
+.settings-container.dark-mode .settings-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+[data-mui-color-scheme="dark"] .settings-switch .MuiSwitch-track,
+.settings-container.dark-mode .settings-switch .MuiSwitch-track {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Force white color for switch thumb in dark mode */
+[data-mui-color-scheme="dark"] .settings-switch .MuiSwitch-thumb,
+.settings-container.dark-mode .settings-switch .MuiSwitch-thumb {
+  background-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* Override any default Material-UI colors */
+[data-mui-color-scheme="dark"] .settings-switch .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb,
+.settings-container.dark-mode .settings-switch .MuiSwitch-switchBase.Mui-checked .MuiSwitch-thumb {
+  background-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* Payment Plans */
+.payment-plans-container {
+  margin-top: 24px;
+  flex: 1;
+}
+
+.payment-plan {
+  border-radius: 20px !important;
+  padding: 32px !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: 2px solid rgba(25, 118, 210, 0.1) !important;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.95) 100%) !important;
+  backdrop-filter: blur(10px);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.payment-plan::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #1976d2 0%, #f44336 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.payment-plan:hover {
+  transform: translateY(-12px);
+  box-shadow: 0 20px 60px rgba(25, 118, 210, 0.15) !important;
+  border-color: rgba(25, 118, 210, 0.3) !important;
+}
+
+.payment-plan.active {
+  border-color: #1976d2 !important;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.08) 0%, rgba(244, 67, 54, 0.08) 100%) !important;
+  box-shadow: 0 12px 40px rgba(25, 118, 210, 0.2) !important;
+}
+
+.payment-plan.active::before {
+  opacity: 1;
+}
+
+.payment-plan-header {
+  text-align: center;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.payment-plan-name {
+  font-weight: 600 !important;
+  color: #2c3e50 !important;
+  margin-bottom: 8px !important;
+}
+
+.payment-plan-price {
+  font-weight: 700 !important;
+  color: #1976d2 !important;
+  margin-bottom: 12px !important;
+}
+
+.current-plan-chip {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3) !important;
+  border-radius: 20px !important;
+}
+
+.current-plan-chip .MuiChip-icon {
+  color: #ffffff !important;
+}
+
+.payment-plan-divider {
+  margin: 16px 0 !important;
+  border-color: rgba(25, 118, 210, 0.1) !important;
+}
+
+.payment-plan-features {
+  padding: 0 !important;
+  margin-bottom: 24px !important;
+  flex: 1;
+}
+
+.payment-plan-feature {
+  padding: 8px 0 !important;
+}
+
+.payment-plan-feature-icon {
+  color: #1976d2 !important;
+  min-width: 32px !important;
+}
+
+.payment-plan-feature-text .MuiListItemText-primary {
+  font-size: 0.875rem !important;
+  color: #2c3e50 !important;
+}
+
+.payment-plan-actions {
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+.payment-plan-button {
+  border-radius: 16px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  padding: 14px 28px !important;
+  transition: all 0.3s ease !important;
+  font-size: 1rem !important;
+  letter-spacing: 0.5px !important;
+}
+
+.payment-plan-button.current {
+  border-color: #1976d2 !important;
+  color: #1976d2 !important;
+  background: transparent !important;
+}
+
+.payment-plan-button.current:hover {
+  background: rgba(25, 118, 210, 0.1) !important;
+  border-color: #1976d2 !important;
+  color: #1976d2 !important;
+}
+
+.payment-plan-button:not(.current):hover {
+  background: #d32f2f !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(244, 67, 54, 0.3) !important;
+}
+
+
+
+/* Loading States */
+.settings-progress {
+  margin-top: 16px !important;
+}
+
+.settings-error {
+  margin-top: 16px !important;
+  border-radius: 12px !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .settings-content {
+    padding: 20px;
+  }
+  
+  .settings-header {
+    padding: 24px 20px;
+  }
+  
+  .settings-title-section {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+  
+  .settings-avatar {
+    width: 56px !important;
+    height: 56px !important;
+    font-size: 24px !important;
+  }
+  
+  .settings-card-content {
+    padding: 24px !important;
+  }
+  
+  .payment-plan {
+    padding: 24px !important;
+  }
+  
+  .settings-toggle-content {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  
+  .settings-toggle-info {
+    width: 100%;
+  }
+}
+
+/* Dark Mode Adjustments */
+[data-mui-color-scheme="dark"] .settings-card,
+.settings-container.dark-mode .settings-card {
+  background: linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(18, 18, 18, 0.98) 100%) !important;
+  border-color: rgba(25, 118, 210, 0.3) !important;
+}
+
+[data-mui-color-scheme="dark"] .settings-toggle-primary,
+.settings-container.dark-mode .settings-toggle-primary {
+  color: #ffffff !important;
+}
+
+[data-mui-color-scheme="dark"] .settings-toggle-secondary,
+.settings-container.dark-mode .settings-toggle-secondary {
+  color: #b0b0b0 !important;
+}
+
+[data-mui-color-scheme="dark"] .settings-section-title,
+.settings-container.dark-mode .settings-section-title {
+  color: #1976d2 !important;
+}
+
+[data-mui-color-scheme="dark"] .settings-toggle-content,
+.settings-container.dark-mode .settings-toggle-content {
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.15) 0%, rgba(244, 67, 54, 0.15) 100%) !important;
+  border-color: rgba(25, 118, 210, 0.4) !important;
+}
+
+[data-mui-color-scheme="dark"] .settings-toggle-content:hover,
+.settings-container.dark-mode .settings-toggle-content:hover {
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.2) 0%, rgba(244, 67, 54, 0.2) 100%) !important;
+  border-color: rgba(25, 118, 210, 0.5) !important;
+}
+
+[data-mui-color-scheme="dark"] .payment-plan,
+.settings-container.dark-mode .payment-plan {
+  background: linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(18, 18, 18, 0.98) 100%) !important;
+  border-color: rgba(25, 118, 210, 0.3) !important;
+}
+
+[data-mui-color-scheme="dark"] .payment-plan-name,
+.settings-container.dark-mode .payment-plan-name {
+  color: #f1f1f1 !important;
+}
+
+[data-mui-color-scheme="dark"] .payment-plan-price,
+.settings-container.dark-mode .payment-plan-price {
+  color: #1976d2 !important;
+}
+
+[data-mui-color-scheme="dark"] .payment-plan-feature-text .MuiListItemText-primary,
+.settings-container.dark-mode .payment-plan-feature-text .MuiListItemText-primary {
+  color: #f1f1f1 !important;
+}
+
+[data-mui-color-scheme="dark"] .payment-plan-divider,
+.settings-container.dark-mode .payment-plan-divider {
+  border-color: rgba(25, 118, 210, 0.3) !important;
+}
+
+/* Global Dark Mode Styles */
+[data-mui-color-scheme="dark"] body,
+[data-mui-color-scheme="dark"] html,
+.settings-container.dark-mode ~ *,
+.settings-container.dark-mode {
+  background: #121212 !important;
+  color: #f1f1f1 !important;
+}
+
+/* Ensure the main app container is also dark */
+[data-mui-color-scheme="dark"] .MuiBox-root,
+.settings-container.dark-mode .MuiBox-root {
+  background: #121212 !important;
+}
+
+/* Force dark background on all elements when dark mode is active */
+.settings-container.dark-mode,
+.settings-container.dark-mode * {
+  background-color: #121212 !important;
+}
+
+/* Override any white backgrounds */
+.settings-container.dark-mode .MuiCard-root,
+.settings-container.dark-mode .MuiPaper-root,
+.settings-container.dark-mode .MuiBox-root {
+  background: linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(18, 18, 18, 0.98) 100%) !important;
+}
+
+/* Ensure no white backgrounds remain */
+.settings-container.dark-mode * {
+  background-color: transparent !important;
+}
+
+.settings-container.dark-mode .settings-container,
+.settings-container.dark-mode .settings-content,
+.settings-container.dark-mode .settings-card,
+.settings-container.dark-mode .payment-plan {
+  background: linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(18, 18, 18, 0.98) 100%) !important;
+}
+
+/* Animation Classes */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-card {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.settings-card:nth-child(1) { animation-delay: 0.1s; }
+.settings-card:nth-child(2) { animation-delay: 0.2s; }
+.settings-card:nth-child(3) { animation-delay: 0.3s; }
+.settings-card:nth-child(4) { animation-delay: 0.4s; }
+.settings-card:nth-child(5) { animation-delay: 0.5s; }
+
+/* Hover Effects */
+.settings-card:hover .settings-section-icon {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(25, 118, 210, 0.4);
+}
+
+.settings-list-item:hover .settings-list-icon {
+  transform: scale(1.1);
+}
+
+/* Focus States */
+.settings-switch:focus-within {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.payment-plan-button:focus {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+} 
