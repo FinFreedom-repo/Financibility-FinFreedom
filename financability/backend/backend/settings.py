@@ -157,7 +157,7 @@ CORS_ALLOW_CREDENTIALS = True
 # Production CORS settings
 if not DEBUG:
     CORS_ALLOWED_ORIGINS = [
-        "https://your-frontend-domain.onrender.com",
+        "https://financability-frontend.onrender.com",
         # Add your frontend domain here
     ]
 
