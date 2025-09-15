@@ -9,13 +9,24 @@ from decimal import Decimal
 from datetime import datetime, date
 from backend.mongodb_settings import MONGODB_CONNECTION
 
-# Connect to MongoDB
-connect(
-    db=MONGODB_CONNECTION['db'],
-    host=MONGODB_CONNECTION['host'],
-    port=MONGODB_CONNECTION.get('port', 27017),
-    alias='default'
-)
+# Connect to MongoDB - lazy connection
+def get_mongodb_connection():
+    """Get MongoDB connection, connecting if not already connected"""
+    try:
+        # Check if already connected
+        from mongoengine.connection import get_connection
+        get_connection('default')
+    except:
+        # Not connected, establish connection
+        connect(
+            db=MONGODB_CONNECTION['db'],
+            host=MONGODB_CONNECTION['host'],
+            port=MONGODB_CONNECTION.get('port', 27017),
+            alias='default'
+        )
+
+# Initialize connection
+get_mongodb_connection()
 
 # MongoDB Models
 class MongoUser(Document):
