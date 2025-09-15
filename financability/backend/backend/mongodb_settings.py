@@ -10,8 +10,9 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # MongoDB Atlas Configuration - PRIMARY CONFIGURATION
-MONGODB_ATLAS_URI = 'mongodb+srv://kraffay96:ToHkxcn2x8HeeW7L@financability-cluster.wghh7fu.mongodb.net/?retryWrites=true&w=majority&appName=financability-cluster'
-MONGODB_NAME = 'financability_db'
+# Read from environment variables for production deployment
+MONGODB_ATLAS_URI = os.getenv('MONGODB_ATLAS_URI', 'mongodb+srv://kraffay96:ToHkxcn2x8HeeW7L@financability-cluster.wghh7fu.mongodb.net/?retryWrites=true&w=majority&appName=financability-cluster')
+MONGODB_NAME = os.getenv('MONGODB_NAME', 'financability_db')
 
 # MongoDB Configuration for Django (using djongo)
 MONGODB_CONFIG = {
