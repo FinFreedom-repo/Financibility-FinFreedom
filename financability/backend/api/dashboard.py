@@ -27,7 +27,9 @@ class DashboardView(APIView):
             if not user:
                 return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
             
-            user_id = user.get('_id')
+            # Handle MongoDBUser object - use the id attribute
+            user_id = str(user.id)
+            
             if not user_id:
                 return Response({'error': 'Invalid user'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -36,7 +38,7 @@ class DashboardView(APIView):
 
             # Get account balances
             accounts = MongoDBService.get_user_accounts(user_id)
-            total_balance = sum(Decimal(str(account.get('balance', 0))) for account in accounts)
+            total_balance = sum(Decimal(str(account.balance or 0)) for account in accounts)
 
             # Get budget overview
             budget = MongoDBService.get_user_budget(user_id)
@@ -44,16 +46,13 @@ class DashboardView(APIView):
             # Calculate total expenses from budget
             total_expenses = Decimal('0')
             if budget:
-                expense_fields = [
-                    'housing', 'debt_payments', 'transportation', 'utilities',
-                    'food', 'healthcare', 'entertainment', 'shopping',
-                    'travel', 'education', 'childcare', 'other'
-                ]
-                for field in expense_fields:
-                    total_expenses += Decimal(str(budget.get(field, 0)))
+                # Get expenses from the expenses dict
+                expenses = budget.expenses or {}
+                for field, amount in expenses.items():
+                    total_expenses += Decimal(str(amount or 0))
                 
                 # Add additional expenses if any
-                additional_items = budget.get('additional_items', [])
+                additional_items = budget.additional_items or []
                 for item in additional_items:
                     if item.get('type') == 'expense':
                         total_expenses += Decimal(str(item.get('amount', 0)))
@@ -71,16 +70,16 @@ class DashboardView(APIView):
                 ],
                 'accounts': [
                     {
-                        'id': str(a.get('_id', '')),
-                        'name': a.get('name', ''),
-                        'balance': float(a.get('balance', 0))
+                        'id': str(a.id),
+                        'name': a.name,
+                        'balance': float(a.balance or 0)
                     } for a in accounts
                 ],
                 'total_balance': float(total_balance),
                 'budget': {
-                    'income': float(budget.get('income', 0)) if budget else 0,
+                    'income': float(budget.income or 0) if budget else 0,
                     'total_expenses': float(total_expenses),
-                    'net_income': float(budget.get('income', 0) - total_expenses) if budget else 0
+                    'net_income': float(Decimal(str(budget.income or 0)) - total_expenses) if budget else 0
                 }
             }
 
@@ -88,7 +87,8 @@ class DashboardView(APIView):
 
         except Exception as e:
             logger.error(f"Error fetching dashboard data: {str(e)}", exc_info=True)
+            print(f"Dashboard error: {str(e)}")  # Add print for debugging
             return Response(
-                {'error': 'Failed to fetch dashboard data'},
+                {'error': f'Failed to fetch dashboard data: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             ) 

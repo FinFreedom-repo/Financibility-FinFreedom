@@ -43,7 +43,7 @@ echo "🔌 Activating virtual environment..."
 source venv/bin/activate
 
 echo "📦 Installing dependencies..."
-pip install -r requirements.txt
+pip install -r requirements.txt --break-system-packages
 
 echo "🗄️  Running migrations..."
 python3 manage.py migrate

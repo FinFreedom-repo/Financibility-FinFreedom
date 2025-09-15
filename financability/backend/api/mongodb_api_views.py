@@ -5,12 +5,24 @@ Replaces Django ORM with MongoDB for all financial data operations
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.response import Response
 from django.http import JsonResponse
-from .mongodb_authentication import MongoDBJWTAuthentication
+from .mongodb_authentication import MongoDBJWTAuthentication, MongoDBUser
 import json
 import logging
+
+class MongoDBIsAuthenticated(BasePermission):
+    """
+    Custom permission class for MongoDB authentication.
+    Allows access only to authenticated users with MongoDBUser objects.
+    """
+    def has_permission(self, request, view):
+        return (
+            request.user and 
+            isinstance(request.user, MongoDBUser) and 
+            request.user.is_authenticated
+        )
 
 from .mongodb_service import (
     UserService, AccountService, DebtService, BudgetService, TransactionService, JWTAuthService, WealthProjectionSettingsService
@@ -60,7 +72,7 @@ class AccountViews(MongoDBApiViews):
     @staticmethod
     @api_view(['GET'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def get_accounts(request):
         """Get all accounts for the authenticated user"""
         try:
@@ -89,7 +101,7 @@ class AccountViews(MongoDBApiViews):
     @staticmethod
     @api_view(['POST'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def create_account(request):
         """Create a new account"""
         try:
@@ -123,7 +135,7 @@ class AccountViews(MongoDBApiViews):
     @staticmethod
     @api_view(['PUT'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def update_account(request, account_id):
         """Update an account"""
         try:
@@ -159,7 +171,7 @@ class AccountViews(MongoDBApiViews):
     @staticmethod
     @api_view(['DELETE'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def delete_account(request, account_id):
         """Delete an account"""
         try:
@@ -193,7 +205,7 @@ class DebtViews(MongoDBApiViews):
     @staticmethod
     @api_view(['GET'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def get_debts(request):
         """Get all debts for the authenticated user"""
         try:
@@ -222,7 +234,7 @@ class DebtViews(MongoDBApiViews):
     @staticmethod
     @api_view(['POST'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def create_debt(request):
         """Create a new debt"""
         try:
@@ -256,7 +268,7 @@ class DebtViews(MongoDBApiViews):
     @staticmethod
     @api_view(['PUT'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def update_debt(request, debt_id):
         """Update a debt"""
         try:
@@ -292,7 +304,7 @@ class DebtViews(MongoDBApiViews):
     @staticmethod
     @api_view(['DELETE'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def delete_debt(request, debt_id):
         """Delete a debt"""
         try:
@@ -387,7 +399,7 @@ class BudgetViews(MongoDBApiViews):
     @staticmethod
     @api_view(['GET'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def get_budgets(request):
         """Get all budgets for the authenticated user"""
         try:
@@ -440,7 +452,7 @@ class BudgetViews(MongoDBApiViews):
     @staticmethod
     @api_view(['POST'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def create_budget(request):
         """Create a new budget"""
         try:
@@ -474,7 +486,7 @@ class BudgetViews(MongoDBApiViews):
     @staticmethod
     @api_view(['PUT'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def update_budget(request, budget_id):
         """Update a budget"""
         try:
@@ -517,7 +529,7 @@ class BudgetViews(MongoDBApiViews):
     @staticmethod
     @api_view(['DELETE'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def delete_budget(request, budget_id):
         """Delete a budget"""
         try:
@@ -548,7 +560,7 @@ class BudgetViews(MongoDBApiViews):
     @staticmethod
     @api_view(['GET'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def get_month_budget(request):
         """Get budget for a specific month and year"""
         try:
@@ -595,7 +607,7 @@ class BudgetViews(MongoDBApiViews):
     @staticmethod
     @api_view(['POST'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def save_month_budget(request):
         """Save budget data for a specific month - used by debt planning grid"""
         try:
@@ -799,7 +811,7 @@ class TransactionViews(MongoDBApiViews):
     @staticmethod
     @api_view(['GET'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def get_transactions(request):
         """Get all transactions for the authenticated user"""
         try:
@@ -828,7 +840,7 @@ class TransactionViews(MongoDBApiViews):
     @staticmethod
     @api_view(['POST'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def create_transaction(request):
         """Create a new transaction"""
         try:
@@ -862,7 +874,7 @@ class TransactionViews(MongoDBApiViews):
     @staticmethod
     @api_view(['PUT'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def update_transaction(request, transaction_id):
         """Update a transaction"""
         try:
@@ -898,7 +910,7 @@ class TransactionViews(MongoDBApiViews):
     @staticmethod
     @api_view(['DELETE'])
     @authentication_classes([MongoDBJWTAuthentication])
-    @permission_classes([IsAuthenticated])
+    @permission_classes([MongoDBIsAuthenticated])
     def delete_transaction(request, transaction_id):
         """Delete a transaction"""
         try:
@@ -1064,7 +1076,7 @@ def mongodb_batch_update_budgets(request):
 
 @api_view(['POST'])
 @authentication_classes([MongoDBJWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([MongoDBIsAuthenticated])
 def mongodb_project_wealth(request):
     """
     Calculate wealth projection based on user input parameters.
@@ -1122,7 +1134,7 @@ def mongodb_project_wealth(request):
 
 @api_view(['GET'])
 @authentication_classes([MongoDBJWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([MongoDBIsAuthenticated])
 def mongodb_get_wealth_projection_settings(request):
     """
     Get wealth projection settings for the authenticated user.
@@ -1170,7 +1182,7 @@ def mongodb_get_wealth_projection_settings(request):
 
 @api_view(['POST'])
 @authentication_classes([MongoDBJWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([MongoDBIsAuthenticated])
 def mongodb_save_wealth_projection_settings(request):
     """
     Save wealth projection settings for the authenticated user.
@@ -1231,7 +1243,7 @@ def mongodb_save_wealth_projection_settings(request):
 
 @api_view(['POST'])
 @authentication_classes([MongoDBJWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([MongoDBIsAuthenticated])
 def mongodb_project_wealth_enhanced(request):
     """
     Enhanced wealth projection with debt repayment simulation
@@ -1291,7 +1303,7 @@ def mongodb_project_wealth_enhanced(request):
 
 @api_view(['GET'])
 @authentication_classes([MongoDBJWTAuthentication])
-@permission_classes([IsAuthenticated])
+@permission_classes([MongoDBIsAuthenticated])
 def mongodb_import_financials(request):
     """
     Import financial data from user's stored accounts, debts, and budget

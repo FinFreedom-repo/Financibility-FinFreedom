@@ -32,12 +32,13 @@ class MongoUser(Document):
 
 class MongoAccount(Document):
     id = IntField(primary_key=True)
-    user_id = StringField(required=True)
+    user_id = ObjectIdField(required=True)  # Change to ObjectIdField
     name = StringField(required=True)
     account_type = StringField()
     balance = DecimalField(precision=2)
     interest_rate = DecimalField(precision=2)
     effective_date = DateField()
+    currency = StringField()  # Add missing currency field
     created_at = DateTimeField()
     updated_at = DateTimeField()
     
@@ -59,24 +60,13 @@ class MongoDebt(Document):
 
 class MongoBudget(Document):
     id = IntField(primary_key=True)
-    user_id = StringField(required=True)
+    user_id = ObjectIdField(required=True)  # Change to ObjectIdField
     created_at = DateTimeField()
     updated_at = DateTimeField()
     income = FloatField()
     additional_income = FloatField()
     additional_income_items = ListField(DictField())
-    housing = FloatField()
-    debt_payments = FloatField()
-    transportation = FloatField()
-    utilities = FloatField()
-    food = FloatField()
-    healthcare = FloatField()
-    entertainment = FloatField()
-    shopping = FloatField()
-    travel = FloatField()
-    education = FloatField()
-    childcare = FloatField()
-    others = FloatField()
+    expenses = DictField()  # Add expenses field to match database
     additional_items = ListField(DictField())
     savings_items = ListField(DictField())
     manually_edited_categories = ListField(StringField())
@@ -167,6 +157,10 @@ class MongoDBService:
     def get_user_accounts(user_id):
         """Get accounts for a user from MongoDB"""
         try:
+            from bson import ObjectId
+            # Convert string user_id to ObjectId for MongoDB query
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
             accounts = MongoAccount.objects.filter(user_id=user_id)
             return list(accounts)
         except Exception as e:
@@ -187,6 +181,10 @@ class MongoDBService:
     def get_user_budgets(user_id):
         """Get budgets for a user from MongoDB"""
         try:
+            from bson import ObjectId
+            # Convert string user_id to ObjectId for MongoDB query
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
             budgets = MongoBudget.objects.filter(user_id=user_id)
             return list(budgets)
         except Exception as e:
@@ -197,6 +195,10 @@ class MongoDBService:
     def get_user_budget(user_id):
         """Get the most recent budget for a user from MongoDB"""
         try:
+            from bson import ObjectId
+            # Convert string user_id to ObjectId for MongoDB query
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
             budget = MongoBudget.objects.filter(user_id=user_id).order_by('-updated_at').first()
             return budget
         except Exception as e:
