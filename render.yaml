@@ -5,12 +5,12 @@ services:
     env: python
     region: oregon
     buildCommand: |
-      cd financability/backend
+      cd backend
       pip install -r requirements.txt
       python manage.py migrate
       python manage.py collectstatic --noinput
     startCommand: |
-      cd financability/backend
+      cd backend
       gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --workers 3
     envVars:
       - key: MONGODB_ATLAS_URI
@@ -31,10 +31,10 @@ services:
     name: financability-frontend
     env: static
     buildCommand: |
-      cd financability/frontend
+      cd frontend
       npm install
       npm run build
-    staticPublishPath: ./financability/frontend/build
+    staticPublishPath: ./frontend/build
     envVars:
       - key: REACT_APP_API_URL
         value: https://financability-backend.onrender.com
