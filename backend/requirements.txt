@@ -20,4 +20,5 @@ requests==2.31.0
 
 # Production
 gunicorn>=21.0.0
-whitenoise>=6.5.0 
+whitenoise>=6.5.0
+dj-database-url>=2.0.0 
