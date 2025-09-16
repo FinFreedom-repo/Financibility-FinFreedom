@@ -1266,7 +1266,7 @@ class JWTAuthService:
             self.secret_key = os.getenv('JWT_SECRET_KEY', os.getenv('SECRET_KEY', 'your-secret-key-here'))
         
         self.algorithm = 'HS256'
-        self.access_token_expire_minutes = 5  # 5 minutes for security
+        self.access_token_expire_minutes = 60  # 1 hour for better user experience
         self.token_usage_tracker = {}  # Track token usage times
     
     def create_access_token(self, data: Dict) -> str:
@@ -1286,7 +1286,7 @@ class JWTAuthService:
         return encoded_jwt
     
     def verify_token(self, token: str) -> Optional[Dict]:
-        """Verify JWT token with usage tracking and 5-minute inactivity timeout"""
+        """Verify JWT token with usage tracking and 30-minute inactivity timeout"""
         try:
             # First check if token is valid JWT
             payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
@@ -1300,8 +1300,8 @@ class JWTAuthService:
                 last_used = self.token_usage_tracker[token_hash]
                 time_since_last_use = current_time - last_used
                 
-                if time_since_last_use.total_seconds() > 300:  # 5 minutes = 300 seconds
-                    logger.info(f"Token expired due to 5-minute inactivity: {token_hash[:8]}...")
+                if time_since_last_use.total_seconds() > 1800:  # 30 minutes = 1800 seconds
+                    logger.info(f"Token expired due to 30-minute inactivity: {token_hash[:8]}...")
                     # Remove expired token from tracker
                     del self.token_usage_tracker[token_hash]
                     return None

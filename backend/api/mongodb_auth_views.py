@@ -235,6 +235,7 @@ class MongoDBAuthViews:
     
     @staticmethod
     @api_view(['PUT'])
+    @permission_classes([AllowAny])
     def update_profile(request):
         """Update user profile endpoint"""
         try:
@@ -282,6 +283,7 @@ class MongoDBAuthViews:
     
     @staticmethod
     @api_view(['PUT'])
+    @permission_classes([AllowAny])
     def update_user_comprehensive(request):
         """Update user comprehensively (profile, username, email, password)"""
         try:
@@ -334,6 +336,7 @@ class MongoDBAuthViews:
     
     @staticmethod
     @api_view(['DELETE'])
+    @permission_classes([AllowAny])
     def delete_user(request):
         """Delete user account and all associated data"""
         try:
