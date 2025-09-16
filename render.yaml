@@ -31,7 +31,6 @@ services:
   - type: web
     name: financability-frontend
     env: static
-    region: oregon
     plan: free
     buildCommand: |
       cd frontend
