@@ -7,7 +7,6 @@ import {
   CardContent,
   TextField,
   Button,
-  Slider,
   Divider,
   Alert,
   Snackbar,
@@ -84,7 +83,7 @@ function WealthProjector({ onNavigateToAccount }) {
   const [useRealData, setUseRealData] = useState(false);
   const [expandedAccordion, setExpandedAccordion] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
-  const [chartMode, setChartMode] = useState(0); // 0: No Inflation, 1: Inflation Adjusted, 2: Checking
+  // Removed chartMode state as we're displaying all metrics directly
 
   useEffect(() => {
     loadUserData();
@@ -551,104 +550,94 @@ function WealthProjector({ onNavigateToAccount }) {
       }
     ];
 
-    // Net Worth datasets based on chart mode
-    let netWorthDatasets = [];
-    
-    if (chartMode === 0) { // No Inflation Adjustment
-      netWorthDatasets = [
-        {
-          label: 'Net Worth',
-          data: netWorthData,
-          borderColor: '#FF0000', // Red
-          backgroundColor: 'rgba(255, 0, 0, 0.1)',
-          borderWidth: 3,
-          fill: false,
-          tension: 0.6,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#FF0000',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2,
-          pointBackgroundColor: '#FF0000',
-          pointBorderColor: '#FF0000',
-          animation: {
-            duration: 2000,
-            easing: 'easeInOutQuart'
-          }
+    // All Net Worth datasets - always show all metrics
+    const netWorthDatasets = [
+      {
+        label: 'Net Worth',
+        data: netWorthData,
+        borderColor: '#FF0000', // Red
+        backgroundColor: 'rgba(255, 0, 0, 0.1)',
+        borderWidth: 3,
+        fill: false,
+        tension: 0.6,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#FF0000',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2,
+        pointBackgroundColor: '#FF0000',
+        pointBorderColor: '#FF0000',
+        animation: {
+          duration: 2000,
+          easing: 'easeInOutQuart'
         }
-      ];
-    } else if (chartMode === 1) { // Inflation Adjusted
-      netWorthDatasets = [
-        {
-          label: 'Net Worth (Infl Adj.)',
-          data: netWorthInflAdjData,
-          borderColor: '#FF8C00', // Dark Orange
-          backgroundColor: 'rgba(255, 140, 0, 0.1)',
-          borderWidth: 3,
-          fill: false,
-          tension: 0.6,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#FF8C00',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2,
-          pointBackgroundColor: '#FF8C00',
-          pointBorderColor: '#FF8C00',
-          animation: {
-            duration: 1800,
-            easing: 'easeInOutCubic'
-          }
+      },
+      {
+        label: 'Net Worth (Infl Adj.)',
+        data: netWorthInflAdjData,
+        borderColor: '#FF8C00', // Dark Orange
+        backgroundColor: 'rgba(255, 140, 0, 0.1)',
+        borderWidth: 3,
+        fill: false,
+        tension: 0.6,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#FF8C00',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2,
+        pointBackgroundColor: '#FF8C00',
+        pointBorderColor: '#FF8C00',
+        animation: {
+          duration: 1800,
+          easing: 'easeInOutCubic'
         }
-      ];
-    } else if (chartMode === 2) { // Checking
-      netWorthDatasets = [
-        {
-          label: 'Net Worth (if in checking)',
-          data: netWorthCheckingData,
-          borderColor: '#00FF00', // Green
-          backgroundColor: 'rgba(0, 255, 0, 0.1)',
-          borderWidth: 3,
-          fill: false,
-          tension: 0.6,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#00FF00',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2,
-          pointBackgroundColor: '#00FF00',
-          pointBorderColor: '#00FF00',
-          animation: {
-            duration: 1600,
-            easing: 'easeInOutQuad'
-          }
-        },
-        {
-          label: 'Net Worth (if in checking, Infl Adj.)',
-          data: netWorthCheckingInflAdjData,
-          borderColor: '#0000FF', // Blue
-          backgroundColor: 'rgba(0, 0, 255, 0.1)',
-          borderWidth: 3,
-          fill: false,
-          tension: 0.6,
-          pointRadius: 0,
-          pointHoverRadius: 6,
-          pointHoverBackgroundColor: '#0000FF',
-          pointHoverBorderColor: '#fff',
-          pointHoverBorderWidth: 2,
-          pointBackgroundColor: '#0000FF',
-          pointBorderColor: '#0000FF',
-          animation: {
-            duration: 1400,
-            easing: 'easeInOutSine'
-          }
+      },
+      {
+        label: 'Net Worth (if in checking)',
+        data: netWorthCheckingData,
+        borderColor: '#00FF00', // Green
+        backgroundColor: 'rgba(0, 255, 0, 0.1)',
+        borderWidth: 3,
+        fill: false,
+        tension: 0.6,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#00FF00',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2,
+        pointBackgroundColor: '#00FF00',
+        pointBorderColor: '#00FF00',
+        animation: {
+          duration: 1600,
+          easing: 'easeInOutQuad'
         }
-      ];
-    }
+      },
+      {
+        label: 'Net Worth (if in checking, Infl Adj.)',
+        data: netWorthCheckingInflAdjData,
+        borderColor: '#0000FF', // Blue
+        backgroundColor: 'rgba(0, 0, 255, 0.1)',
+        borderWidth: 3,
+        fill: false,
+        tension: 0.6,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#0000FF',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2,
+        pointBackgroundColor: '#0000FF',
+        pointBorderColor: '#0000FF',
+        animation: {
+          duration: 1400,
+          easing: 'easeInOutSine'
+        }
+      }
+    ];
 
     const datasets = [...netWorthDatasets, ...baseDatasets];
 
     return { labels, datasets };
-  }, [projectionData, theme, formData.inflation, chartMode]);
+  }, [projectionData, theme, formData.inflation]);
 
   const chartOptions = useMemo(() => ({
     responsive: true,
@@ -1176,31 +1165,138 @@ function WealthProjector({ onNavigateToAccount }) {
                     }}
                   >
                     <CardContent sx={{ p: 3 }}>
-                      {/* Chart Mode Slider */}
+                      {/* Wealth Metrics Display */}
                       <Box sx={{ mb: 3 }}>
                         <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
-                          Chart Display Mode
+                          Wealth Projection Metrics
                         </Typography>
-                        <Box sx={{ px: 2 }}>
-                          <Slider
-                            value={chartMode}
-                            onChange={(event, newValue) => setChartMode(newValue)}
-                            step={1}
-                            min={0}
-                            max={2}
-                            marks={[
-                              { value: 0, label: 'No Inflation Adjustment' },
-                              { value: 1, label: 'Inflation Adjusted' },
-                              { value: 2, label: 'Checking' }
-                            ]}
-                            sx={{
-                              '& .MuiSlider-markLabel': {
-                                fontSize: '0.75rem',
-                                fontWeight: 'bold'
-                              }
-                            }}
-                          />
-                        </Box>
+                        <Grid container spacing={2}>
+                          {/* Net Worth */}
+                          <Grid item xs={12} sm={6} md={4}>
+                            <Paper 
+                              elevation={2} 
+                              sx={{ 
+                                p: 2, 
+                                textAlign: 'center',
+                                background: 'linear-gradient(135deg, #FF0000 0%, #FF4444 100%)',
+                                color: 'white',
+                                borderRadius: 2
+                              }}
+                            >
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                Net Worth
+                              </Typography>
+                              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                Investment Growth After Tax
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                          
+                          {/* Net Worth (Infl Adj.) */}
+                          <Grid item xs={12} sm={6} md={4}>
+                            <Paper 
+                              elevation={2} 
+                              sx={{ 
+                                p: 2, 
+                                textAlign: 'center',
+                                background: 'linear-gradient(135deg, #FF8C00 0%, #FFA500 100%)',
+                                color: 'white',
+                                borderRadius: 2
+                              }}
+                            >
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                Net Worth (Infl Adj.)
+                              </Typography>
+                              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                Investment Growth After Tax & Inflation
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                          
+                          {/* Net Worth (if in checking) */}
+                          <Grid item xs={12} sm={6} md={4}>
+                            <Paper 
+                              elevation={2} 
+                              sx={{ 
+                                p: 2, 
+                                textAlign: 'center',
+                                background: 'linear-gradient(135deg, #00FF00 0%, #32CD32 100%)',
+                                color: 'white',
+                                borderRadius: 2
+                              }}
+                            >
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                Net Worth (if in checking)
+                              </Typography>
+                              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                Checking Account Growth (No Taxes)
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                          
+                          {/* Net Worth (if in checking, Infl Adj.) */}
+                          <Grid item xs={12} sm={6} md={4}>
+                            <Paper 
+                              elevation={2} 
+                              sx={{ 
+                                p: 2, 
+                                textAlign: 'center',
+                                background: 'linear-gradient(135deg, #0000FF 0%, #4169E1 100%)',
+                                color: 'white',
+                                borderRadius: 2
+                              }}
+                            >
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                Net Worth (if in checking, Infl Adj.)
+                              </Typography>
+                              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                Checking Account Growth After Tax
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                          
+                          {/* Assets */}
+                          <Grid item xs={12} sm={6} md={4}>
+                            <Paper 
+                              elevation={2} 
+                              sx={{ 
+                                p: 2, 
+                                textAlign: 'center',
+                                background: 'linear-gradient(135deg, #800080 0%, #9932CC 100%)',
+                                color: 'white',
+                                borderRadius: 2
+                              }}
+                            >
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                Assets
+                              </Typography>
+                              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                Total Investment Value
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                          
+                          {/* Debt */}
+                          <Grid item xs={12} sm={6} md={4}>
+                            <Paper 
+                              elevation={2} 
+                              sx={{ 
+                                p: 2, 
+                                textAlign: 'center',
+                                background: 'linear-gradient(135deg, #FF1493 0%, #FF69B4 100%)',
+                                color: 'white',
+                                borderRadius: 2
+                              }}
+                            >
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                Debt
+                              </Typography>
+                              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                Outstanding Debt Over Time
+                              </Typography>
+                            </Paper>
+                          </Grid>
+                        </Grid>
                       </Box>
                       
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
