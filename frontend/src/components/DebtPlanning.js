@@ -1709,14 +1709,6 @@ const DebtPlanning = () => {
             } else if (month.type === 'future') {
               classes.push('timeline-net-savings-future');
             }
-          } else if (params.data.category === 'Total Paid to Debt') {
-            if (month.type === 'historical') {
-              classes.push('timeline-total-paid-historical');
-            } else if (month.type === 'current') {
-              classes.push('timeline-total-paid-current');
-            } else if (month.type === 'future') {
-              classes.push('timeline-total-paid-future');
-            }
           } else if (params.data.category === 'Interest Paid') {
             if (month.type === 'historical') {
               classes.push('timeline-interest-paid-historical');
@@ -1732,6 +1724,14 @@ const DebtPlanning = () => {
               classes.push('timeline-remaining-debt-current');
             } else if (month.type === 'future') {
               classes.push('timeline-remaining-debt-future');
+            }
+          } else if (params.data.category === 'Principal Paid Down') {
+            if (month.type === 'historical') {
+              classes.push('timeline-principal-paid-historical');
+            } else if (month.type === 'current') {
+              classes.push('timeline-principal-paid-current');
+            } else if (month.type === 'future') {
+              classes.push('timeline-principal-paid-future');
             }
           } else if (params.data.type === 'debt') {
             // Individual debt rows
@@ -1754,7 +1754,7 @@ const DebtPlanning = () => {
           
           // Check if this is a timeline-specific category
           const isTimelineCategory = params.data.category === 'Net Savings' || 
-                                   params.data.category === 'Total Paid to Debt' || 
+                                   params.data.category === 'Principal Paid Down' || 
                                    params.data.category === 'Interest Paid' || 
                                    params.data.category === 'Remaining Debt' || 
                                    params.data.type === 'debt';
@@ -2024,10 +2024,19 @@ const DebtPlanning = () => {
             width: '100%', 
             borderRadius: 3,
             overflow: 'visible',
-            background: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+            background: isDarkMode ? '#2a2a2a' : 'rgba(255, 255, 255, 0.8)',
             border: '1px solid rgba(0, 0, 0, 0.1)',
             position: 'relative',
             '& .ag-theme-alpine': {
+              ...(isDarkMode && {
+                '--ag-background-color': '#2a2a2a',
+                '--ag-odd-row-background-color': '#2a2a2a',
+                '--ag-row-hover-color': '#3a3a3a',
+                '--ag-selected-row-background-color': '#3a3a3a',
+                '--ag-border-color': '#404040',
+                '--ag-foreground-color': '#ffffff',
+                '--ag-secondary-foreground-color': '#cccccc',
+              }),
               '& .ag-header': {
                 backgroundColor: theme.palette.primary.main,
                 color: theme.palette.primary.contrastText,
@@ -2164,18 +2173,6 @@ const DebtPlanning = () => {
                 background-color: #f44336 !important;
                 color: white !important;
               }
-              .ag-theme-alpine .ag-row.timeline-total-paid-historical .ag-cell {
-                background-color: #0027dbcf !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-total-paid-current .ag-cell {
-                background-color: #4caf50 !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-total-paid-future .ag-cell {
-                background-color: #f44336 !important;
-                color: white !important;
-              }
               .ag-theme-alpine .ag-row.timeline-interest-paid-historical .ag-cell {
                 background-color: #0027dbcf !important;
                 color: white !important;
@@ -2197,6 +2194,18 @@ const DebtPlanning = () => {
                 color: white !important;
               }
               .ag-theme-alpine .ag-row.timeline-remaining-debt-future .ag-cell {
+                background-color: #f44336 !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-principal-paid-historical .ag-cell {
+                background-color: #0027dbcf !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-principal-paid-current .ag-cell {
+                background-color: #4caf50 !important;
+                color: white !important;
+              }
+              .ag-theme-alpine .ag-row.timeline-principal-paid-future .ag-cell {
                 background-color: #f44336 !important;
                 color: white !important;
               }
@@ -2392,6 +2401,7 @@ const DebtPlanning = () => {
 
   // CRUD Operations for Debts
   const openDebtDialog = (debt = null) => {
+    console.log('Opening debt dialog for:', debt ? 'editing' : 'new debt');
     if (debt) {
       setEditingDebt(debt);
       setDebtFormData({
@@ -2437,8 +2447,27 @@ const DebtPlanning = () => {
     try {
       setDebtFormLoading(true);
       
+      // Validate form data
+      if (!debtFormData.name.trim()) {
+        setErrorMessage('Debt name is required');
+        setShowErrorSnackbar(true);
+        return;
+      }
+      
+      if (!debtFormData.balance || parseFloat(debtFormData.balance) <= 0) {
+        setErrorMessage('Debt balance must be greater than 0');
+        setShowErrorSnackbar(true);
+        return;
+      }
+      
+      if (!debtFormData.interest_rate || parseFloat(debtFormData.interest_rate) < 0) {
+        setErrorMessage('Interest rate must be 0 or greater');
+        setShowErrorSnackbar(true);
+        return;
+      }
+      
       const debtData = {
-        name: debtFormData.name,
+        name: debtFormData.name.trim(),
         debt_type: debtFormData.debt_type,
         amount: parseFloat(debtFormData.balance) || 0,
         balance: parseFloat(debtFormData.balance) || 0,
@@ -2484,9 +2513,9 @@ const DebtPlanning = () => {
       setShowSuccessSnackbar(true);
       closeDebtDialog();
       
-      // Reload the page to ensure both grids show updated values
-      console.log('Reloading page after debt operation...');
-      window.location.reload();
+      // Reload debts and recalculate instead of full page reload
+      console.log('Reloading debts after debt operation...');
+      await reloadDebtsAndRecalculate();
       
     } catch (error) {
       console.error('Error saving debt:', error);
@@ -2541,9 +2570,9 @@ const DebtPlanning = () => {
       // Close dialog
       setDeleteConfirmDialog({ open: false, debt: null });
       
-      // Reload the page to ensure both grids show updated values
-      console.log('Reloading page after debt deletion...');
-      window.location.reload();
+      // Reload debts and recalculate instead of full page reload
+      console.log('Reloading debts after debt deletion...');
+      await reloadDebtsAndRecalculate();
       
     } catch (error) {
       console.error('Error deleting debt:', error);
@@ -2613,34 +2642,6 @@ const DebtPlanning = () => {
     // Create grid data in the same format as Budget Projection
     const gridData = [
       {
-        category: 'Net Savings',
-        type: 'calculated',
-        ...months.reduce((acc, _, idx) => ({ 
-          ...acc, 
-          [`month_${idx}`]: netSavingsRow ? (netSavingsRow[`month_${idx}`] || 0) : 0
-        }), {})
-      },
-      {
-        category: 'Total Paid to Debt',
-        type: 'calculated',
-        ...months.reduce((acc, _, idx) => ({ 
-          ...acc, 
-          [`month_${idx}`]: idx >= currentMonthIdx 
-            ? (displayPayoffPlan.plan[idx - currentMonthIdx]?.totalPaid ?? (displayPayoffPlan.plan[idx - currentMonthIdx]?.debts?.reduce((sum, debt) => sum + (debt.paid || 0), 0) || 0))
-            : 0
-        }), {})
-      },
-      {
-        category: 'Interest Paid',
-        type: 'calculated',
-        ...months.reduce((acc, _, idx) => ({ 
-          ...acc, 
-          [`month_${idx}`]: idx >= currentMonthIdx 
-            ? (displayPayoffPlan.plan[idx - currentMonthIdx]?.totalInterest ?? (displayPayoffPlan.plan[idx - currentMonthIdx]?.debts?.reduce((sum, debt) => sum + (debt.interest || 0), 0) || 0))
-            : 0
-        }), {})
-      },
-      {
         category: 'Remaining Debt',
         type: 'calculated',
         ...months.reduce((acc, _, idx) => { 
@@ -2653,12 +2654,55 @@ const DebtPlanning = () => {
           }
           return { ...acc, [`month_${idx}`]: value };
         }, {})
+      },
+      {
+        category: 'Principal Paid Down',
+        type: 'calculated',
+        ...months.reduce((acc, _, idx) => { 
+          const planIdx = idx - currentMonthIdx;
+          if (idx < currentMonthIdx) {
+            return { ...acc, [`month_${idx}`]: 0 };
+          }
+          
+          const totalPaid = displayPayoffPlan.plan[planIdx]?.totalPaid ?? (displayPayoffPlan.plan[planIdx]?.debts?.reduce((sum, debt) => sum + (debt.paid || 0), 0) || 0);
+          const totalInterest = displayPayoffPlan.plan[planIdx]?.totalInterest ?? (displayPayoffPlan.plan[planIdx]?.debts?.reduce((sum, debt) => sum + (debt.interest || 0), 0) || 0);
+          const principalPaid = Math.max(0, totalPaid - totalInterest);
+          
+          return { ...acc, [`month_${idx}`]: principalPaid };
+        }, {})
+      },
+      {
+        category: 'Interest Paid',
+        type: 'calculated',
+        ...months.reduce((acc, _, idx) => ({ 
+          ...acc, 
+          [`month_${idx}`]: idx >= currentMonthIdx 
+            ? (displayPayoffPlan.plan[idx - currentMonthIdx]?.totalInterest ?? (displayPayoffPlan.plan[idx - currentMonthIdx]?.debts?.reduce((sum, debt) => sum + (debt.interest || 0), 0) || 0))
+            : 0
+        }), {})
       }
     ];
 
-    // Add individual debt rows starting from current month
+    // Add individual debt rows in the order they are being paid off according to strategy
     if (outstandingDebts.length > 0) {
-      outstandingDebts.forEach(debt => {
+      // Sort debts by strategy (same logic as in calculateDebtPayoffPlanFrontend)
+      const sortedDebts = [...outstandingDebts].sort((a, b) => {
+        // First priority: Credit cards before other debt types
+        const aIsCreditCard = a.debt_type === 'credit_card';
+        const bIsCreditCard = b.debt_type === 'credit_card';
+        
+        if (aIsCreditCard && !bIsCreditCard) return -1; // a (credit card) comes first
+        if (!aIsCreditCard && bIsCreditCard) return 1;  // b (credit card) comes first
+        
+        // If both are same type (both credit cards or both other types), sort by strategy
+        if (strategy === 'snowball') {
+          return parseFloat(a.balance) - parseFloat(b.balance); // Smallest balance first
+        } else {
+          return parseFloat(b.interest_rate) - parseFloat(a.interest_rate); // Highest rate first
+        }
+      });
+
+      sortedDebts.forEach(debt => {
         const debtRow = {
           category: debt.name,
           type: 'debt',
@@ -2689,8 +2733,8 @@ const DebtPlanning = () => {
         minWidth: 220,
         width: 220,
         cellClass: params => {
-          if (params.data.category === 'Net Savings') return 'net-savings-category-cell';
           if (params.data.category === 'Remaining Debt') return 'remaining-debt-category-cell';
+          if (params.data.category === 'Principal Paid Down') return 'principal-paid-category-cell';
           if (params.data.type === 'calculated') return 'calculated-category-cell';
           if (params.data.type === 'debt') return 'debt-category-cell';
           return '';
@@ -2699,9 +2743,9 @@ const DebtPlanning = () => {
           const { data } = params;
           return (
             <Typography variant="body2" sx={{ 
-              fontWeight: data.category === 'Net Savings' || data.category === 'Remaining Debt' ? 'bold' : '600',
-              color: data.category === 'Net Savings' ? theme.palette.success.main : 
-                     data.category === 'Remaining Debt' ? theme.palette.warning.main :
+              fontWeight: data.category === 'Remaining Debt' || data.category === 'Principal Paid Down' ? 'bold' : '600',
+              color: data.category === 'Remaining Debt' ? theme.palette.warning.main : 
+                     data.category === 'Principal Paid Down' ? theme.palette.success.main :
                      data.type === 'debt' ? theme.palette.error.main : 'inherit',
               fontSize: '0.95rem'
             }}>
@@ -2739,7 +2783,7 @@ const DebtPlanning = () => {
           
           // Check if this is a timeline-specific category
           const isTimelineCategory = params.data.category === 'Net Savings' || 
-                                   params.data.category === 'Total Paid to Debt' || 
+                                   params.data.category === 'Principal Paid Down' || 
                                    params.data.category === 'Interest Paid' || 
                                    params.data.category === 'Remaining Debt' || 
                                    params.data.type === 'debt';
@@ -2835,10 +2879,19 @@ const DebtPlanning = () => {
             width: '100%', 
             borderRadius: 3,
             overflow: 'visible',
-            background: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+            background: isDarkMode ? '#2a2a2a' : 'rgba(255, 255, 255, 0.8)',
             border: '1px solid rgba(0, 0, 0, 0.1)',
             position: 'relative',
             '& .ag-theme-alpine': {
+              ...(isDarkMode && {
+                '--ag-background-color': '#2a2a2a',
+                '--ag-odd-row-background-color': '#2a2a2a',
+                '--ag-row-hover-color': '#3a3a3a',
+                '--ag-selected-row-background-color': '#3a3a3a',
+                '--ag-border-color': '#404040',
+                '--ag-foreground-color': '#ffffff',
+                '--ag-secondary-foreground-color': '#cccccc',
+              }),
               '& .ag-header': {
                 backgroundColor: theme.palette.primary.main,
                 color: theme.palette.primary.contrastText,
