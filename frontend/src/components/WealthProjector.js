@@ -1229,17 +1229,16 @@ function WealthProjector({ onNavigateToAccount }) {
                 )}
 
                 {/* Instructions */}
-                {!showChart && (
-                  <CustomCard elevation={2}>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <InfoIcon sx={{ mr: 1, color: theme.palette.info.main }} />
-                        <Typography variant="h6" sx={{ 
-                          color: isDarkMode ? '#ffffff' : '#000000' 
-                        }}>
-                          How to Use the Wealth Projector
-                        </Typography>
-                      </Box>
+                <CustomCard elevation={2}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <InfoIcon sx={{ mr: 1, color: theme.palette.info.main }} />
+                      <Typography variant="h6" sx={{ 
+                        color: isDarkMode ? '#ffffff' : '#000000' 
+                      }}>
+                        How to Use the Wealth Projector
+                      </Typography>
+                    </Box>
                       <Typography variant="body1" paragraph sx={{ 
                         color: isDarkMode ? '#e0e0e0' : '#424242' 
                       }}>
@@ -1281,7 +1280,6 @@ function WealthProjector({ onNavigateToAccount }) {
                       </Typography>
                     </CardContent>
                   </CustomCard>
-                )}
               </Stack>
             </Grid>
           </Grid>

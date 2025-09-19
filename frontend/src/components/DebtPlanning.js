@@ -1051,16 +1051,8 @@ const DebtPlanning = () => {
       let totalPaidToDebt = 0;
 
       if (availableForDebt > 0 && debtBalances.some(d => d.balance > 0)) {
-        // Sort debts by strategy with credit cards prioritized first
+        // Sort debts by strategy (Snowball: lowest to highest balance, Avalanche: highest to lowest interest rate)
         const sortedDebts = [...debtBalances].sort((a, b) => {
-          // First priority: Credit cards before other debt types
-          const aIsCreditCard = a.debt_type === 'credit_card';
-          const bIsCreditCard = b.debt_type === 'credit_card';
-          
-          if (aIsCreditCard && !bIsCreditCard) return -1; // a (credit card) comes first
-          if (!aIsCreditCard && bIsCreditCard) return 1;  // b (credit card) comes first
-          
-          // If both are same type (both credit cards or both other types), sort by strategy
           if (strategyType === 'snowball') {
             return a.balance - b.balance; // Smallest balance first
           } else {
@@ -2685,16 +2677,8 @@ const DebtPlanning = () => {
 
     // Add individual debt rows in the order they are being paid off according to strategy
     if (outstandingDebts.length > 0) {
-      // Sort debts by strategy (same logic as in calculateDebtPayoffPlanFrontend)
+      // Sort debts by strategy (Snowball: lowest to highest balance, Avalanche: highest to lowest interest rate)
       const sortedDebts = [...outstandingDebts].sort((a, b) => {
-        // First priority: Credit cards before other debt types
-        const aIsCreditCard = a.debt_type === 'credit_card';
-        const bIsCreditCard = b.debt_type === 'credit_card';
-        
-        if (aIsCreditCard && !bIsCreditCard) return -1; // a (credit card) comes first
-        if (!aIsCreditCard && bIsCreditCard) return 1;  // b (credit card) comes first
-        
-        // If both are same type (both credit cards or both other types), sort by strategy
         if (strategy === 'snowball') {
           return parseFloat(a.balance) - parseFloat(b.balance); // Smallest balance first
         } else {
@@ -2730,8 +2714,8 @@ const DebtPlanning = () => {
         pinned: 'left',
         editable: false,
         sortable: false,
-        minWidth: 220,
-        width: 220,
+        minWidth: 280,
+        width: 280,
         cellClass: params => {
           if (params.data.category === 'Remaining Debt') return 'remaining-debt-category-cell';
           if (params.data.category === 'Principal Paid Down') return 'principal-paid-category-cell';
@@ -2747,9 +2731,11 @@ const DebtPlanning = () => {
               color: data.category === 'Remaining Debt' ? theme.palette.warning.main : 
                      data.category === 'Principal Paid Down' ? theme.palette.success.main :
                      data.type === 'debt' ? theme.palette.error.main : 'inherit',
-              fontSize: '0.95rem'
+              fontSize: '0.95rem',
+              lineHeight: 1.2,
+              whiteSpace: 'pre-line'
             }}>
-              {data.category}
+              {data.category === 'Principal Paid Down' ? 'Principal\nPaid Down' : data.category}
             </Typography>
           );
         }
