@@ -10,12 +10,14 @@ from django.http import JsonResponse
 from .mongodb_service import NotificationService
 from .mongodb_api_views import MongoDBIsAuthenticated
 from .mongodb_authentication import MongoDBJWTAuthentication
+from .notification_initializer import NotificationInitializer
 import logging
 
 logger = logging.getLogger(__name__)
 
 # Initialize notification service
 notification_service = NotificationService()
+notification_initializer = NotificationInitializer()
 
 @api_view(['GET'])
 @authentication_classes([MongoDBJWTAuthentication])
@@ -342,5 +344,44 @@ def create_savings_milestone(request):
         logger.error(f"Error creating savings milestone: {e}")
         return Response(
             {"error": "Failed to create savings milestone"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@authentication_classes([MongoDBJWTAuthentication])
+@permission_classes([MongoDBIsAuthenticated])
+def initialize_notifications(request):
+    """Initialize notifications for the authenticated user"""
+    try:
+        user_id = request.user.id
+        if not user_id:
+            return Response(
+                {"error": "User ID not found in token"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        success = notification_initializer.initialize_user_notifications(user_id)
+        
+        if success:
+            # Get the newly created notifications
+            notifications = notification_service.get_user_notifications(user_id)
+            unread_count = notification_service.get_unread_count(user_id)
+            
+            return Response({
+                "message": "Notifications initialized successfully",
+                "notifications": notifications,
+                "unread_count": unread_count,
+                "total": len(notifications)
+            }, status=status.HTTP_201_CREATED)
+        else:
+            return Response(
+                {"error": "Failed to initialize notifications"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+    except Exception as e:
+        logger.error(f"Error initializing notifications: {e}")
+        return Response(
+            {"error": "Failed to initialize notifications"}, 
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

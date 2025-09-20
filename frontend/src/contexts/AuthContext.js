@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from '../utils/axios';
+import notificationService from '../services/notificationService';
 
 const AuthContext = createContext(null);
 
@@ -191,6 +192,16 @@ export const AuthProvider = ({ children }) => {
       
       console.log('Setting user state with:', userData);
       setUser(userData);
+      
+      // Initialize notifications for the user
+      try {
+        await notificationService.initializeNotifications();
+        console.log('Notifications initialized for user');
+      } catch (error) {
+        console.warn('Failed to initialize notifications:', error);
+        // Don't fail login if notifications fail
+      }
+      
       return true;
     } catch (error) {
       console.error('Login error:', error);

@@ -27,7 +27,7 @@ from .test_auth import test_login
 from .notifications import (
     get_notifications, get_unread_count, mark_as_read, mark_all_as_read,
     delete_notification, create_notification, create_budget_alert,
-    create_debt_reminder, create_savings_milestone
+    create_debt_reminder, create_savings_milestone, initialize_notifications
 )
 
 def health_check(request):
@@ -131,4 +131,5 @@ urlpatterns = [
     path('notifications/budget-alert/', create_budget_alert, name='create_budget_alert'),
     path('notifications/debt-reminder/', create_debt_reminder, name='create_debt_reminder'),
     path('notifications/savings-milestone/', create_savings_milestone, name='create_savings_milestone'),
+    path('notifications/initialize/', initialize_notifications, name='initialize_notifications'),
 ] 

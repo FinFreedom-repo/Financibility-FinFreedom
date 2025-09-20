@@ -173,6 +173,24 @@ class NotificationService {
     }
   }
 
+  // Initialize notifications for the user
+  async initializeNotifications() {
+    try {
+      const response = await axios.post('/api/mongodb/notifications/initialize/');
+      const data = response.data;
+      
+      // Update local state with initialized notifications
+      this.notifications = data.notifications || [];
+      this.unreadCount = data.unread_count || 0;
+      this.notifyListeners();
+      
+      return data;
+    } catch (error) {
+      console.error('Error initializing notifications:', error);
+      throw error;
+    }
+  }
+
   // Update unread count
   updateUnreadCount() {
     this.unreadCount = this.notifications.filter(n => !n.is_read).length;
