@@ -3382,6 +3382,227 @@ const DebtPlanning = () => {
             </Typography>
           </Box>
           
+          {/* Debt Statistics Cards */}
+          {(() => {
+            const stats = calculateDebtStatistics();
+            const months = generateMonths();
+            const currentMonthIdx = months.findIndex(m => m.type === 'current');
+            
+            // Calculate monthly interest from current debts
+            const monthlyInterest = outstandingDebts.reduce((sum, debt) => {
+              const balance = parseFloat(debt.balance || debt.amount) || 0;
+              const interestRate = parseFloat(debt.interest_rate || debt.rate) || 0;
+              return sum + (balance * (interestRate / 100 / 12));
+            }, 0);
+            
+            // Calculate active debts count
+            const activeDebts = outstandingDebts.filter(debt => 
+              (parseFloat(debt.balance || debt.amount) || 0) > 0
+            ).length;
+            
+            return (
+              <Box sx={{ mb: 4 }}>
+                <Grid container spacing={3}>
+                  {/* Total Debts Card */}
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{
+                      background: isDarkMode 
+                        ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)'
+                        : 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
+                      color: 'white',
+                      textAlign: 'center',
+                      p: 3,
+                      borderRadius: 3,
+                      boxShadow: isDarkMode 
+                        ? '0 8px 32px rgba(255, 107, 107, 0.3)'
+                        : '0 8px 32px rgba(255, 107, 107, 0.2)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      backdropFilter: 'blur(10px)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%)',
+                        pointerEvents: 'none'
+                      }
+                    }}>
+                      <Box sx={{ position: 'relative', zIndex: 1 }}>
+                        <AccountBalanceIcon sx={{ fontSize: '2.5rem', mb: 1, opacity: 0.9 }} />
+                        <Typography variant="h4" sx={{ 
+                          fontWeight: 'bold', 
+                          mb: 1,
+                          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+                        }}>
+                          {formatCurrency(stats.totalDebt)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          opacity: 0.9,
+                          fontWeight: 500,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          Total Debts
+                        </Typography>
+                      </Box>
+                    </Card>
+                  </Grid>
+                  
+                  {/* Monthly Interest Card */}
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{
+                      background: isDarkMode 
+                        ? 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)'
+                        : 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)',
+                      color: 'white',
+                      textAlign: 'center',
+                      p: 3,
+                      borderRadius: 3,
+                      boxShadow: isDarkMode 
+                        ? '0 8px 32px rgba(78, 205, 196, 0.3)'
+                        : '0 8px 32px rgba(78, 205, 196, 0.2)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      backdropFilter: 'blur(10px)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%)',
+                        pointerEvents: 'none'
+                      }
+                    }}>
+                      <Box sx={{ position: 'relative', zIndex: 1 }}>
+                        <TrendingUpIcon sx={{ fontSize: '2.5rem', mb: 1, opacity: 0.9 }} />
+                        <Typography variant="h4" sx={{ 
+                          fontWeight: 'bold', 
+                          mb: 1,
+                          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+                        }}>
+                          {formatCurrency(monthlyInterest)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          opacity: 0.9,
+                          fontWeight: 500,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          Monthly Interest
+                        </Typography>
+                      </Box>
+                    </Card>
+                  </Grid>
+                  
+                  {/* Total Interest Card */}
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{
+                      background: isDarkMode 
+                        ? 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
+                        : 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                      color: isDarkMode ? '#2c3e50' : '#2c3e50',
+                      textAlign: 'center',
+                      p: 3,
+                      borderRadius: 3,
+                      boxShadow: isDarkMode 
+                        ? '0 8px 32px rgba(168, 237, 234, 0.3)'
+                        : '0 8px 32px rgba(168, 237, 234, 0.2)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      backdropFilter: 'blur(10px)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%)',
+                        pointerEvents: 'none'
+                      }
+                    }}>
+                      <Box sx={{ position: 'relative', zIndex: 1 }}>
+                        <AttachMoneyIcon sx={{ fontSize: '2.5rem', mb: 1, opacity: 0.9 }} />
+                        <Typography variant="h4" sx={{ 
+                          fontWeight: 'bold', 
+                          mb: 1,
+                          textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                        }}>
+                          {formatCurrency(stats.totalInterest)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          opacity: 0.8,
+                          fontWeight: 500,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          Total Interest
+                        </Typography>
+                      </Box>
+                    </Card>
+                  </Grid>
+                  
+                  {/* Active Debts Card */}
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card sx={{
+                      background: isDarkMode 
+                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      textAlign: 'center',
+                      p: 3,
+                      borderRadius: 3,
+                      boxShadow: isDarkMode 
+                        ? '0 8px 32px rgba(102, 126, 234, 0.3)'
+                        : '0 8px 32px rgba(102, 126, 234, 0.2)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      backdropFilter: 'blur(10px)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%)',
+                        pointerEvents: 'none'
+                      }
+                    }}>
+                      <Box sx={{ position: 'relative', zIndex: 1 }}>
+                        <CreditCardIcon sx={{ fontSize: '2.5rem', mb: 1, opacity: 0.9 }} />
+                        <Typography variant="h4" sx={{ 
+                          fontWeight: 'bold', 
+                          mb: 1,
+                          textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+                        }}>
+                          {activeDebts}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          opacity: 0.9,
+                          fontWeight: 500,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          Active Debts
+                        </Typography>
+                      </Box>
+                    </Card>
+                  </Grid>
+                </Grid>
+              </Box>
+            );
+          })()}
+          
           {renderDebtPayoffTimeline()}
           
           {/* Editable Budget Projection with Real-Time Updates Section */}
