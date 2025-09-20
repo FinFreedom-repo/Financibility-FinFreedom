@@ -62,15 +62,15 @@ const NotificationItem = ({ notification, onMarkAsRead }) => {
   const isDarkMode = theme.palette.mode === 'dark';
   
   const handleMarkAsRead = () => {
-    if (!notification.isRead) {
-      onMarkAsRead(notification.id);
+    if (!notification.is_read) {
+      onMarkAsRead(notification._id);
     }
   };
 
   return (
     <ListItem
       sx={{
-        backgroundColor: notification.isRead 
+        backgroundColor: notification.is_read 
           ? 'transparent' 
           : isDarkMode 
             ? 'rgba(255,255,255,0.05)' 
@@ -81,7 +81,7 @@ const NotificationItem = ({ notification, onMarkAsRead }) => {
             : 'action.selected',
         },
         cursor: 'pointer',
-        borderLeft: notification.isRead ? 'none' : `4px solid ${getPriorityColor(notification.priority) === 'error' ? '#f44336' : getPriorityColor(notification.priority) === 'primary' ? '#2196f3' : '#4caf50'}`,
+        borderLeft: notification.is_read ? 'none' : `4px solid ${getPriorityColor(notification.priority) === 'error' ? '#f44336' : getPriorityColor(notification.priority) === 'primary' ? '#2196f3' : '#4caf50'}`,
       }}
       onClick={handleMarkAsRead}
     >
@@ -92,12 +92,12 @@ const NotificationItem = ({ notification, onMarkAsRead }) => {
         primary={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="subtitle2" sx={{ 
-              fontWeight: notification.isRead ? 'normal' : 'bold',
+              fontWeight: notification.is_read ? 'normal' : 'bold',
               color: isDarkMode ? 'white' : 'inherit'
             }}>
               {notification.title}
             </Typography>
-            {!notification.isRead && (
+            {!notification.is_read && (
               <Chip 
                 label="New" 
                 size="small" 
@@ -119,7 +119,7 @@ const NotificationItem = ({ notification, onMarkAsRead }) => {
               display: 'block',
               color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'text.disabled'
             }}>
-              {notification.timestamp}
+              {notificationService.formatTimestamp(notification.created_at)}
             </Typography>
           </Box>
         }
@@ -148,12 +148,20 @@ const NotificationPopover = ({ open, anchorEl, onClose }) => {
     return unsubscribe;
   }, []);
 
-  const handleMarkAsRead = (notificationId) => {
-    notificationService.markAsRead(notificationId);
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await notificationService.markAsRead(notificationId);
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
   };
 
-  const handleMarkAllAsRead = () => {
-    notificationService.markAllAsRead();
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+    }
   };
 
   const handleClose = () => {
@@ -262,7 +270,7 @@ const NotificationPopover = ({ open, anchorEl, onClose }) => {
           }}>
             {notifications.length > 0 ? (
               notifications.map((notification, index) => (
-                <React.Fragment key={notification.id}>
+                <React.Fragment key={notification._id}>
                   <NotificationItem 
                     notification={notification}
                     onMarkAsRead={handleMarkAsRead}

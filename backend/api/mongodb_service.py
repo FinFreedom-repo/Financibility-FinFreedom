@@ -509,6 +509,216 @@ class SettingsService(MongoDBService):
             "timezone": "UTC"
         }
 
+class NotificationService(MongoDBService):
+    """Service for managing user notifications"""
+    
+    def create_notification(self, user_id: str, notification_data: Dict) -> Optional[str]:
+        """Create a new notification for a user"""
+        try:
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
+            
+            notification = {
+                "user_id": user_id,
+                "type": notification_data.get("type", "general"),
+                "title": notification_data.get("title", ""),
+                "message": notification_data.get("message", ""),
+                "priority": notification_data.get("priority", "medium"),
+                "is_read": False,
+                "data": notification_data.get("data", {}),
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+            
+            result = self.db.notifications.insert_one(notification)
+            logger.info(f"Created notification {result.inserted_id} for user {user_id}")
+            return str(result.inserted_id)
+            
+        except Exception as e:
+            logger.error(f"Error creating notification: {e}")
+            return None
+    
+    def get_user_notifications(self, user_id: str, limit: int = 50) -> List[Dict]:
+        """Get all notifications for a user"""
+        try:
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
+            
+            notifications = list(self.db.notifications.find(
+                {"user_id": user_id}
+            ).sort("created_at", -1).limit(limit))
+            
+            # Convert ObjectId to string and format timestamps
+            for notification in notifications:
+                notification["_id"] = str(notification["_id"])
+                notification["user_id"] = str(notification["user_id"])
+                notification["created_at"] = notification["created_at"].isoformat()
+                notification["updated_at"] = notification["updated_at"].isoformat()
+            
+            return notifications
+            
+        except Exception as e:
+            logger.error(f"Error getting user notifications: {e}")
+            return []
+    
+    def get_unread_count(self, user_id: str) -> int:
+        """Get count of unread notifications for a user"""
+        try:
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
+            
+            count = self.db.notifications.count_documents({
+                "user_id": user_id,
+                "is_read": False
+            })
+            
+            return count
+            
+        except Exception as e:
+            logger.error(f"Error getting unread count: {e}")
+            return 0
+    
+    def mark_as_read(self, user_id: str, notification_id: str) -> bool:
+        """Mark a specific notification as read"""
+        try:
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
+            if isinstance(notification_id, str):
+                notification_id = ObjectId(notification_id)
+            
+            result = self.db.notifications.update_one(
+                {
+                    "_id": notification_id,
+                    "user_id": user_id
+                },
+                {
+                    "$set": {
+                        "is_read": True,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            if result.modified_count > 0:
+                logger.info(f"Marked notification {notification_id} as read for user {user_id}")
+                return True
+            else:
+                logger.warning(f"Notification {notification_id} not found or already read for user {user_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error marking notification as read: {e}")
+            return False
+    
+    def mark_all_as_read(self, user_id: str) -> bool:
+        """Mark all notifications as read for a user"""
+        try:
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
+            
+            result = self.db.notifications.update_many(
+                {
+                    "user_id": user_id,
+                    "is_read": False
+                },
+                {
+                    "$set": {
+                        "is_read": True,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            logger.info(f"Marked {result.modified_count} notifications as read for user {user_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error marking all notifications as read: {e}")
+            return False
+    
+    def delete_notification(self, user_id: str, notification_id: str) -> bool:
+        """Delete a specific notification"""
+        try:
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
+            if isinstance(notification_id, str):
+                notification_id = ObjectId(notification_id)
+            
+            result = self.db.notifications.delete_one({
+                "_id": notification_id,
+                "user_id": user_id
+            })
+            
+            if result.deleted_count > 0:
+                logger.info(f"Deleted notification {notification_id} for user {user_id}")
+                return True
+            else:
+                logger.warning(f"Notification {notification_id} not found for user {user_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error deleting notification: {e}")
+            return False
+    
+    def create_budget_alert(self, user_id: str, category: str, spent: float, limit: float) -> Optional[str]:
+        """Create a budget alert notification"""
+        percentage = round((spent / limit) * 100)
+        priority = "high" if percentage >= 90 else "medium" if percentage >= 80 else "low"
+        
+        notification_data = {
+            "type": "budget_alert",
+            "title": "Budget Alert",
+            "message": f"You've spent {percentage}% of your {category} budget",
+            "priority": priority,
+            "data": {
+                "category": category,
+                "spent": spent,
+                "limit": limit,
+                "percentage": percentage
+            }
+        }
+        
+        return self.create_notification(user_id, notification_data)
+    
+    def create_debt_reminder(self, user_id: str, debt_name: str, due_date: str, amount: float) -> Optional[str]:
+        """Create a debt reminder notification"""
+        days_until_due = max(0, (datetime.fromisoformat(due_date) - datetime.utcnow()).days)
+        priority = "high" if days_until_due <= 1 else "medium" if days_until_due <= 3 else "low"
+        
+        notification_data = {
+            "type": "debt_reminder",
+            "title": "Debt Payment Due",
+            "message": f"Payment for '{debt_name}' is due in {days_until_due} days",
+            "priority": priority,
+            "data": {
+                "debt_name": debt_name,
+                "due_date": due_date,
+                "amount": amount,
+                "days_until_due": days_until_due
+            }
+        }
+        
+        return self.create_notification(user_id, notification_data)
+    
+    def create_savings_milestone(self, user_id: str, goal: str, progress: float, target: float) -> Optional[str]:
+        """Create a savings milestone notification"""
+        percentage = round((progress / target) * 100)
+        
+        notification_data = {
+            "type": "financial_insight",
+            "title": "Savings Milestone",
+            "message": f"Congratulations! You've reached {percentage}% of your {goal} goal",
+            "priority": "low",
+            "data": {
+                "goal": goal,
+                "progress": progress,
+                "target": target,
+                "percentage": percentage
+            }
+        }
+        
+        return self.create_notification(user_id, notification_data)
+
 class WealthProjectionSettingsService(MongoDBService):
     """Service for managing wealth projection settings"""
     
