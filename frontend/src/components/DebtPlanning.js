@@ -1747,54 +1747,43 @@ const DebtPlanning = () => {
         },
         cellRenderer: params => {
           const value = parseFloat(params.value) || 0;
-          let color = 'inherit';
           let fontWeight = 'normal';
-          let backgroundColor = 'transparent';
           
           // Check if this is an income category
           const isIncomeCategory = params.data.type === 'income' || params.data.type === 'additional_income';
           
           if (params.data.category === 'Net Savings') {
-            // Apply net savings-specific styling (blue) - only background, no text color
+            // Apply net savings-specific font weight only
             if (month.type === 'historical') {
-              backgroundColor = '#1565c0'; // Dark blue for historical
               fontWeight = '600';
             } else if (month.type === 'current') {
-              backgroundColor = '#2196f3'; // Blue for current
               fontWeight = 'bold';
             } else if (month.type === 'future') {
-              backgroundColor = '#42a5f5'; // Light blue for future
               fontWeight = 'bold';
             }
           } else if (isIncomeCategory) {
-            // Apply income-specific styling (green) - only background, no text color
+            // Apply income-specific font weight only
             if (month.type === 'historical') {
-              backgroundColor = '#2e7d32'; // Dark green for historical
               fontWeight = '600';
             } else if (month.type === 'current') {
-              backgroundColor = '#4caf50'; // Green for current
               fontWeight = 'bold';
             } else if (month.type === 'future') {
-              backgroundColor = '#66bb6a'; // Light green for future
               fontWeight = 'bold';
             }
           } else if (params.data.category === 'Principal Paid Down' || 
                      params.data.category === 'Interest Paid' || 
                      params.data.category === 'Remaining Debt' || 
                      params.data.type === 'debt') {
-            // Apply timeline-specific styling for debt-related categories - only background, no text color
+            // Apply timeline-specific font weight only
             if (month.type === 'historical') {
-              backgroundColor = '#0027dbcf';
               fontWeight = '600';
             } else if (month.type === 'current') {
-              backgroundColor = '#4caf50';
               fontWeight = 'bold';
             } else if (month.type === 'future') {
-              backgroundColor = '#f44336';
               fontWeight = 'bold';
             }
           } else {
-            // Apply general time-based styling for other categories - only font weight, no colors
+            // Apply general time-based styling for other categories - only font weight
             if (month.type === 'historical') {
               fontWeight = '600';
             } else if (month.type === 'current') {
@@ -1811,9 +1800,7 @@ const DebtPlanning = () => {
                 color: 'inherit', 
                 fontWeight, 
                 textAlign: 'right',
-                backgroundColor: backgroundColor,
                 padding: '4px 8px',
-                borderRadius: '2px',
                 width: '100%',
                 height: '100%',
                 display: 'flex',
