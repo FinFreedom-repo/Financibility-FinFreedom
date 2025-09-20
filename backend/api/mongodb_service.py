@@ -639,12 +639,24 @@ class NotificationService(MongoDBService):
             if isinstance(user_id, str):
                 user_id = ObjectId(user_id)
             
-            count = self.db.notifications.count_documents({
-                "user_id": user_id,
-                "is_read": False
-            })
+            # Get all notifications for the user
+            notifications = list(self.db.notifications.find({"user_id": user_id}))
             
-            return count
+            unread_count = 0
+            
+            for notification in notifications:
+                if notification.get("type") == "bundle":
+                    # Count unread messages in bundle
+                    messages = notification.get("messages", [])
+                    for message in messages:
+                        if not message.get("is_read", False):
+                            unread_count += 1
+                else:
+                    # Count individual notifications
+                    if not notification.get("is_read", False):
+                        unread_count += 1
+            
+            return unread_count
             
         except Exception as e:
             logger.error(f"Error getting unread count: {e}")

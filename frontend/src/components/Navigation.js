@@ -141,8 +141,18 @@ function Navigation({ onNavigate }) {
       setUnreadCount(unreadCount);
     });
 
-    // Initialize with current unread count
-    setUnreadCount(notificationService.getUnreadCount());
+    // Initialize notification service and get unread count
+    const initializeNotifications = async () => {
+      try {
+        await notificationService.initialize();
+        setUnreadCount(notificationService.getUnreadCount());
+      } catch (error) {
+        console.warn('Failed to initialize notifications in Navigation:', error);
+        setUnreadCount(notificationService.getUnreadCount());
+      }
+    };
+
+    initializeNotifications();
 
     return unsubscribe;
   }, []);

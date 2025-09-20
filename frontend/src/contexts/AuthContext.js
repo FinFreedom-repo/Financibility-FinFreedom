@@ -195,6 +195,9 @@ export const AuthProvider = ({ children }) => {
       
       // Initialize notifications for the user
       try {
+        // First initialize the service to fetch existing notifications
+        await notificationService.initialize();
+        // Then create new notifications if needed
         await notificationService.initializeNotifications();
         console.log('Notifications initialized for user');
       } catch (error) {
