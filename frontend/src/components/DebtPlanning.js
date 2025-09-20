@@ -1701,6 +1701,15 @@ const DebtPlanning = () => {
             } else if (month.type === 'future') {
               classes.push('timeline-net-savings-future');
             }
+          } else if (params.data.type === 'income' || params.data.type === 'additional_income') {
+            // Income and additional income rows - green styling
+            if (month.type === 'historical') {
+              classes.push('timeline-income-historical');
+            } else if (month.type === 'current') {
+              classes.push('timeline-income-current');
+            } else if (month.type === 'future') {
+              classes.push('timeline-income-future');
+            }
           } else if (params.data.category === 'Interest Paid') {
             if (month.type === 'historical') {
               classes.push('timeline-interest-paid-historical');
@@ -1744,15 +1753,44 @@ const DebtPlanning = () => {
           let fontWeight = 'normal';
           let backgroundColor = 'transparent';
           
-          // Check if this is a timeline-specific category
-          const isTimelineCategory = params.data.category === 'Net Savings' || 
-                                   params.data.category === 'Principal Paid Down' || 
-                                   params.data.category === 'Interest Paid' || 
-                                   params.data.category === 'Remaining Debt' || 
-                                   params.data.type === 'debt';
+          // Check if this is an income category
+          const isIncomeCategory = params.data.type === 'income' || params.data.type === 'additional_income';
           
-          if (isTimelineCategory) {
-            // Apply timeline-specific styling
+          if (params.data.category === 'Net Savings') {
+            // Apply net savings-specific styling (blue)
+            if (month.type === 'historical') {
+              backgroundColor = '#1565c0'; // Dark blue for historical
+              color = '#ffffff';
+              fontWeight = '600';
+            } else if (month.type === 'current') {
+              backgroundColor = '#2196f3'; // Blue for current
+              color = '#ffffff';
+              fontWeight = 'bold';
+            } else if (month.type === 'future') {
+              backgroundColor = '#42a5f5'; // Light blue for future
+              color = '#ffffff';
+              fontWeight = 'bold';
+            }
+          } else if (isIncomeCategory) {
+            // Apply income-specific styling (green)
+            if (month.type === 'historical') {
+              backgroundColor = '#2e7d32'; // Dark green for historical
+              color = '#ffffff';
+              fontWeight = '600';
+            } else if (month.type === 'current') {
+              backgroundColor = '#4caf50'; // Green for current
+              color = '#ffffff';
+              fontWeight = 'bold';
+            } else if (month.type === 'future') {
+              backgroundColor = '#66bb6a'; // Light green for future
+              color = '#ffffff';
+              fontWeight = 'bold';
+            }
+          } else if (params.data.category === 'Principal Paid Down' || 
+                     params.data.category === 'Interest Paid' || 
+                     params.data.category === 'Remaining Debt' || 
+                     params.data.type === 'debt') {
+            // Apply timeline-specific styling for debt-related categories
             if (month.type === 'historical') {
               backgroundColor = '#0027dbcf';
               color = '#ffffff';
@@ -2213,6 +2251,29 @@ const DebtPlanning = () => {
                 background-color: #f44336 !important;
                 color: white !important;
               }
+              
+              /* Budget Projection Grid - Net Savings (Blue) */
+              .ag-theme-alpine .ag-row .ag-cell.net-positive-cell {
+                background-color: #2196f3 !important;
+                color: white !important;
+                font-weight: bold !important;
+              }
+              
+              /* Budget Projection Grid - Income and Additional Income (Green) */
+              .ag-theme-alpine .ag-row .ag-cell.timeline-income-historical,
+              .ag-theme-alpine .ag-row .ag-cell.timeline-income-current,
+              .ag-theme-alpine .ag-row .ag-cell.timeline-income-future {
+                background-color: #4caf50 !important;
+                color: white !important;
+                font-weight: bold !important;
+              }
+              
+              /* Specific styling for the div with class net-positive-cell timeline-net-savings-current */
+              .ag-theme-alpine .ag-row .ag-cell.net-positive-cell.timeline-net-savings-current {
+                background-color: #2196f3 !important;
+                color: white !important;
+                font-weight: bold !important;
+              }
             `}
           </style>
           
@@ -2290,6 +2351,13 @@ const DebtPlanning = () => {
     const remainingDebtRow = localGridData.find(row => row.category === 'Remaining Debt');
     const currentTotalDebt = currentMonthIdx !== -1 ? (remainingDebtRow?.[`month_${currentMonthIdx}`] || 0) : 0;
     
+    // Calculate total monthly payments from grid net savings (needed for fallback calculation)
+    const netSavingsRow = localGridData.find(row => row.category === 'Net Savings');
+    const currentNetSavings = currentMonthIdx !== -1 ? (netSavingsRow?.[`month_${currentMonthIdx}`] || 0) : 0;
+    
+    // Estimate monthly payments as net savings (since that's what goes toward debt)
+    const totalMonthlyPayments = Math.max(0, currentNetSavings);
+
     // Calculate total interest from payoff plan
     let totalInterest = 0;
     let debtFreeDate = null;
@@ -2301,12 +2369,32 @@ const DebtPlanning = () => {
         return sum + (month.interestPaid || 0);
       }, 0);
       
-      // Find when debt becomes 0
-      const lastDebtMonth = payoffPlan[payoffPlan.length - 1];
-      if (lastDebtMonth && lastDebtMonth.remainingDebt === 0) {
-        monthsToPayoff = payoffPlan.length;
-        const currentDate = new Date();
-        debtFreeDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + monthsToPayoff, 1);
+      // Find the actual month when all debts become 0
+      let debtFreeMonthIndex = -1;
+      for (let i = 0; i < payoffPlan.length; i++) {
+        const monthPlan = payoffPlan[i];
+        if (monthPlan && monthPlan.remainingDebt === 0) {
+          debtFreeMonthIndex = i;
+          break; // Find the first month when debt becomes 0
+        }
+      }
+      
+      if (debtFreeMonthIndex >= 0) {
+        monthsToPayoff = debtFreeMonthIndex + 1; // +1 because index is 0-based
+        // Use the current month from the grid, not the real current date
+        const currentMonth = months[currentMonthIdx];
+        if (currentMonth) {
+          debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + monthsToPayoff, 1);
+        }
+      }
+    } else if (currentTotalDebt > 0 && totalMonthlyPayments > 0) {
+      // Fallback calculation if payoffPlan is not available
+      // Simple calculation: debt / monthly payment = months to payoff
+      monthsToPayoff = Math.ceil(currentTotalDebt / totalMonthlyPayments);
+      // Use the current month from the grid, not the real current date
+      const currentMonth = months[currentMonthIdx];
+      if (currentMonth) {
+        debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + monthsToPayoff, 1);
       }
     }
 
@@ -2317,13 +2405,6 @@ const DebtPlanning = () => {
           return sum + rate;
         }, 0) / outstandingDebts.length
       : 0;
-
-    // Calculate total monthly payments from grid net savings
-    const netSavingsRow = localGridData.find(row => row.category === 'Net Savings');
-    const currentNetSavings = currentMonthIdx !== -1 ? (netSavingsRow?.[`month_${currentMonthIdx}`] || 0) : 0;
-    
-    // Estimate monthly payments as net savings (since that's what goes toward debt)
-    const totalMonthlyPayments = Math.max(0, currentNetSavings);
 
     return {
       totalDebt: currentTotalDebt,
@@ -2752,13 +2833,31 @@ const DebtPlanning = () => {
         editable: false, // Timeline grid is read-only
         cellClass: params => {
           const classes = [];
-          if (month.type === 'historical') classes.push('historical-month-row');
-          if (month.type === 'current') classes.push('current-month-row');
-          if (month.type === 'future') classes.push('future-month-row');
+          
+          // Only add timeline classes for non-income/non-net-savings categories
+          if (params.data.category !== 'Net Savings' && 
+              params.data.type !== 'income' && 
+              params.data.type !== 'additional_income') {
+            if (month.type === 'historical') classes.push('historical-month-row');
+            if (month.type === 'current') classes.push('current-month-row');
+            if (month.type === 'future') classes.push('future-month-row');
+          }
+          
+          // Add specific classes for net savings and income
           if (params.data.category === 'Net Savings') {
             const value = parseFloat(params.value) || 0;
             classes.push(value >= 0 ? 'net-positive-cell' : 'net-negative-cell');
+            // Add timeline-specific classes for net savings
+            if (month.type === 'historical') classes.push('timeline-net-savings-historical');
+            if (month.type === 'current') classes.push('timeline-net-savings-current');
+            if (month.type === 'future') classes.push('timeline-net-savings-future');
+          } else if (params.data.type === 'income' || params.data.type === 'additional_income') {
+            // Add timeline-specific classes for income
+            if (month.type === 'historical') classes.push('timeline-income-historical');
+            if (month.type === 'current') classes.push('timeline-income-current');
+            if (month.type === 'future') classes.push('timeline-income-future');
           }
+          
           return classes.join(' ');
         },
         cellRenderer: params => {
@@ -2767,15 +2866,44 @@ const DebtPlanning = () => {
           let fontWeight = 'normal';
           let backgroundColor = 'transparent';
           
-          // Check if this is a timeline-specific category
-          const isTimelineCategory = params.data.category === 'Net Savings' || 
-                                   params.data.category === 'Principal Paid Down' || 
-                                   params.data.category === 'Interest Paid' || 
-                                   params.data.category === 'Remaining Debt' || 
-                                   params.data.type === 'debt';
+          // Check if this is an income category
+          const isIncomeCategory = params.data.type === 'income' || params.data.type === 'additional_income';
           
-          if (isTimelineCategory) {
-            // Apply timeline-specific styling
+          if (params.data.category === 'Net Savings') {
+            // Apply net savings-specific styling (blue)
+            if (month.type === 'historical') {
+              backgroundColor = '#1565c0'; // Dark blue for historical
+              color = '#ffffff';
+              fontWeight = '600';
+            } else if (month.type === 'current') {
+              backgroundColor = '#2196f3'; // Blue for current
+              color = '#ffffff';
+              fontWeight = 'bold';
+            } else if (month.type === 'future') {
+              backgroundColor = '#42a5f5'; // Light blue for future
+              color = '#ffffff';
+              fontWeight = 'bold';
+            }
+          } else if (isIncomeCategory) {
+            // Apply income-specific styling (green)
+            if (month.type === 'historical') {
+              backgroundColor = '#2e7d32'; // Dark green for historical
+              color = '#ffffff';
+              fontWeight = '600';
+            } else if (month.type === 'current') {
+              backgroundColor = '#4caf50'; // Green for current
+              color = '#ffffff';
+              fontWeight = 'bold';
+            } else if (month.type === 'future') {
+              backgroundColor = '#66bb6a'; // Light green for future
+              color = '#ffffff';
+              fontWeight = 'bold';
+            }
+          } else if (params.data.category === 'Principal Paid Down' || 
+                     params.data.category === 'Interest Paid' || 
+                     params.data.category === 'Remaining Debt' || 
+                     params.data.type === 'debt') {
+            // Apply timeline-specific styling for debt-related categories
             if (month.type === 'historical') {
               backgroundColor = '#0027dbcf';
               color = '#ffffff';
@@ -2791,18 +2919,15 @@ const DebtPlanning = () => {
             }
           } else {
             // Apply general styling for other categories
-          if (params.data.category === 'Net Savings') {
-            color = value >= 0 ? theme.palette.success.main : theme.palette.error.main;
-            fontWeight = 'bold';
-          } else if (params.data.category === 'Remaining Debt') {
-            color = theme.palette.warning.main;
-            fontWeight = 'bold';
-          } else if (params.data.type === 'calculated') {
-            color = theme.palette.info.main;
-            fontWeight = '600';
-          } else if (params.data.type === 'debt') {
-            color = theme.palette.error.main;
-            fontWeight = '600';
+            if (params.data.category === 'Remaining Debt') {
+              color = theme.palette.warning.main;
+              fontWeight = 'bold';
+            } else if (params.data.type === 'calculated') {
+              color = theme.palette.info.main;
+              fontWeight = '600';
+            } else if (params.data.type === 'debt') {
+              color = theme.palette.error.main;
+              fontWeight = '600';
             }
           }
           
@@ -2839,7 +2964,48 @@ const DebtPlanning = () => {
           <Typography variant="subtitle1" color="primary">
             Strategy: {strategy.charAt(0).toUpperCase() + strategy.slice(1)}
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            {/* Debt Free Month Display */}
+            {(() => {
+              const debtFreeInfo = calculateDebtStatistics();
+              console.log('Debt Free Info:', debtFreeInfo); // Debug log
+              if (debtFreeInfo.debtFreeDate && debtFreeInfo.monthsToPayoff > 0) {
+                const debtFreeDate = new Date(debtFreeInfo.debtFreeDate);
+                const monthName = debtFreeDate.toLocaleDateString('en-US', { month: 'long' });
+                const year = debtFreeDate.getFullYear();
+                
+                return (
+                  <Chip
+                    icon={<CheckCircleIcon />}
+                    label={`Debt Free: ${monthName}, ${year}`}
+                    color="success"
+                    variant="filled"
+                    sx={{
+                      fontWeight: 'bold',
+                      fontSize: '0.875rem',
+                      px: 2,
+                      py: 1,
+                      height: 'auto',
+                      backgroundColor: theme.palette.success.main,
+                      color: theme.palette.success.contrastText,
+                      '& .MuiChip-icon': {
+                        color: theme.palette.success.contrastText,
+                      },
+                      boxShadow: isDarkMode 
+                        ? '0 2px 8px rgba(76, 175, 80, 0.3)' 
+                        : '0 2px 8px rgba(76, 175, 80, 0.2)',
+                      border: `1px solid ${theme.palette.success.dark}`,
+                    }}
+                  />
+                );
+              }
+              // Show debug info if no debt-free date
+              if (debtFreeInfo.totalDebt > 0) {
+                console.log('Debt exists but no debt-free date calculated:', debtFreeInfo);
+              }
+              return null;
+            })()}
+            
             <Button 
               variant="outlined" 
               onClick={() => setStrategy(strategy === 'snowball' ? 'avalanche' : 'snowball')}
@@ -2931,22 +3097,85 @@ const DebtPlanning = () => {
                     borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
                   }
                 },
-                // Specific category styling for timeline grid - using higher specificity
-                '&.timeline-net-savings-historical .ag-cell': {
-                  backgroundColor: '#0027dbcf !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                },
-                '&.timeline-net-savings-current .ag-cell': {
-                  backgroundColor: '#4caf50 !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                },
-                '&.timeline-net-savings-future .ag-cell': {
-                  backgroundColor: '#f44336 !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                },
+                  // Specific category styling for timeline grid - using higher specificity
+                  '&.timeline-net-savings-historical .ag-cell': {
+                    backgroundColor: '#1565c0 !important',
+                    color: 'white !important',
+                    border: 'none !important',
+                    padding: '0 !important',
+                    margin: '0 !important',
+                    borderRadius: '0 !important',
+                    width: '100% !important',
+                    height: '100% !important',
+                    display: 'flex !important',
+                    alignItems: 'center !important',
+                    justifyContent: 'flex-end !important'
+                  },
+                  '&.timeline-net-savings-current .ag-cell': {
+                    backgroundColor: '#2196f3 !important',
+                    color: 'white !important',
+                    border: 'none !important',
+                    padding: '0 !important',
+                    margin: '0 !important',
+                    borderRadius: '0 !important',
+                    width: '100% !important',
+                    height: '100% !important',
+                    display: 'flex !important',
+                    alignItems: 'center !important',
+                    justifyContent: 'flex-end !important'
+                  },
+                  '&.timeline-net-savings-future .ag-cell': {
+                    backgroundColor: '#42a5f5 !important',
+                    color: 'white !important',
+                    border: 'none !important',
+                    padding: '0 !important',
+                    margin: '0 !important',
+                    borderRadius: '0 !important',
+                    width: '100% !important',
+                    height: '100% !important',
+                    display: 'flex !important',
+                    alignItems: 'center !important',
+                    justifyContent: 'flex-end !important'
+                  },
+                  '&.timeline-income-historical .ag-cell': {
+                    backgroundColor: '#2e7d32 !important',
+                    color: 'white !important',
+                    border: 'none !important',
+                    padding: '0 !important',
+                    margin: '0 !important',
+                    borderRadius: '0 !important',
+                    width: '100% !important',
+                    height: '100% !important',
+                    display: 'flex !important',
+                    alignItems: 'center !important',
+                    justifyContent: 'flex-end !important'
+                  },
+                  '&.timeline-income-current .ag-cell': {
+                    backgroundColor: '#4caf50 !important',
+                    color: 'white !important',
+                    border: 'none !important',
+                    padding: '0 !important',
+                    margin: '0 !important',
+                    borderRadius: '0 !important',
+                    width: '100% !important',
+                    height: '100% !important',
+                    display: 'flex !important',
+                    alignItems: 'center !important',
+                    justifyContent: 'flex-end !important'
+                  },
+                  '&.timeline-income-future .ag-cell': {
+                    backgroundColor: '#66bb6a !important',
+                    color: 'white !important',
+                    border: 'none !important',
+                    padding: '0 !important',
+                    margin: '0 !important',
+                    borderRadius: '0 !important',
+                    width: '100% !important',
+                    height: '100% !important',
+                    display: 'flex !important',
+                    alignItems: 'center !important',
+                    justifyContent: 'flex-end !important'
+                  },
                 '&.timeline-total-paid-historical .ag-cell': {
                   backgroundColor: '#0027dbcf !important',
                   color: 'white !important',
@@ -3095,9 +3324,65 @@ const DebtPlanning = () => {
       {selectedTabIndex === 0 && (
         <Card sx={{ p: 3 }}>
           {/* Debt Payoff Timeline & Strategies Section - Now at the top */}
-          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-            Debt Payoff Timeline & Strategies
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+              Debt Payoff Timeline & Strategies
+            </Typography>
+            
+            {/* Debt Free Month Display */}
+            {(() => {
+              const stats = calculateDebtStatistics();
+              const debtFreeDate = stats.debtFreeDate;
+              
+              if (debtFreeDate && stats.monthsToPayoff > 0) {
+                const monthNames = [
+                  'January', 'February', 'March', 'April', 'May', 'June',
+                  'July', 'August', 'September', 'October', 'November', 'December'
+                ];
+                const month = monthNames[debtFreeDate.getMonth()];
+                const year = debtFreeDate.getFullYear();
+                
+                return (
+                  <Box
+                    sx={{
+                      background: isDarkMode 
+                        ? 'linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)'
+                        : 'linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)',
+                      color: 'white',
+                      padding: '12px 20px',
+                      borderRadius: '12px',
+                      boxShadow: isDarkMode 
+                        ? '0 4px 20px rgba(76, 175, 80, 0.3)'
+                        : '0 4px 20px rgba(76, 175, 80, 0.2)',
+                      border: isDarkMode 
+                        ? '1px solid rgba(255, 255, 255, 0.1)'
+                        : '1px solid rgba(255, 255, 255, 0.2)',
+                      backdropFilter: 'blur(10px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      minWidth: '200px',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <CheckCircleIcon sx={{ fontSize: '1.2rem' }} />
+                    <Typography 
+                      variant="body1" 
+                      sx={{ 
+                        fontWeight: 'bold',
+                        fontSize: '1rem',
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+                      }}
+                    >
+                      Debt Free: {month}, {year}
+                    </Typography>
+                  </Box>
+                );
+              }
+              
+              return null;
+            })()}
+          </Box>
           
           {/* Month Range Controls for Timeline */}
           <Box sx={{ mb: 3, display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>

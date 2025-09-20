@@ -7,6 +7,32 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Add periodic token expiration check
+  useEffect(() => {
+    const checkTokenExpiration = () => {
+      const tokenTimestamp = localStorage.getItem('token_timestamp');
+      if (tokenTimestamp) {
+        const tokenAge = Date.now() - parseInt(tokenTimestamp);
+        if (tokenAge > 300000) { // 5 minutes in milliseconds
+          console.log('AuthContext: Token expired during session, redirecting to login');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('cached_username');
+          localStorage.removeItem('cached_user_id');
+          localStorage.removeItem('token_timestamp');
+          delete axios.defaults.headers.common['Authorization'];
+          setUser(null);
+          window.location.href = '/login';
+        }
+      }
+    };
+
+    // Check every 5 minutes
+    const interval = setInterval(checkTokenExpiration, 300000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     const verifyToken = async () => {
       console.log('AuthContext: Verifying token on mount...');
@@ -45,7 +71,7 @@ export const AuthProvider = ({ children }) => {
         console.warn('AuthContext: Could not check server info, proceeding with token validation');
       }
       
-      // Check if token is older than 5 minutes (300 seconds)
+      // Check if token is older than 60 minutes (3600 seconds) - matches backend expiration
       const tokenTimestamp = localStorage.getItem('token_timestamp');
       if (tokenTimestamp) {
         const tokenAge = Date.now() - parseInt(tokenTimestamp);
