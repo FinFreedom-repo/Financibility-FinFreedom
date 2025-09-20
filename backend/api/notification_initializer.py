@@ -79,13 +79,6 @@ class NotificationInitializer:
         return [
             {
                 "type": "tip",
-                "title": "💡 Pro Tip: Track Your Expenses",
-                "message": "Regularly tracking your expenses helps you identify spending patterns and make better financial decisions.",
-                "priority": "low",
-                "is_read": False
-            },
-            {
-                "type": "tip",
                 "title": "💡 Pro Tip: Emergency Fund",
                 "message": "Aim to build an emergency fund that covers 3-6 months of expenses for financial security.",
                 "priority": "low",
@@ -103,13 +96,6 @@ class NotificationInitializer:
     def _get_reminder_messages(self):
         """Get reminder messages"""
         return [
-            {
-                "type": "reminder",
-                "title": "📅 Monthly Budget Review",
-                "message": "Don't forget to review your monthly budget and adjust categories as needed.",
-                "priority": "medium",
-                "is_read": False
-            },
             {
                 "type": "reminder",
                 "title": "🎯 Set Financial Goals",
