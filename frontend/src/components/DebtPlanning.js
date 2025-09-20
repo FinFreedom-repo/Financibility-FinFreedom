@@ -1646,10 +1646,19 @@ const DebtPlanning = () => {
         },
         cellRenderer: params => {
           const { data } = params;
+          
+          // Determine color based on category type
+          let categoryColor = 'inherit';
+          if (data.category === 'Net Savings') {
+            categoryColor = '#2196f3'; // Blue for Net Savings
+          } else if (data.type === 'income' || data.type === 'additional_income') {
+            categoryColor = '#4caf50'; // Green for Income categories
+          }
+          
           return (
             <Typography variant="body2" sx={{ 
               fontWeight: data.category === 'Net Savings' || data.category === 'Remaining Debt' ? 'bold' : '600',
-              color: 'inherit',
+              color: categoryColor,
               fontSize: '0.95rem',
               fontStyle: data.type === 'additional_income' ? 'italic' : 'normal'
             }}>
