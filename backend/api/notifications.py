@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.http import JsonResponse
 from .mongodb_service import NotificationService
-from .mongodb_authentication import MongoDBIsAuthenticated
+from .mongodb_api_views import MongoDBIsAuthenticated
 import logging
 
 logger = logging.getLogger(__name__)
