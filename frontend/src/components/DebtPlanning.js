@@ -208,6 +208,7 @@ const DebtPlanning = () => {
       
       // Load debts
       const debtsData = await accountsDebtsService.getDebts();
+      console.log('🔍 Loaded debts from backend:', debtsData);
       setOutstandingDebts(debtsData || []);
       setDebtsLoading(false);
       
@@ -230,6 +231,7 @@ const DebtPlanning = () => {
       
       // Load only debts (not full initial data)
       const debtsData = await accountsDebtsService.getDebts();
+      console.log('🔍 Reloaded debts from backend:', debtsData);
       setOutstandingDebts(debtsData || []);
       
       // The useEffect watching outstandingDebts will automatically trigger recalculation
