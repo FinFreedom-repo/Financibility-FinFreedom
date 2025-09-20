@@ -2381,9 +2381,8 @@ const DebtPlanning = () => {
         // Use the current month from the grid, not the real current date
         const currentMonth = months[currentMonthIdx];
         if (currentMonth) {
-          // Debt free month is the month AFTER debt becomes $0
-          // So we add 1 more month to the debt free month index
-          debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + debtFreeMonthIndex + 1, 1);
+          // Debt free month is the SAME month when debt becomes $0
+          debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + debtFreeMonthIndex, 1);
         }
       }
     } else if (currentTotalDebt > 0 && totalMonthlyPayments > 0) {
@@ -2393,8 +2392,8 @@ const DebtPlanning = () => {
       // Use the current month from the grid, not the real current date
       const currentMonth = months[currentMonthIdx];
       if (currentMonth) {
-        // Debt free month is the month AFTER the calculated payoff
-        debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + monthsToPayoff, 1);
+        // Debt free month is the SAME month when debt is paid off
+        debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + monthsToPayoff - 1, 1);
       }
     }
 
