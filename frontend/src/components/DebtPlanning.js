@@ -2381,13 +2381,9 @@ const DebtPlanning = () => {
         // Use the current month from the grid, not the real current date
         const currentMonth = months[currentMonthIdx];
         if (currentMonth) {
-          // If debt is paid off in current month (index 0), show current month
-          // Otherwise, add the months to payoff
-          if (debtFreeMonthIndex === 0) {
-            debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1, 1);
-          } else {
-            debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + monthsToPayoff, 1);
-          }
+          // Debt free month is the month AFTER debt becomes $0
+          // So we add 1 more month to the debt free month index
+          debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + debtFreeMonthIndex + 1, 1);
         }
       }
     } else if (currentTotalDebt > 0 && totalMonthlyPayments > 0) {
@@ -2397,6 +2393,7 @@ const DebtPlanning = () => {
       // Use the current month from the grid, not the real current date
       const currentMonth = months[currentMonthIdx];
       if (currentMonth) {
+        // Debt free month is the month AFTER the calculated payoff
         debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + monthsToPayoff, 1);
       }
     }
@@ -2966,46 +2963,6 @@ const DebtPlanning = () => {
             Strategy: {strategy.charAt(0).toUpperCase() + strategy.slice(1)}
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            {/* Debt Free Month Display */}
-            {(() => {
-              const debtFreeInfo = calculateDebtStatistics();
-              console.log('Debt Free Info:', debtFreeInfo); // Debug log
-              if (debtFreeInfo.debtFreeDate && debtFreeInfo.monthsToPayoff > 0) {
-                const debtFreeDate = new Date(debtFreeInfo.debtFreeDate);
-                const monthName = debtFreeDate.toLocaleDateString('en-US', { month: 'long' });
-                const year = debtFreeDate.getFullYear();
-                
-                return (
-                  <Chip
-                    icon={<CheckCircleIcon />}
-                    label={`Debt Free: ${monthName}, ${year}`}
-                    color="success"
-                    variant="filled"
-                    sx={{
-                      fontWeight: 'bold',
-                      fontSize: '0.875rem',
-                      px: 2,
-                      py: 1,
-                      height: 'auto',
-                      backgroundColor: theme.palette.success.main,
-                      color: theme.palette.success.contrastText,
-                      '& .MuiChip-icon': {
-                        color: theme.palette.success.contrastText,
-                      },
-                      boxShadow: isDarkMode 
-                        ? '0 2px 8px rgba(76, 175, 80, 0.3)' 
-                        : '0 2px 8px rgba(76, 175, 80, 0.2)',
-                      border: `1px solid ${theme.palette.success.dark}`,
-                    }}
-                  />
-                );
-              }
-              // Show debug info if no debt-free date
-              if (debtFreeInfo.totalDebt > 0) {
-                console.log('Debt exists but no debt-free date calculated:', debtFreeInfo);
-              }
-              return null;
-            })()}
             
             <Button 
               variant="outlined" 
