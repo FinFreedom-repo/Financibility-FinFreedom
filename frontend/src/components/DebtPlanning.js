@@ -2348,18 +2348,26 @@ const DebtPlanning = () => {
     let debtFreeDate = null;
     let monthsToPayoff = 0;
     
-    if (payoffPlan && payoffPlan.length > 0) {
+    // If current total debt is 0, we're already debt free
+    if (currentTotalDebt <= 0) {
+      console.log('✅ Already debt free - current total debt is 0');
+      const currentMonth = months[currentMonthIdx];
+      if (currentMonth) {
+        debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1, 1);
+        monthsToPayoff = 0;
+      }
+    } else if (payoffPlan && payoffPlan.plan && payoffPlan.plan.length > 0) {
       // Sum all interest paid across the payoff plan
-      totalInterest = payoffPlan.reduce((sum, month) => {
-        return sum + (month.interestPaid || 0);
+      totalInterest = payoffPlan.plan.reduce((sum, month) => {
+        return sum + (month.totalInterest || 0);
       }, 0);
       
       // Find the actual month when all debts become 0
       let debtFreeMonthIndex = -1;
       console.log('🔍 Checking debt free calculation...');
-      console.log('Payoff plan length:', payoffPlan.length);
-      for (let i = 0; i < payoffPlan.length; i++) {
-        const monthPlan = payoffPlan[i];
+      console.log('Payoff plan length:', payoffPlan.plan.length);
+      for (let i = 0; i < payoffPlan.plan.length; i++) {
+        const monthPlan = payoffPlan.plan[i];
         console.log(`Month ${i}: remainingDebt = ${monthPlan?.remainingDebt}`);
         if (monthPlan && monthPlan.remainingDebt === 0) {
           debtFreeMonthIndex = i;
@@ -3327,7 +3335,12 @@ const DebtPlanning = () => {
               const stats = calculateDebtStatistics();
               const debtFreeDate = stats.debtFreeDate;
               
-              if (debtFreeDate && stats.monthsToPayoff > 0) {
+              console.log('🔍 Debt Free Display Debug:');
+              console.log('Stats:', stats);
+              console.log('Debt Free Date:', debtFreeDate);
+              console.log('Months to Payoff:', stats.monthsToPayoff);
+              
+              if (debtFreeDate && stats.monthsToPayoff >= 0) {
                 const monthNames = [
                   'January', 'February', 'March', 'April', 'May', 'June',
                   'July', 'August', 'September', 'October', 'November', 'December'
