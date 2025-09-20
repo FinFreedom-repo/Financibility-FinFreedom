@@ -180,6 +180,7 @@ const NotificationPopover = ({ open, anchorEl, onClose }) => {
                     sx: {
                       width: 400,
                       maxHeight: 500,
+                      overflow: 'auto',
                       borderRadius: 2,
                       marginLeft: '10px',
                       boxShadow: isDarkMode 
@@ -264,8 +265,6 @@ const NotificationPopover = ({ open, anchorEl, onClose }) => {
           
           {/* Notification List */}
           <List sx={{ 
-            maxHeight: 400, 
-            overflow: 'auto', 
             p: 0,
             background: isDarkMode ? 'transparent' : 'transparent'
           }}>

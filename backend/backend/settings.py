@@ -252,8 +252,8 @@ def setup_server_startup():
         startup_time = datetime.now().isoformat()
         os.environ['SERVER_STARTUP_TIME'] = startup_time
         
-        # Generate a new random secret key to invalidate all existing JWT tokens
-        new_secret = f"financability-{uuid.uuid4().hex}-{datetime.now().timestamp()}"
+        # Use a fixed secret key for development (change this in production)
+        new_secret = "financability-development-secret-key-2024"
         os.environ['JWT_SECRET_KEY'] = new_secret
         
         print("✅ Server startup complete:")
