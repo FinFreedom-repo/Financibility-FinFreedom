@@ -7,30 +7,53 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Add periodic token expiration check
+  // Idle timeout functionality - logout after 5 minutes of inactivity
   useEffect(() => {
-    const checkTokenExpiration = () => {
-      const tokenTimestamp = localStorage.getItem('token_timestamp');
-      if (tokenTimestamp) {
-        const tokenAge = Date.now() - parseInt(tokenTimestamp);
-        if (tokenAge > 300000) { // 5 minutes in milliseconds
-          console.log('AuthContext: Token expired during session, redirecting to login');
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('cached_username');
-          localStorage.removeItem('cached_user_id');
-          localStorage.removeItem('token_timestamp');
-          delete axios.defaults.headers.common['Authorization'];
-          setUser(null);
-          window.location.href = '/login';
-        }
+    let idleTimer = null;
+    const IDLE_TIMEOUT = 300000; // 5 minutes in milliseconds
+
+    const resetIdleTimer = () => {
+      // Clear existing timer
+      if (idleTimer) {
+        clearTimeout(idleTimer);
       }
+      
+      // Set new timer
+      idleTimer = setTimeout(() => {
+        console.log('AuthContext: User idle for 5 minutes, logging out...');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('cached_username');
+        localStorage.removeItem('cached_user_id');
+        localStorage.removeItem('token_timestamp');
+        delete axios.defaults.headers.common['Authorization'];
+        setUser(null);
+        window.location.href = '/login';
+      }, IDLE_TIMEOUT);
     };
 
-    // Check every 5 minutes
-    const interval = setInterval(checkTokenExpiration, 300000);
-    
-    return () => clearInterval(interval);
+    // Activity events that reset the idle timer
+    const activityEvents = [
+      'mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'
+    ];
+
+    // Start the idle timer
+    resetIdleTimer();
+
+    // Add event listeners for user activity
+    activityEvents.forEach(event => {
+      document.addEventListener(event, resetIdleTimer, true);
+    });
+
+    // Cleanup function
+    return () => {
+      if (idleTimer) {
+        clearTimeout(idleTimer);
+      }
+      activityEvents.forEach(event => {
+        document.removeEventListener(event, resetIdleTimer, true);
+      });
+    };
   }, []);
 
   useEffect(() => {
@@ -71,23 +94,8 @@ export const AuthProvider = ({ children }) => {
         console.warn('AuthContext: Could not check server info, proceeding with token validation');
       }
       
-      // Check if token is older than 60 minutes (3600 seconds) - matches backend expiration
-      const tokenTimestamp = localStorage.getItem('token_timestamp');
-      if (tokenTimestamp) {
-        const tokenAge = Date.now() - parseInt(tokenTimestamp);
-        if (tokenAge > 300000) { // 5 minutes in milliseconds
-          console.log('AuthContext: Token is older than 5 minutes, clearing auth data');
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          localStorage.removeItem('cached_username');
-          localStorage.removeItem('cached_user_id');
-          localStorage.removeItem('token_timestamp');
-          delete axios.defaults.headers.common['Authorization'];
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-      }
+      // Note: Token age check removed - now using idle timeout instead
+      // The idle timeout will handle session expiration based on user activity
       
       try {
         // Set token in axios headers before making the request
