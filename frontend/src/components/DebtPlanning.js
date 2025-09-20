@@ -3308,14 +3308,14 @@ const DebtPlanning = () => {
                   <Box
                     sx={{
                       background: isDarkMode 
-                        ? 'linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)'
-                        : 'linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)',
+                        ? 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)'
+                        : 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
                       color: 'white',
                       padding: '12px 20px',
                       borderRadius: '12px',
                       boxShadow: isDarkMode 
-                        ? '0 4px 20px rgba(76, 175, 80, 0.3)'
-                        : '0 4px 20px rgba(76, 175, 80, 0.2)',
+                        ? '0 4px 20px rgba(33, 150, 243, 0.3)'
+                        : '0 4px 20px rgba(33, 150, 243, 0.2)',
                       border: isDarkMode 
                         ? '1px solid rgba(255, 255, 255, 0.1)'
                         : '1px solid rgba(255, 255, 255, 0.2)',
