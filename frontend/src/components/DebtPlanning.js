@@ -2316,7 +2316,13 @@ const DebtPlanning = () => {
 
   // Calculate debt statistics from real-time grid data
   const calculateDebtStatistics = () => {
+    console.log('🔍 calculateDebtStatistics called');
+    console.log('localGridData length:', localGridData?.length);
+    console.log('outstandingDebts length:', outstandingDebts?.length);
+    console.log('outstandingDebts:', outstandingDebts);
+    
     if (!localGridData || localGridData.length === 0) {
+      console.log('❌ No localGridData available');
       return {
         totalDebt: 0,
         totalInterest: 0,
@@ -2331,10 +2337,25 @@ const DebtPlanning = () => {
     // Get current month index
     const months = generateMonths();
     const currentMonthIdx = months.findIndex(m => m.type === 'current');
+    console.log('Current month index:', currentMonthIdx);
     
     // Get current total debt from grid
     const remainingDebtRow = localGridData.find(row => row.category === 'Remaining Debt');
+    console.log('Remaining Debt row:', remainingDebtRow);
     const currentTotalDebt = currentMonthIdx !== -1 ? (remainingDebtRow?.[`month_${currentMonthIdx}`] || 0) : 0;
+    console.log('Current total debt from grid:', currentTotalDebt);
+    
+    // Fallback: calculate total debt from outstandingDebts if grid data is not available
+    const totalDebtFromDebts = outstandingDebts.reduce((sum, debt) => {
+      const balance = parseFloat(debt.balance || debt.amount) || 0;
+      console.log(`Debt ${debt.name}: balance = ${balance}`);
+      return sum + balance;
+    }, 0);
+    console.log('Total debt from outstandingDebts:', totalDebtFromDebts);
+    
+    // Use the higher of the two values (grid data or direct calculation)
+    const finalTotalDebt = Math.max(currentTotalDebt, totalDebtFromDebts);
+    console.log('Final total debt:', finalTotalDebt);
     
     // Calculate total monthly payments from grid net savings (needed for fallback calculation)
     const netSavingsRow = localGridData.find(row => row.category === 'Net Savings');
@@ -2348,9 +2369,12 @@ const DebtPlanning = () => {
     let debtFreeDate = null;
     let monthsToPayoff = 0;
     
+    console.log('Payoff plan:', payoffPlan);
+    console.log('Payoff plan length:', payoffPlan?.plan?.length);
+    
     // If current total debt is 0, we're already debt free
-    if (currentTotalDebt <= 0) {
-      console.log('✅ Already debt free - current total debt is 0');
+    if (finalTotalDebt <= 0) {
+      console.log('✅ Already debt free - final total debt is 0');
       const currentMonth = months[currentMonthIdx];
       if (currentMonth) {
         debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1, 1);
@@ -2361,6 +2385,7 @@ const DebtPlanning = () => {
       totalInterest = payoffPlan.plan.reduce((sum, month) => {
         return sum + (month.totalInterest || 0);
       }, 0);
+      console.log('Total interest from payoff plan:', totalInterest);
       
       // Find the actual month when all debts become 0
       let debtFreeMonthIndex = -1;
@@ -2385,16 +2410,29 @@ const DebtPlanning = () => {
           debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + debtFreeMonthIndex, 1);
         }
       }
-    } else if (currentTotalDebt > 0 && totalMonthlyPayments > 0) {
+    } else if (finalTotalDebt > 0 && totalMonthlyPayments > 0) {
       // Fallback calculation if payoffPlan is not available
       // Simple calculation: debt / monthly payment = months to payoff
-      monthsToPayoff = Math.ceil(currentTotalDebt / totalMonthlyPayments);
+      monthsToPayoff = Math.ceil(finalTotalDebt / totalMonthlyPayments);
       // Use the current month from the grid, not the real current date
       const currentMonth = months[currentMonthIdx];
       if (currentMonth) {
         // Debt free month is the SAME month when debt is paid off
         debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + monthsToPayoff - 1, 1);
       }
+      
+      // Fallback: estimate total interest as a percentage of total debt
+      // This is a rough estimate - in reality, interest would be calculated month by month
+      const avgInterestRate = outstandingDebts.length > 0 
+        ? outstandingDebts.reduce((sum, debt) => {
+            const rate = parseFloat(debt.interest_rate || debt.rate) || 0;
+            return sum + rate;
+          }, 0) / outstandingDebts.length
+        : 0;
+      
+      // Rough estimate: assume interest is paid over the payoff period
+      totalInterest = (finalTotalDebt * avgInterestRate / 100) * (monthsToPayoff / 12);
+      console.log('Fallback total interest calculation:', totalInterest);
     }
 
     // Calculate average interest rate from outstanding debts
@@ -2406,7 +2444,7 @@ const DebtPlanning = () => {
       : 0;
 
     return {
-      totalDebt: currentTotalDebt,
+      totalDebt: finalTotalDebt,
       totalInterest,
       debtFreeDate,
       monthsToPayoff,
