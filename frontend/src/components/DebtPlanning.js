@@ -1649,9 +1649,7 @@ const DebtPlanning = () => {
           return (
             <Typography variant="body2" sx={{ 
               fontWeight: data.category === 'Net Savings' || data.category === 'Remaining Debt' ? 'bold' : '600',
-              color: data.category === 'Net Savings' ? theme.palette.primary.main : 
-                     data.category === 'Remaining Debt' ? theme.palette.warning.main : 
-                     data.type === 'additional_income' ? theme.palette.secondary.main : 'inherit',
+              color: 'inherit',
               fontSize: '0.95rem',
               fontStyle: data.type === 'additional_income' ? 'italic' : 'normal'
             }}>
@@ -2809,9 +2807,7 @@ const DebtPlanning = () => {
           return (
             <Typography variant="body2" sx={{ 
               fontWeight: data.category === 'Remaining Debt' || data.category === 'Principal Paid Down' ? 'bold' : '600',
-              color: data.category === 'Remaining Debt' ? theme.palette.warning.main : 
-                     data.category === 'Principal Paid Down' ? theme.palette.success.main :
-                     data.type === 'debt' ? theme.palette.error.main : 'inherit',
+              color: 'inherit',
               fontSize: '0.95rem',
               lineHeight: 1.2,
               whiteSpace: 'pre-line'
