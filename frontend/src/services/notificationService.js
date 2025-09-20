@@ -74,7 +74,7 @@ class NotificationService {
   // Fetch notifications from backend
   async fetchNotifications() {
     try {
-      const response = await axios.get('/api/notifications/');
+      const response = await axios.get('/api/mongodb/notifications/');
       this.notifications = response.data.notifications || [];
       this.unreadCount = response.data.unread_count || 0;
       this.notifyListeners();
@@ -106,7 +106,7 @@ class NotificationService {
       }
 
       // Sync with backend
-      await axios.post(`/api/notifications/${notificationId}/mark-read/`);
+      await axios.post(`/api/mongodb/notifications/${notificationId}/mark-read/`);
     } catch (error) {
       console.error('Error marking notification as read:', error);
       // Revert optimistic update on error
@@ -131,7 +131,7 @@ class NotificationService {
       this.notifyListeners();
 
       // Sync with backend
-      await axios.post('/api/notifications/mark-all-read/');
+      await axios.post('/api/mongodb/notifications/mark-all-read/');
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       // Revert optimistic update on error
@@ -143,7 +143,7 @@ class NotificationService {
   // Add new notification (with backend sync)
   async addNotification(notificationData) {
     try {
-      const response = await axios.post('/api/notifications/create/', notificationData);
+      const response = await axios.post('/api/mongodb/notifications/create/', notificationData);
       const newNotification = response.data;
       
       // Add to local state
@@ -161,7 +161,7 @@ class NotificationService {
   // Remove notification (with backend sync)
   async removeNotification(notificationId) {
     try {
-      await axios.delete(`/api/notifications/${notificationId}/delete/`);
+      await axios.delete(`/api/mongodb/notifications/${notificationId}/delete/`);
       
       // Remove from local state
       this.notifications = this.notifications.filter(n => n._id !== notificationId);
