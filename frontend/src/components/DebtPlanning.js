@@ -1107,6 +1107,9 @@ const DebtPlanning = () => {
       // Store monthly totals for robust timeline rows
       monthPlan.totalPaid = totalPaidToDebt;
       monthPlan.totalInterest = totalInterest;
+      
+      // Calculate total remaining debt for this month
+      monthPlan.remainingDebt = debtBalances.reduce((sum, debt) => sum + Math.max(0, debt.balance), 0);
 
       plan.push(monthPlan);
     }
@@ -2353,10 +2356,14 @@ const DebtPlanning = () => {
       
       // Find the actual month when all debts become 0
       let debtFreeMonthIndex = -1;
+      console.log('🔍 Checking debt free calculation...');
+      console.log('Payoff plan length:', payoffPlan.length);
       for (let i = 0; i < payoffPlan.length; i++) {
         const monthPlan = payoffPlan[i];
+        console.log(`Month ${i}: remainingDebt = ${monthPlan?.remainingDebt}`);
         if (monthPlan && monthPlan.remainingDebt === 0) {
           debtFreeMonthIndex = i;
+          console.log(`✅ Debt free found at month index ${i}`);
           break; // Find the first month when debt becomes 0
         }
       }
@@ -2366,7 +2373,13 @@ const DebtPlanning = () => {
         // Use the current month from the grid, not the real current date
         const currentMonth = months[currentMonthIdx];
         if (currentMonth) {
-          debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + monthsToPayoff, 1);
+          // If debt is paid off in current month (index 0), show current month
+          // Otherwise, add the months to payoff
+          if (debtFreeMonthIndex === 0) {
+            debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1, 1);
+          } else {
+            debtFreeDate = new Date(currentMonth.year, currentMonth.month - 1 + monthsToPayoff, 1);
+          }
         }
       }
     } else if (currentTotalDebt > 0 && totalMonthlyPayments > 0) {
