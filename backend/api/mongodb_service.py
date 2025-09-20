@@ -512,6 +512,12 @@ class SettingsService(MongoDBService):
 class NotificationService(MongoDBService):
     """Service for managing user notifications"""
     
+    def _to_object_id(self, user_id: str):
+        """Convert string to ObjectId"""
+        if isinstance(user_id, str):
+            return ObjectId(user_id)
+        return user_id
+    
     def create_notification(self, user_id: str, notification_data: Dict) -> Optional[str]:
         """Create a new notification for a user"""
         try:
@@ -537,6 +543,47 @@ class NotificationService(MongoDBService):
         except Exception as e:
             logger.error(f"Error creating notification: {e}")
             return None
+
+    def create_user_notification_bundle(self, user_id: str, messages: List[Dict]) -> Optional[str]:
+        """Create a single notification bundle for a user with multiple messages"""
+        try:
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
+            
+            # Check if user already has a notification bundle
+            existing = self.db.notifications.find_one({"user_id": user_id, "type": "bundle"})
+            
+            if existing:
+                # Update existing bundle
+                result = self.db.notifications.update_one(
+                    {"_id": existing["_id"]},
+                    {
+                        "$set": {
+                            "messages": messages,
+                            "updated_at": datetime.utcnow()
+                        }
+                    }
+                )
+                logger.info(f"Updated notification bundle for user {user_id}")
+                return str(existing["_id"])
+            else:
+                # Create new bundle
+                notification_bundle = {
+                    "user_id": user_id,
+                    "type": "bundle",
+                    "title": "Your Notifications",
+                    "messages": messages,
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+                
+                result = self.db.notifications.insert_one(notification_bundle)
+                logger.info(f"Created notification bundle {result.inserted_id} for user {user_id}")
+                return str(result.inserted_id)
+            
+        except Exception as e:
+            logger.error(f"Error creating notification bundle: {e}")
+            return None
     
     def get_user_notifications(self, user_id: str, limit: int = 50) -> List[Dict]:
         """Get all notifications for a user"""
@@ -548,14 +595,39 @@ class NotificationService(MongoDBService):
                 {"user_id": user_id}
             ).sort("created_at", -1).limit(limit))
             
-            # Convert ObjectId to string and format timestamps
+            # Process notifications and expand bundles
+            processed_notifications = []
+            
             for notification in notifications:
                 notification["_id"] = str(notification["_id"])
                 notification["user_id"] = str(notification["user_id"])
-                notification["created_at"] = notification["created_at"].isoformat()
-                notification["updated_at"] = notification["updated_at"].isoformat()
+                
+                # If it's a bundle, expand the messages
+                if notification.get("type") == "bundle" and "messages" in notification:
+                    # Convert bundle to individual notifications for frontend compatibility
+                    bundle_messages = notification.get("messages", [])
+                    
+                    for i, message in enumerate(bundle_messages):
+                        expanded_notification = {
+                            "_id": f"{notification['_id']}_{i}",
+                            "user_id": notification["user_id"],
+                            "type": message.get("type", "general"),
+                            "title": message.get("title", ""),
+                            "message": message.get("message", ""),
+                            "priority": message.get("priority", "medium"),
+                            "is_read": message.get("is_read", False),
+                            "data": message.get("data", {}),
+                            "created_at": notification["created_at"].isoformat(),
+                            "updated_at": notification["updated_at"].isoformat()
+                        }
+                        processed_notifications.append(expanded_notification)
+                else:
+                    # Regular notification - format timestamps
+                    notification["created_at"] = notification["created_at"].isoformat()
+                    notification["updated_at"] = notification["updated_at"].isoformat()
+                    processed_notifications.append(notification)
             
-            return notifications
+            return processed_notifications
             
         except Exception as e:
             logger.error(f"Error getting user notifications: {e}")
@@ -583,31 +655,70 @@ class NotificationService(MongoDBService):
         try:
             if isinstance(user_id, str):
                 user_id = ObjectId(user_id)
-            if isinstance(notification_id, str):
-                notification_id = ObjectId(notification_id)
             
+            # Check if it's a bundle message (format: bundle_id_message_index)
+            if '_' in notification_id and not ObjectId.is_valid(notification_id):
+                bundle_id, message_index = notification_id.split('_', 1)
+                return self._mark_bundle_message_as_read(user_id, bundle_id, int(message_index))
+            else:
+                # Handle individual notification
+                if isinstance(notification_id, str):
+                    notification_id = ObjectId(notification_id)
+                
+                result = self.db.notifications.update_one(
+                    {
+                        "_id": notification_id,
+                        "user_id": user_id
+                    },
+                    {
+                        "$set": {
+                            "is_read": True,
+                            "updated_at": datetime.utcnow()
+                        }
+                    }
+                )
+                
+                if result.modified_count > 0:
+                    logger.info(f"Marked notification {notification_id} as read for user {user_id}")
+                    return True
+                else:
+                    logger.warning(f"Notification {notification_id} not found or already read for user {user_id}")
+                    return False
+                
+        except Exception as e:
+            logger.error(f"Error marking notification as read: {e}")
+            return False
+
+    def _mark_bundle_message_as_read(self, user_id: str, bundle_id: str, message_index: int) -> bool:
+        """Mark a specific message within a bundle as read"""
+        try:
+            if isinstance(bundle_id, str):
+                bundle_id = ObjectId(bundle_id)
+            
+            # Update the specific message in the bundle
             result = self.db.notifications.update_one(
                 {
-                    "_id": notification_id,
-                    "user_id": user_id
+                    "_id": bundle_id,
+                    "user_id": user_id,
+                    "type": "bundle"
                 },
                 {
                     "$set": {
-                        "is_read": True,
+                        f"messages.{message_index}.is_read": True,
                         "updated_at": datetime.utcnow()
                     }
                 }
             )
             
             if result.modified_count > 0:
-                logger.info(f"Marked notification {notification_id} as read for user {user_id}")
+                logger.info(f"Marked message {message_index} in bundle {bundle_id} as read for user {user_id}")
                 return True
             else:
-                logger.warning(f"Notification {notification_id} not found or already read for user {user_id}")
+                logger.warning(f"Bundle message not found for user {user_id}")
                 return False
                 
         except Exception as e:
-            logger.error(f"Error marking notification as read: {e}")
+            logger.error(f"Error marking bundle message as read: {e}")
             return False
     
     def mark_all_as_read(self, user_id: str) -> bool:
@@ -616,10 +727,12 @@ class NotificationService(MongoDBService):
             if isinstance(user_id, str):
                 user_id = ObjectId(user_id)
             
+            # Mark individual notifications as read
             result = self.db.notifications.update_many(
                 {
                     "user_id": user_id,
-                    "is_read": False
+                    "is_read": False,
+                    "type": {"$ne": "bundle"}
                 },
                 {
                     "$set": {
@@ -629,7 +742,28 @@ class NotificationService(MongoDBService):
                 }
             )
             
-            logger.info(f"Marked {result.modified_count} notifications as read for user {user_id}")
+            # Mark all messages in bundles as read
+            bundles = self.db.notifications.find({
+                "user_id": user_id,
+                "type": "bundle"
+            })
+            
+            for bundle in bundles:
+                messages = bundle.get("messages", [])
+                for i, message in enumerate(messages):
+                    messages[i]["is_read"] = True
+                
+                self.db.notifications.update_one(
+                    {"_id": bundle["_id"]},
+                    {
+                        "$set": {
+                            "messages": messages,
+                            "updated_at": datetime.utcnow()
+                        }
+                    }
+                )
+            
+            logger.info(f"Marked all notifications as read for user {user_id}")
             return True
             
         except Exception as e:
