@@ -90,38 +90,39 @@ const NotificationItem = ({ notification, onMarkAsRead }) => {
       </ListItemIcon>
       <ListItemText
         primary={
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography variant="subtitle2" sx={{ 
-              fontWeight: notification.is_read ? 'normal' : 'bold',
-              color: isDarkMode ? 'white' : 'inherit'
-            }}>
-              {notification.title}
-            </Typography>
+          <Typography variant="subtitle2" sx={{ 
+            fontWeight: notification.is_read ? 'normal' : 'bold',
+            color: isDarkMode ? 'white' : 'inherit',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}>
+            {notification.title}
             {!notification.is_read && (
               <Chip 
                 label="New" 
                 size="small" 
                 color={getPriorityColor(notification.priority)}
-                sx={{ height: 20, fontSize: '0.7rem' }}
+                sx={{ height: 20, fontSize: '0.7rem', ml: 1 }}
               />
             )}
-          </Box>
+          </Typography>
         }
         secondary={
-          <Box>
-            <Typography variant="body2" sx={{ 
-              color: isDarkMode ? 'rgba(255,255,255,0.7)' : 'text.secondary'
-            }}>
-              {notification.message}
-            </Typography>
-            <Typography variant="caption" sx={{ 
-              mt: 0.5, 
+          <Typography variant="body2" sx={{ 
+            color: isDarkMode ? 'rgba(255,255,255,0.7)' : 'text.secondary',
+            display: 'block',
+            mb: 0.5
+          }}>
+            {notification.message}
+            <Typography component="span" variant="caption" sx={{ 
               display: 'block',
-              color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'text.disabled'
+              color: isDarkMode ? 'rgba(255,255,255,0.5)' : 'text.disabled',
+              mt: 0.5
             }}>
               {notificationService.formatTimestamp(notification.created_at)}
             </Typography>
-          </Box>
+          </Typography>
         }
       />
     </ListItem>

@@ -2,13 +2,14 @@
 Notification API Views
 """
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import JsonResponse
 from .mongodb_service import NotificationService
 from .mongodb_api_views import MongoDBIsAuthenticated
+from .mongodb_authentication import MongoDBJWTAuthentication
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,11 +18,12 @@ logger = logging.getLogger(__name__)
 notification_service = NotificationService()
 
 @api_view(['GET'])
+@authentication_classes([MongoDBJWTAuthentication])
 @permission_classes([MongoDBIsAuthenticated])
 def get_notifications(request):
     """Get all notifications for the authenticated user"""
     try:
-        user_id = request.user.get('user_id')
+        user_id = request.user.id
         if not user_id:
             return Response(
                 {"error": "User ID not found in token"}, 
@@ -48,11 +50,12 @@ def get_notifications(request):
         )
 
 @api_view(['GET'])
+@authentication_classes([MongoDBJWTAuthentication])
 @permission_classes([MongoDBIsAuthenticated])
 def get_unread_count(request):
     """Get unread notification count for the authenticated user"""
     try:
-        user_id = request.user.get('user_id')
+        user_id = request.user.id
         if not user_id:
             return Response(
                 {"error": "User ID not found in token"}, 
@@ -73,11 +76,12 @@ def get_unread_count(request):
         )
 
 @api_view(['POST'])
+@authentication_classes([MongoDBJWTAuthentication])
 @permission_classes([MongoDBIsAuthenticated])
 def mark_as_read(request, notification_id):
     """Mark a specific notification as read"""
     try:
-        user_id = request.user.get('user_id')
+        user_id = request.user.id
         if not user_id:
             return Response(
                 {"error": "User ID not found in token"}, 
@@ -105,11 +109,12 @@ def mark_as_read(request, notification_id):
         )
 
 @api_view(['POST'])
+@authentication_classes([MongoDBJWTAuthentication])
 @permission_classes([MongoDBIsAuthenticated])
 def mark_all_as_read(request):
     """Mark all notifications as read for the authenticated user"""
     try:
-        user_id = request.user.get('user_id')
+        user_id = request.user.id
         if not user_id:
             return Response(
                 {"error": "User ID not found in token"}, 
@@ -136,11 +141,12 @@ def mark_all_as_read(request):
         )
 
 @api_view(['DELETE'])
+@authentication_classes([MongoDBJWTAuthentication])
 @permission_classes([MongoDBIsAuthenticated])
 def delete_notification(request, notification_id):
     """Delete a specific notification"""
     try:
-        user_id = request.user.get('user_id')
+        user_id = request.user.id
         if not user_id:
             return Response(
                 {"error": "User ID not found in token"}, 
@@ -168,11 +174,12 @@ def delete_notification(request, notification_id):
         )
 
 @api_view(['POST'])
+@authentication_classes([MongoDBJWTAuthentication])
 @permission_classes([MongoDBIsAuthenticated])
 def create_notification(request):
     """Create a new notification (for testing or admin purposes)"""
     try:
-        user_id = request.user.get('user_id')
+        user_id = request.user.id
         if not user_id:
             return Response(
                 {"error": "User ID not found in token"}, 
@@ -201,11 +208,12 @@ def create_notification(request):
         )
 
 @api_view(['POST'])
+@authentication_classes([MongoDBJWTAuthentication])
 @permission_classes([MongoDBIsAuthenticated])
 def create_budget_alert(request):
     """Create a budget alert notification"""
     try:
-        user_id = request.user.get('user_id')
+        user_id = request.user.id
         if not user_id:
             return Response(
                 {"error": "User ID not found in token"}, 
@@ -246,11 +254,12 @@ def create_budget_alert(request):
         )
 
 @api_view(['POST'])
+@authentication_classes([MongoDBJWTAuthentication])
 @permission_classes([MongoDBIsAuthenticated])
 def create_debt_reminder(request):
     """Create a debt reminder notification"""
     try:
-        user_id = request.user.get('user_id')
+        user_id = request.user.id
         if not user_id:
             return Response(
                 {"error": "User ID not found in token"}, 
@@ -291,11 +300,12 @@ def create_debt_reminder(request):
         )
 
 @api_view(['POST'])
+@authentication_classes([MongoDBJWTAuthentication])
 @permission_classes([MongoDBIsAuthenticated])
 def create_savings_milestone(request):
     """Create a savings milestone notification"""
     try:
-        user_id = request.user.get('user_id')
+        user_id = request.user.id
         if not user_id:
             return Response(
                 {"error": "User ID not found in token"}, 
