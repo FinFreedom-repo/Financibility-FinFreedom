@@ -155,29 +155,35 @@ function Dashboard() {
     
     const currentStep = financialSteps.current_step;
     const stepProgress = financialSteps.step_progress;
+    const stepData = financialSteps.steps?.[`step_${stepId}`];
     
     console.log(`🔍 Step ${stepId} status check:`, {
       currentStep,
       stepProgress,
-      step1Data: financialSteps.steps?.step_1
+      stepData
     });
     
-    // If this step is completed (current step is higher)
-    if (currentStep > stepId) {
-      return 'completed';
+    // Check if step is inactive
+    if (stepData && stepData.message && stepData.message.toLowerCase().includes('inactive')) {
+      return 'inactive';
     }
     
-    // If this is the current step and it's completed
-    if (currentStep === stepId && stepProgress.completed) {
+    // If this step is completed
+    if (stepData && stepData.completed) {
       return 'completed';
     }
     
     // If this is the current step and it's in progress
-    if (currentStep === stepId && !stepProgress.completed) {
+    if (currentStep === stepId && stepProgress && !stepProgress.completed) {
       return 'in-progress';
     }
     
-    // Future step
+    // If this step has progress data but isn't completed
+    if (stepData && stepData.progress > 0) {
+      return 'in-progress';
+    }
+    
+    // Future step or no data
     return 'pending';
   };
 
@@ -205,6 +211,8 @@ function Dashboard() {
         return <CheckCircleIcon sx={{ color: '#2e7d32' }} />;
       case 'in-progress':
         return <LoopIcon sx={{ color: '#ed6c02' }} />;
+      case 'inactive':
+        return <RadioButtonUncheckedIcon sx={{ color: '#9e9e9e', opacity: 0.5 }} />;
       default:
         return <RadioButtonUncheckedIcon sx={{ color: 'text.secondary' }} />;
     }
@@ -387,10 +395,11 @@ function Dashboard() {
               <List>
                 {babySteps.map((step) => {
                   const status = getStepStatus(step.id);
+                  const stepData = financialSteps?.steps?.[`step_${step.id}`];
                   console.log(`🎯 Rendering step ${step.id}:`, {
                     status,
                     financialSteps: financialSteps,
-                    stepData: financialSteps?.steps?.[`step_${step.id}`]
+                    stepData: stepData
                   });
                   return (
                     <ListItem key={step.id} sx={{ px: 0, py: 1 }}>
@@ -401,7 +410,9 @@ function Dashboard() {
                           width: '100%',
                           border: `1px solid ${alpha(step.color, 0.2)}`,
                           borderRadius: 2,
-                          bgcolor: status === 'completed' ? alpha(step.color, 0.05) : 'transparent',
+                          bgcolor: status === 'completed' ? alpha(step.color, 0.05) : 
+                                  status === 'inactive' ? alpha('#9e9e9e', 0.05) : 'transparent',
+                          opacity: status === 'inactive' ? 0.6 : 1,
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
@@ -428,6 +439,11 @@ function Dashboard() {
                             <Typography variant="body2" color="text.secondary">
                               {step.description}
                             </Typography>
+                            {status === 'inactive' && stepData?.message && (
+                              <Alert severity="info" sx={{ mt: 1, fontSize: '0.875rem' }}>
+                                {stepData.message}
+                              </Alert>
+                            )}
                             {renderStepProgress(step.id)}
                           </Box>
                         </Box>

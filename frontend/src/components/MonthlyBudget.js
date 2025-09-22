@@ -55,6 +55,7 @@ import {
   LocalHospital as HealthIcon,
   Movie as EntertainmentIcon,
   School as EducationIcon,
+  School as SchoolIcon,
   ShoppingCart as ShoppingIcon,
   Flight as TravelIcon,
   Build as UtilitiesIcon,
@@ -158,6 +159,7 @@ function MonthlyBudget() {
     { value: 'vacation', label: 'Vacation Fund', icon: <TravelIcon />, color: '#FF9800' },
     { value: 'home', label: 'Home Down Payment', icon: <HomeIcon />, color: '#ca4b41' },
     { value: 'education', label: 'Education Fund', icon: <EducationIcon />, color: '#F57C00' },
+    { value: 'college_fund', label: "Children's College Fund", icon: <SchoolIcon />, color: '#9C27B0' },
     { value: 'custom', label: 'Custom Savings', icon: <OtherIcon />, color: '#607D8B' }
   ];
 

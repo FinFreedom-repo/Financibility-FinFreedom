@@ -113,22 +113,68 @@ class FinancialStepsView(APIView):
         step2_progress = self.calculate_debt_progress(debts)
         
         # Step 3: 3-6 months of expenses in emergency fund
+        # Condition: No debt AND Accounts sum > 6 × expenses
         monthly_expenses = self.calculate_monthly_expenses(budget)
-        emergency_fund_goal_3_6_months = monthly_expenses * Decimal('6')  # 6 months
-        step3_progress = self.calculate_step_progress(emergency_fund_current, emergency_fund_goal_3_6_months)
+        total_accounts = self.calculate_total_accounts(accounts)
+        has_no_debt = total_debt <= 0
+        accounts_sufficient = total_accounts > (monthly_expenses * Decimal('6'))
+        
+        print(f"DEBUG Step 3: monthly_expenses={monthly_expenses}, total_accounts={total_accounts}, has_no_debt={has_no_debt}, accounts_sufficient={accounts_sufficient}")
+        logger.info(f"Step 3 Debug: monthly_expenses={monthly_expenses}, total_accounts={total_accounts}, has_no_debt={has_no_debt}, accounts_sufficient={accounts_sufficient}")
+        
+        if has_no_debt and accounts_sufficient:
+            # Step 3 is ACTIVE - user meets the conditions
+            step3_progress = {
+                'completed': True,
+                'progress': 100,
+                'message': 'Step 3 active: No debt and sufficient accounts'
+            }
+        else:
+            step3_progress = {
+                'completed': False,
+                'progress': 0,
+                'message': f'Step 3 inactive: Requires no debt AND accounts > 6× expenses (need ${monthly_expenses * Decimal("6"):,.2f}, have ${total_accounts:,.2f})'
+            }
         
         # Step 4: Invest 15% of income in retirement
+        # Condition: Net savings + additional savings > 0.15 × monthly income
         monthly_income = self.calculate_monthly_income(budget)
-        retirement_goal = monthly_income * Decimal('0.15')  # 15%
-        retirement_current = self.calculate_retirement_contributions(accounts)
-        step4_progress = self.calculate_step_progress(retirement_current, retirement_goal)
+        net_savings = self.calculate_net_savings(budget)
+        additional_savings = self.calculate_additional_savings(budget)
+        total_savings = net_savings + additional_savings
+        savings_threshold = monthly_income * Decimal('0.15')
         
-        # Step 5: Save for children's college fund (simplified - assume no children for now)
-        step5_progress = {
-            'completed': False,
-            'progress': 0,
-            'message': 'No children detected - step not applicable'
-        }
+        print(f"DEBUG Step 4: monthly_income={monthly_income}, net_savings={net_savings}, additional_savings={additional_savings}, total_savings={total_savings}, savings_threshold={savings_threshold}")
+        logger.info(f"Step 4 Debug: monthly_income={monthly_income}, net_savings={net_savings}, additional_savings={additional_savings}, total_savings={total_savings}, savings_threshold={savings_threshold}")
+        
+        if total_savings > savings_threshold:
+            # Step 4 is ACTIVE - user meets the conditions
+            step4_progress = {
+                'completed': True,
+                'progress': 100,
+                'message': 'Step 4 active: Sufficient savings for retirement investment'
+            }
+        else:
+            step4_progress = {
+                'completed': False,
+                'progress': 0,
+                'message': f'Step 4 inactive: Need ${savings_threshold:,.2f} in savings (currently ${total_savings:,.2f})'
+            }
+        
+        # Step 5: Save for children's college fund
+        college_fund_savings = self.calculate_college_fund_savings(budget)
+        if college_fund_savings > 0:
+            step5_progress = {
+                'completed': True,
+                'progress': 100,
+                'message': f'Step 5 active: ${college_fund_savings:,.2f} saved for children\'s college fund'
+            }
+        else:
+            step5_progress = {
+                'completed': False,
+                'progress': 0,
+                'message': 'Step 5 inactive: No college fund savings detected'
+            }
         
         # Step 6: Pay off home early
         mortgage_balance = self.calculate_mortgage_balance(debts)
@@ -205,11 +251,17 @@ class FinancialStepsView(APIView):
         
         total_expenses = Decimal('0')
         for field in expense_fields:
-            value = getattr(budget, field, 0) or 0
+            if isinstance(budget, dict):
+                value = budget.get(field, 0) or 0
+            else:
+                value = getattr(budget, field, 0) or 0
             total_expenses += Decimal(str(value))
         
         # Add additional expenses if any
-        additional_items = getattr(budget, 'additional_items', []) or []
+        if isinstance(budget, dict):
+            additional_items = budget.get('additional_items', []) or []
+        else:
+            additional_items = getattr(budget, 'additional_items', []) or []
         for item in additional_items:
             if item.get('type') == 'expense':
                 total_expenses += Decimal(str(item.get('amount', 0)))
@@ -221,8 +273,15 @@ class FinancialStepsView(APIView):
         if not budget:
             return Decimal('5000')  # Default estimate
         
-        income = getattr(budget, 'income', 0) or 0
-        return Decimal(str(income)) if income > 0 else Decimal('5000')
+        if isinstance(budget, dict):
+            income = budget.get('income', 0) or 0
+            additional_income = budget.get('additional_income', 0) or 0
+        else:
+            income = getattr(budget, 'income', 0) or 0
+            additional_income = getattr(budget, 'additional_income', 0) or 0
+        
+        total_income = income + additional_income
+        return Decimal(str(total_income)) if total_income > 0 else Decimal('5000')
     
     def calculate_retirement_contributions(self, accounts):
         """Calculate current retirement contributions"""
@@ -233,6 +292,114 @@ class FinancialStepsView(APIView):
                 balance = getattr(account, 'balance', 0) or 0
                 retirement_total += Decimal(str(balance))
         return retirement_total
+    
+    def calculate_total_accounts(self, accounts):
+        """Calculate total account balances"""
+        total = Decimal('0')
+        for account in accounts:
+            if isinstance(account, dict):
+                balance = account.get('balance', 0) or 0
+            else:
+                balance = getattr(account, 'balance', 0) or 0
+            total += Decimal(str(balance))
+        return total
+    
+    def calculate_net_savings(self, budget):
+        """Calculate net savings from budget"""
+        if not budget:
+            return Decimal('0')
+        
+        # Calculate total income
+        if isinstance(budget, dict):
+            income = budget.get('income', 0) or 0
+            additional_income = budget.get('additional_income', 0) or 0
+        else:
+            income = getattr(budget, 'income', 0) or 0
+            additional_income = getattr(budget, 'additional_income', 0) or 0
+        
+        total_income = Decimal(str(income + additional_income))
+        
+        # Calculate total expenses
+        expense_fields = [
+            'housing', 'debt_payments', 'transportation', 'utilities',
+            'food', 'healthcare', 'entertainment', 'shopping',
+            'travel', 'education', 'childcare', 'other'
+        ]
+        
+        total_expenses = Decimal('0')
+        for field in expense_fields:
+            if isinstance(budget, dict):
+                value = budget.get(field, 0) or 0
+            else:
+                value = getattr(budget, field, 0) or 0
+            total_expenses += Decimal(str(value))
+        
+        # Add additional expenses if any
+        if isinstance(budget, dict):
+            additional_items = budget.get('additional_items', []) or []
+        else:
+            additional_items = getattr(budget, 'additional_items', []) or []
+        for item in additional_items:
+            if item.get('type') == 'expense':
+                total_expenses += Decimal(str(item.get('amount', 0)))
+        
+        return total_income - total_expenses
+    
+    def calculate_additional_savings(self, budget):
+        """Calculate additional savings from budget savings items"""
+        if not budget:
+            return Decimal('0')
+        
+        additional_savings = Decimal('0')
+        # Handle both dictionary and object formats
+        if isinstance(budget, dict):
+            savings_items = budget.get('savings_items', []) or []
+        else:
+            savings_items = getattr(budget, 'savings_items', []) or []
+            
+        for item in savings_items:
+            if isinstance(item, dict):
+                # Handle dictionary format
+                name = item.get('name', '').lower()
+                amount = item.get('amount', 0) or 0
+            else:
+                # Handle object format
+                name = getattr(item, 'name', '').lower()
+                amount = getattr(item, 'amount', 0) or 0
+            
+            # Exclude emergency fund from additional savings
+            if 'emergency' not in name and 'emergency fund' not in name:
+                additional_savings += Decimal(str(amount))
+        
+        return additional_savings
+    
+    def calculate_college_fund_savings(self, budget):
+        """Calculate college fund savings from budget savings items"""
+        if not budget:
+            return Decimal('0')
+        
+        college_fund_savings = Decimal('0')
+        # Handle both dictionary and object formats
+        if isinstance(budget, dict):
+            savings_items = budget.get('savings_items', []) or []
+        else:
+            savings_items = getattr(budget, 'savings_items', []) or []
+            
+        for item in savings_items:
+            if isinstance(item, dict):
+                # Handle dictionary format
+                name = item.get('name', '').lower()
+                amount = item.get('amount', 0) or 0
+            else:
+                # Handle object format
+                name = getattr(item, 'name', '').lower()
+                amount = getattr(item, 'amount', 0) or 0
+            
+            # Check for college fund related names
+            if any(keyword in name for keyword in ['college', 'children', 'child', 'education fund', 'college fund']):
+                college_fund_savings += Decimal(str(amount))
+        
+        return college_fund_savings
     
     def calculate_mortgage_balance(self, debts):
         """Calculate mortgage balance"""
@@ -328,11 +495,12 @@ class FinancialStepsView(APIView):
         }
     
     def determine_current_step(self, step_progresses):
-        """Determine which step the user is currently on"""
+        """Determine which step the user is currently on (independent steps)"""
+        # Find the first incomplete step that is active (not inactive)
         for i, step in enumerate(step_progresses, 1):
-            if not step['completed']:
+            if not step['completed'] and 'inactive' not in step.get('message', '').lower():
                 return i
-        return 6  # All steps completed
+        return 6  # All active steps completed
     
     def get_current_step_details(self, current_step, step_progresses):
         """Get detailed progress for the current step"""

@@ -2839,22 +2839,31 @@ const DebtPlanning = () => {
         cellClass: params => {
           if (params.data.category === 'Remaining Debt') return 'remaining-debt-category-cell';
           if (params.data.category === 'Principal Paid Down') return 'principal-paid-category-cell';
-          if (params.data.type === 'calculated') return 'calculated-category-cell';
+          if (params.data.category === 'Interest Paid') return 'interest-paid-category-cell';
           if (params.data.type === 'debt') return 'debt-category-cell';
-          return '';
+          return 'other-category-cell';
         },
         cellRenderer: params => {
           const { data } = params;
           return (
-            <Typography variant="body2" sx={{ 
-              fontWeight: data.category === 'Remaining Debt' || data.category === 'Principal Paid Down' ? 'bold' : '600',
-              color: 'inherit',
-              fontSize: '0.95rem',
-              lineHeight: 1.2,
-              whiteSpace: 'pre-line'
+            <div style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '8px 12px',
+              boxSizing: 'border-box'
             }}>
-              {data.category === 'Principal Paid Down' ? 'Principal\nPaid Down' : data.category}
-            </Typography>
+              <span style={{
+                fontWeight: data.category === 'Remaining Debt' ? 'bold' : '600',
+                fontSize: data.category === 'Remaining Debt' ? '1rem' : '0.95rem',
+                lineHeight: 1.2,
+                whiteSpace: 'pre-line',
+                color: 'inherit'
+              }}>
+                {data.category === 'Principal Paid Down' ? 'Principal\nPaid Down' : data.category}
+              </span>
+            </div>
           );
         }
       }
@@ -2871,146 +2880,135 @@ const DebtPlanning = () => {
         cellClass: params => {
           const classes = [];
           
-          // Only add timeline classes for non-income/non-net-savings categories
-          if (params.data.category !== 'Net Savings' && 
-              params.data.type !== 'income' && 
-              params.data.type !== 'additional_income') {
-            if (month.type === 'historical') classes.push('historical-month-row');
-            if (month.type === 'current') classes.push('current-month-row');
-            if (month.type === 'future') classes.push('future-month-row');
+          // Row type classes
+          if (params.data.category === 'Remaining Debt') {
+            classes.push('remaining-debt-row');
+          } else if (params.data.category === 'Principal Paid Down') {
+            classes.push('principal-paid-row');
+          } else if (params.data.category === 'Interest Paid') {
+            classes.push('interest-paid-row');
+          } else if (params.data.type === 'debt') {
+            classes.push('debt-row');
+          } else {
+            classes.push('other-row');
           }
           
-          // Add specific classes for net savings and income
-          if (params.data.category === 'Net Savings') {
-            const value = parseFloat(params.value) || 0;
-            classes.push(value >= 0 ? 'net-positive-cell' : 'net-negative-cell');
-            // Add timeline-specific classes for net savings
-            if (month.type === 'historical') classes.push('timeline-net-savings-historical');
-            if (month.type === 'current') classes.push('timeline-net-savings-current');
-            if (month.type === 'future') classes.push('timeline-net-savings-future');
-          } else if (params.data.type === 'income' || params.data.type === 'additional_income') {
-            // Add timeline-specific classes for income
-            if (month.type === 'historical') classes.push('timeline-income-historical');
-            if (month.type === 'current') classes.push('timeline-income-current');
-            if (month.type === 'future') classes.push('timeline-income-future');
+          // Column type classes
+          if (month.type === 'historical') {
+            classes.push('historical-column');
+          } else if (month.type === 'current') {
+            classes.push('current-column');
+          } else if (month.type === 'future') {
+            classes.push('future-column');
+          }
+          
+          // Debt-free month highlight
+          if (debtFreeMonthIndex === idx && params.data.category === 'Remaining Debt') {
+            classes.push('debt-free-month');
           }
           
           return classes.join(' ');
         },
         cellRenderer: params => {
           const value = parseFloat(params.value) || 0;
-          let color = 'inherit';
-          let fontWeight = 'normal';
-          let backgroundColor = 'transparent';
-          
-          // Check if this is an income category
-          const isIncomeCategory = params.data.type === 'income' || params.data.type === 'additional_income';
-          
-          if (params.data.category === 'Net Savings') {
-            // Apply net savings-specific styling (blue)
-            if (month.type === 'historical') {
-              backgroundColor = '#1565c0'; // Dark blue for historical
-              color = '#ffffff';
-              fontWeight = '600';
-            } else if (month.type === 'current') {
-              backgroundColor = '#2196f3'; // Blue for current
-              color = '#ffffff';
-              fontWeight = 'bold';
-            } else if (month.type === 'future') {
-              backgroundColor = '#42a5f5'; // Light blue for future
-              color = '#ffffff';
-              fontWeight = 'bold';
-            }
-          } else if (isIncomeCategory) {
-            // Apply income-specific styling (green)
-            if (month.type === 'historical') {
-              backgroundColor = '#2e7d32'; // Dark green for historical
-              color = '#ffffff';
-              fontWeight = '600';
-            } else if (month.type === 'current') {
-              backgroundColor = '#4caf50'; // Green for current
-              color = '#ffffff';
-              fontWeight = 'bold';
-            } else if (month.type === 'future') {
-              backgroundColor = '#66bb6a'; // Light green for future
-              color = '#ffffff';
-              fontWeight = 'bold';
-            }
-          } else if (params.data.category === 'Principal Paid Down' || 
-                     params.data.category === 'Interest Paid' || 
-                     params.data.category === 'Remaining Debt' || 
-                     params.data.type === 'debt') {
-            // Apply timeline-specific styling for debt-related categories
-            if (month.type === 'historical') {
-              backgroundColor = '#0027dbcf';
-              color = '#ffffff';
-              fontWeight = '600';
-            } else if (month.type === 'current') {
-              backgroundColor = '#4caf50';
-              color = '#ffffff';
-              fontWeight = 'bold';
-            } else if (month.type === 'future') {
-              backgroundColor = '#f44336';
-              color = '#ffffff';
-              fontWeight = 'bold';
-            }
-          } else {
-            // Apply general styling for other categories
-            if (params.data.category === 'Remaining Debt') {
-              color = theme.palette.warning.main;
-              fontWeight = 'bold';
-            } else if (params.data.type === 'calculated') {
-              color = theme.palette.info.main;
-              fontWeight = '600';
-            } else if (params.data.type === 'debt') {
-              color = theme.palette.error.main;
-              fontWeight = '600';
-            }
-          }
           
           return (
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                color, 
-                fontWeight, 
-                textAlign: 'right',
-                backgroundColor: backgroundColor,
-                padding: '0',
-                margin: '0',
-                borderRadius: '0',
+            <div
+              style={{
                 width: '100%',
                 height: '100%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'flex-end',
-                minHeight: '100%',
-                boxSizing: 'border-box'
+                padding: '8px 12px',
+                boxSizing: 'border-box',
+                textAlign: 'right'
               }}
             >
-              {formatCurrency(value)}
-            </Typography>
+              <span style={{ 
+                color: 'inherit',
+                fontWeight: 'inherit',
+                fontSize: '0.875rem'
+              }}>
+                {formatCurrency(value)}
+              </span>
+            </div>
           );
         }
       });
     });
 
+    // Calculate debt-free date for display
+    const stats = calculateDebtStatistics();
+    const debtFreeDate = stats.debtFreeDate;
+    const debtFreeMonthIndex = debtFreeDate ? months.findIndex(m => {
+      const monthDate = new Date(m.year, m.month - 1, 1);
+      return monthDate.getTime() === debtFreeDate.getTime();
+    }) : -1;
+
     return (
       <Box sx={{ width: '100%' }}>
-        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Header with Strategy and Debt-Free Date */}
+        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Typography variant="subtitle1" color="primary">
             Strategy: {strategy.charAt(0).toUpperCase() + strategy.slice(1)}
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            
-            <Button 
-              variant="outlined" 
-              onClick={() => setStrategy(strategy === 'snowball' ? 'avalanche' : 'snowball')}
-              disabled={debtCalculationInProgress}
+          
+          {/* Debt-Free Date Display - Top Right */}
+          {debtFreeDate && stats.monthsToPayoff >= 0 && (
+            <Box
+              sx={{
+                background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+                color: 'white',
+                padding: '16px 24px',
+                borderRadius: '12px',
+                boxShadow: '0 4px 20px rgba(25, 118, 210, 0.3)',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                minWidth: '220px',
+                justifyContent: 'center'
+              }}
             >
-              Switch to {strategy === 'snowball' ? 'Avalanche' : 'Snowball'} Strategy
-            </Button>
-          </Box>
+              <CheckCircleIcon sx={{ fontSize: '1.5rem' }} />
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    fontWeight: 'bold',
+                    fontSize: '1.1rem',
+                    lineHeight: 1.2,
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+                  }}
+                >
+                  Debt-Free
+                </Typography>
+                <Typography 
+                  variant="body1" 
+                  sx={{ 
+                    fontWeight: 'bold',
+                    fontSize: '1rem',
+                    lineHeight: 1.2,
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
+                  }}
+                >
+                  {debtFreeDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </Box>
+        
+        {/* Strategy Switch Button */}
+        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
+          <Button 
+            variant="outlined" 
+            onClick={() => setStrategy(strategy === 'snowball' ? 'avalanche' : 'snowball')}
+            disabled={debtCalculationInProgress}
+          >
+            Switch to {strategy === 'snowball' ? 'Avalanche' : 'Snowball'} Strategy
+          </Button>
         </Box>
         
         {/* Status and Progress Display */}
@@ -3067,172 +3065,142 @@ const DebtPlanning = () => {
                     padding: '0 !important'
                   }
                 },
-                '&.time-historical-cell': {
-                  backgroundColor: '#0027dbcf !important',
-                  color: 'white !important',
-                  '& .ag-cell': {
-                    backgroundColor: '#0027dbcf !important',
-                    color: 'white !important',
-                    borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                  }
+                
+                // Base cell styling - clean background
+                '& .ag-cell': {
+                  backgroundColor: 'transparent !important',
+                  background: 'transparent !important'
                 },
-                '&.time-current-cell': {
-                  backgroundColor: '#4caf50 !important',
+                
+                // PAST MONTHS - Muted row colors with reduced opacity
+                '& .ag-cell.principal-paid-row.historical-column': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.3) !important',
+                  background: 'rgba(25, 118, 210, 0.3) !important',
                   color: 'white !important',
-                  '& .ag-cell': {
-                    backgroundColor: '#4caf50 !important',
-                    color: 'white !important',
-                    borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                  }
+                  fontWeight: '600 !important',
+                  opacity: '0.6 !important'
                 },
-                '&.time-future-cell': {
+                
+                '& .ag-cell.interest-paid-row.historical-column': {
+                  backgroundColor: 'rgba(66, 165, 245, 0.3) !important',
+                  background: 'rgba(66, 165, 245, 0.3) !important',
+                  color: 'white !important',
+                  fontWeight: '600 !important',
+                  opacity: '0.6 !important'
+                },
+                
+                '& .ag-cell.remaining-debt-row.historical-column': {
+                  backgroundColor: 'rgba(255, 193, 7, 0.4) !important',
+                  background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.4) 0%, rgba(255, 152, 0, 0.4) 100%) !important',
+                  color: '#000000 !important',
+                  fontWeight: 'bold !important',
+                  fontSize: '1rem !important',
+                  opacity: '0.6 !important'
+                },
+                
+                '& .ag-cell.debt-row.historical-column': {
+                  backgroundColor: 'rgba(244, 67, 54, 0.3) !important',
+                  background: 'rgba(244, 67, 54, 0.3) !important',
+                  color: 'white !important',
+                  fontWeight: '600 !important',
+                  opacity: '0.6 !important'
+                },
+                
+                // CURRENT MONTH - Timeline Anchor with row colors + neutral emphasis
+                '& .ag-cell.principal-paid-row.current-column': {
+                  backgroundColor: '#1976d2 !important',
+                  background: '#1976d2 !important',
+                  color: 'white !important',
+                  fontWeight: 'bold !important',
+                  borderLeft: '3px solid #374151 !important',
+                  borderRight: '3px solid #374151 !important',
+                  boxShadow: 'inset 0 0 0 2px rgba(55, 65, 81, 0.3) !important'
+                },
+                
+                '& .ag-cell.interest-paid-row.current-column': {
+                  backgroundColor: '#42a5f5 !important',
+                  background: '#42a5f5 !important',
+                  color: 'white !important',
+                  fontWeight: 'bold !important',
+                  borderLeft: '3px solid #374151 !important',
+                  borderRight: '3px solid #374151 !important',
+                  boxShadow: 'inset 0 0 0 2px rgba(55, 65, 81, 0.3) !important'
+                },
+                
+                '& .ag-cell.remaining-debt-row.current-column': {
+                  backgroundColor: 'rgba(255, 193, 7, 0.8) !important',
+                  background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.9) 0%, rgba(255, 152, 0, 0.9) 100%) !important',
+                  color: '#000000 !important',
+                  fontWeight: 'bold !important',
+                  fontSize: '1.2rem !important',
+                  borderLeft: '3px solid #374151 !important',
+                  borderRight: '3px solid #374151 !important',
+                  boxShadow: 'inset 0 0 0 2px rgba(55, 65, 81, 0.3) !important',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.1) !important'
+                },
+                
+                '& .ag-cell.debt-row.current-column': {
                   backgroundColor: '#f44336 !important',
+                  background: '#f44336 !important',
                   color: 'white !important',
-                  '& .ag-cell': {
-                    backgroundColor: '#f44336 !important',
-                    color: 'white !important',
-                    borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                  }
+                  fontWeight: 'bold !important',
+                  borderLeft: '3px solid #374151 !important',
+                  borderRight: '3px solid #374151 !important',
+                  boxShadow: 'inset 0 0 0 2px rgba(55, 65, 81, 0.3) !important'
                 },
-                  // Specific category styling for timeline grid - using higher specificity
-                  '&.timeline-net-savings-historical .ag-cell': {
-                    backgroundColor: '#1565c0 !important',
-                    color: 'white !important',
-                    border: 'none !important',
-                    padding: '0 !important',
-                    margin: '0 !important',
-                    borderRadius: '0 !important',
-                    width: '100% !important',
-                    height: '100% !important',
-                    display: 'flex !important',
-                    alignItems: 'center !important',
-                    justifyContent: 'flex-end !important'
-                  },
-                  '&.timeline-net-savings-current .ag-cell': {
-                    backgroundColor: '#2196f3 !important',
-                    color: 'white !important',
-                    border: 'none !important',
-                    padding: '0 !important',
-                    margin: '0 !important',
-                    borderRadius: '0 !important',
-                    width: '100% !important',
-                    height: '100% !important',
-                    display: 'flex !important',
-                    alignItems: 'center !important',
-                    justifyContent: 'flex-end !important'
-                  },
-                  '&.timeline-net-savings-future .ag-cell': {
-                    backgroundColor: '#42a5f5 !important',
-                    color: 'white !important',
-                    border: 'none !important',
-                    padding: '0 !important',
-                    margin: '0 !important',
-                    borderRadius: '0 !important',
-                    width: '100% !important',
-                    height: '100% !important',
-                    display: 'flex !important',
-                    alignItems: 'center !important',
-                    justifyContent: 'flex-end !important'
-                  },
-                  '&.timeline-income-historical .ag-cell': {
-                    backgroundColor: '#2e7d32 !important',
-                    color: 'white !important',
-                    border: 'none !important',
-                    padding: '0 !important',
-                    margin: '0 !important',
-                    borderRadius: '0 !important',
-                    width: '100% !important',
-                    height: '100% !important',
-                    display: 'flex !important',
-                    alignItems: 'center !important',
-                    justifyContent: 'flex-end !important'
-                  },
-                  '&.timeline-income-current .ag-cell': {
-                    backgroundColor: '#4caf50 !important',
-                    color: 'white !important',
-                    border: 'none !important',
-                    padding: '0 !important',
-                    margin: '0 !important',
-                    borderRadius: '0 !important',
-                    width: '100% !important',
-                    height: '100% !important',
-                    display: 'flex !important',
-                    alignItems: 'center !important',
-                    justifyContent: 'flex-end !important'
-                  },
-                  '&.timeline-income-future .ag-cell': {
-                    backgroundColor: '#66bb6a !important',
-                    color: 'white !important',
-                    border: 'none !important',
-                    padding: '0 !important',
-                    margin: '0 !important',
-                    borderRadius: '0 !important',
-                    width: '100% !important',
-                    height: '100% !important',
-                    display: 'flex !important',
-                    alignItems: 'center !important',
-                    justifyContent: 'flex-end !important'
-                  },
-                '&.timeline-total-paid-historical .ag-cell': {
-                  backgroundColor: '#0027dbcf !important',
+                
+                // FUTURE MONTHS - Row colors with optimistic tint
+                '& .ag-cell.principal-paid-row.future-column': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.7) !important',
+                  background: 'rgba(25, 118, 210, 0.7) !important',
                   color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                  fontWeight: '600 !important'
                 },
-                '&.timeline-total-paid-current .ag-cell': {
-                  backgroundColor: '#4caf50 !important',
+                
+                '& .ag-cell.interest-paid-row.future-column': {
+                  backgroundColor: 'rgba(66, 165, 245, 0.7) !important',
+                  background: 'rgba(66, 165, 245, 0.7) !important',
                   color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                  fontWeight: '600 !important'
                 },
-                '&.timeline-total-paid-future .ag-cell': {
-                  backgroundColor: '#f44336 !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                
+                '& .ag-cell.remaining-debt-row.future-column': {
+                  backgroundColor: 'rgba(255, 193, 7, 0.6) !important',
+                  background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.7) 0%, rgba(255, 152, 0, 0.7) 100%) !important',
+                  color: '#000000 !important',
+                  fontWeight: 'bold !important',
+                  fontSize: '1.1rem !important',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.1) !important'
                 },
-                '&.timeline-interest-paid-historical .ag-cell': {
-                  backgroundColor: '#0027dbcf !important',
+                
+                '& .ag-cell.debt-row.future-column': {
+                  backgroundColor: 'rgba(244, 67, 54, 0.7) !important',
+                  background: 'rgba(244, 67, 54, 0.7) !important',
                   color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                  fontWeight: '600 !important'
                 },
-                '&.timeline-interest-paid-current .ag-cell': {
-                  backgroundColor: '#4caf50 !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                
+                // DEBT-FREE MONTH - Celebratory milestone with strong green highlight
+                '& .ag-cell.debt-free-month': {
+                  backgroundColor: '#bbf7d0 !important',
+                  background: 'linear-gradient(135deg, #bbf7d0 0%, #86efac 100%) !important',
+                  color: '#065f46 !important',
+                  fontWeight: 'bold !important',
+                  fontSize: '1.1rem !important',
+                  border: '3px solid #16a34a !important',
+                  boxShadow: '0 0 15px rgba(34, 197, 94, 0.4) !important',
+                  position: 'relative !important'
                 },
-                '&.timeline-interest-paid-future .ag-cell': {
-                  backgroundColor: '#f44336 !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                
+                // Add a celebratory badge effect for debt-free month
+                '& .ag-cell.debt-free-month::before': {
+                  content: '"🎉"',
+                  position: 'absolute',
+                  top: '2px',
+                  right: '4px',
+                  fontSize: '12px',
+                  zIndex: '1'
                 },
-                '&.timeline-remaining-debt-historical .ag-cell': {
-                  backgroundColor: '#0027dbcf !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                },
-                '&.timeline-remaining-debt-current .ag-cell': {
-                  backgroundColor: '#4caf50 !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                },
-                '&.timeline-remaining-debt-future .ag-cell': {
-                  backgroundColor: '#f44336 !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                },
-                '&.timeline-debt-historical .ag-cell': {
-                  backgroundColor: '#0027dbcf !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                },
-                '&.timeline-debt-current .ag-cell': {
-                  backgroundColor: '#4caf50 !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                },
-                '&.timeline-debt-future .ag-cell': {
-                  backgroundColor: '#f44336 !important',
-                  color: 'white !important',
-                  borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
-                }
               },
               '& .ag-pinned-left': {
                 backgroundColor: theme.palette.grey[100],
@@ -3240,6 +3208,40 @@ const DebtPlanning = () => {
                   backgroundColor: theme.palette.grey[100],
                   fontWeight: 'bold',
                   justifyContent: 'flex-start'
+                },
+                
+                // Category cell styling
+                '& .remaining-debt-category-cell': {
+                  backgroundColor: 'rgba(255, 193, 7, 0.2) !important',
+                  background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.3) 0%, rgba(255, 152, 0, 0.3) 100%) !important',
+                  border: '2px solid rgba(255, 193, 7, 0.5) !important',
+                  color: '#000000 !important',
+                  fontWeight: 'bold !important',
+                  fontSize: '1rem !important'
+                },
+                '& .principal-paid-category-cell': {
+                  backgroundColor: '#1976d2 !important',
+                  background: '#1976d2 !important',
+                  color: 'white !important',
+                  fontWeight: '600 !important'
+                },
+                '& .interest-paid-category-cell': {
+                  backgroundColor: '#42a5f5 !important',
+                  background: '#42a5f5 !important',
+                  color: 'white !important',
+                  fontWeight: '600 !important'
+                },
+                '& .debt-category-cell': {
+                  backgroundColor: '#f44336 !important',
+                  background: '#f44336 !important',
+                  color: 'white !important',
+                  fontWeight: '600 !important'
+                },
+                '& .other-category-cell': {
+                  backgroundColor: 'rgba(158, 158, 158, 0.1) !important',
+                  background: 'rgba(158, 158, 158, 0.1) !important',
+                  color: 'inherit !important',
+                  fontWeight: 'normal !important'
                 }
               },
               // Enhanced horizontal scrolling styles
@@ -3321,70 +3323,9 @@ const DebtPlanning = () => {
       {selectedTabIndex === 0 && (
         <Card sx={{ p: 3 }}>
           {/* Debt Payoff Timeline & Strategies Section - Now at the top */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
-              Debt Payoff Timeline & Strategies
-            </Typography>
-            
-            {/* Debt Free Month Display */}
-            {(() => {
-              const stats = calculateDebtStatistics();
-              const debtFreeDate = stats.debtFreeDate;
-              
-              console.log('🔍 Debt Free Display Debug:');
-              console.log('Stats:', stats);
-              console.log('Debt Free Date:', debtFreeDate);
-              console.log('Months to Payoff:', stats.monthsToPayoff);
-              
-              if (debtFreeDate && stats.monthsToPayoff >= 0) {
-                const monthNames = [
-                  'January', 'February', 'March', 'April', 'May', 'June',
-                  'July', 'August', 'September', 'October', 'November', 'December'
-                ];
-                const month = monthNames[debtFreeDate.getMonth()];
-                const year = debtFreeDate.getFullYear();
-                
-                return (
-                  <Box
-                    sx={{
-                      background: isDarkMode 
-                        ? 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)'
-                        : 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
-                      color: 'white',
-                      padding: '12px 20px',
-                      borderRadius: '12px',
-                      boxShadow: isDarkMode 
-                        ? '0 4px 20px rgba(33, 150, 243, 0.3)'
-                        : '0 4px 20px rgba(33, 150, 243, 0.2)',
-                      border: isDarkMode 
-                        ? '1px solid rgba(255, 255, 255, 0.1)'
-                        : '1px solid rgba(255, 255, 255, 0.2)',
-                      backdropFilter: 'blur(10px)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      minWidth: '200px',
-                      justifyContent: 'center'
-                    }}
-                  >
-                    <CheckCircleIcon sx={{ fontSize: '1.2rem' }} />
-                    <Typography 
-                      variant="body1" 
-                      sx={{ 
-                        fontWeight: 'bold',
-                        fontSize: '1rem',
-                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)'
-                      }}
-                    >
-                      Debt Free: {month}, {year}
-                    </Typography>
-                  </Box>
-                );
-              }
-              
-              return null;
-            })()}
-          </Box>
+          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
+            Debt Payoff Timeline & Strategies
+          </Typography>
           
           {/* Month Range Controls for Timeline */}
           <Box sx={{ mb: 3, display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
