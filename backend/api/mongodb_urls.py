@@ -25,7 +25,7 @@ from .financial_steps import FinancialStepsView, financial_steps_calculate_test
 from .dashboard import DashboardView
 from .test_auth import test_login
 from .notifications import (
-    get_notifications, get_unread_count, mark_as_read, mark_all_as_read,
+    get_notifications, get_unread_count, mark_as_read, mark_as_unread, mark_all_as_read,
     delete_notification, create_notification, create_budget_alert,
     create_debt_reminder, create_savings_milestone, initialize_notifications
 )
@@ -125,6 +125,7 @@ urlpatterns = [
     path('notifications/', get_notifications, name='get_notifications'),
     path('notifications/unread-count/', get_unread_count, name='get_unread_count'),
     path('notifications/<str:notification_id>/mark-read/', mark_as_read, name='mark_as_read'),
+    path('notifications/<str:notification_id>/mark-unread/', mark_as_unread, name='mark_as_unread'),
     path('notifications/mark-all-read/', mark_all_as_read, name='mark_all_as_read'),
     path('notifications/<str:notification_id>/delete/', delete_notification, name='delete_notification'),
     path('notifications/create/', create_notification, name='create_notification'),

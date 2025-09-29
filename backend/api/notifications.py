@@ -113,6 +113,39 @@ def mark_as_read(request, notification_id):
 @api_view(['POST'])
 @authentication_classes([MongoDBJWTAuthentication])
 @permission_classes([MongoDBIsAuthenticated])
+def mark_as_unread(request, notification_id):
+    """Mark a specific notification as unread"""
+    try:
+        user_id = request.user.id
+        if not user_id:
+            return Response(
+                {"error": "User ID not found in token"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        success = notification_service.mark_as_unread(user_id, notification_id)
+        
+        if success:
+            return Response({
+                "message": "Notification marked as unread",
+                "notification_id": notification_id
+            })
+        else:
+            return Response(
+                {"error": "Notification not found or already unread"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+    except Exception as e:
+        logger.error(f"Error marking notification as unread: {e}")
+        return Response(
+            {"error": "Failed to mark notification as unread"}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+@api_view(['POST'])
+@authentication_classes([MongoDBJWTAuthentication])
+@permission_classes([MongoDBIsAuthenticated])
 def mark_all_as_read(request):
     """Mark all notifications as read for the authenticated user"""
     try:

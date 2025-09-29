@@ -66,3 +66,4 @@ find_cluster.py
 # Documentation files (optional)
 *_REPORT.md
 *_INTEGRATION_REPORT.md
+node_modules

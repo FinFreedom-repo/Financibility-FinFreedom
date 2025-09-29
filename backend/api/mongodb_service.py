@@ -701,6 +701,45 @@ class NotificationService(MongoDBService):
             logger.error(f"Error marking notification as read: {e}")
             return False
 
+    def mark_as_unread(self, user_id: str, notification_id: str) -> bool:
+        """Mark a specific notification as unread"""
+        try:
+            if isinstance(user_id, str):
+                user_id = ObjectId(user_id)
+            
+            # Check if it's a bundle message (format: bundle_id_message_index)
+            if '_' in notification_id and not ObjectId.is_valid(notification_id):
+                bundle_id, message_index = notification_id.split('_', 1)
+                return self._mark_bundle_message_as_unread(user_id, bundle_id, int(message_index))
+            else:
+                # Handle individual notification
+                if isinstance(notification_id, str):
+                    notification_id = ObjectId(notification_id)
+                
+                result = self.db.notifications.update_one(
+                    {
+                        "_id": notification_id,
+                        "user_id": user_id
+                    },
+                    {
+                        "$set": {
+                            "is_read": False,
+                            "updated_at": datetime.utcnow()
+                        }
+                    }
+                )
+                
+                if result.modified_count > 0:
+                    logger.info(f"Marked notification {notification_id} as unread for user {user_id}")
+                    return True
+                else:
+                    logger.warning(f"Notification {notification_id} not found or already unread for user {user_id}")
+                    return False
+                
+        except Exception as e:
+            logger.error(f"Error marking notification as unread: {e}")
+            return False
+
     def _mark_bundle_message_as_read(self, user_id: str, bundle_id: str, message_index: int) -> bool:
         """Mark a specific message within a bundle as read"""
         try:
@@ -731,6 +770,38 @@ class NotificationService(MongoDBService):
                 
         except Exception as e:
             logger.error(f"Error marking bundle message as read: {e}")
+            return False
+
+    def _mark_bundle_message_as_unread(self, user_id: str, bundle_id: str, message_index: int) -> bool:
+        """Mark a specific message within a bundle as unread"""
+        try:
+            if isinstance(bundle_id, str):
+                bundle_id = ObjectId(bundle_id)
+            
+            # Update the specific message in the bundle
+            result = self.db.notifications.update_one(
+                {
+                    "_id": bundle_id,
+                    "user_id": user_id,
+                    "type": "bundle"
+                },
+                {
+                    "$set": {
+                        f"messages.{message_index}.is_read": False,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            
+            if result.modified_count > 0:
+                logger.info(f"Marked message {message_index} in bundle {bundle_id} as unread for user {user_id}")
+                return True
+            else:
+                logger.warning(f"Bundle message not found for user {user_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error marking bundle message as unread: {e}")
             return False
     
     def mark_all_as_read(self, user_id: str) -> bool:
