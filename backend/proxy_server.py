@@ -1,87 +1,93 @@
 #!/usr/bin/env python3
 """
-Simple HTTP proxy server to forward requests from external IP to localhost Django server.
-This solves the issue where Django development server only binds to localhost.
+Proxy server to forward mobile app requests to Django development server.
+This is needed because Django's runserver only binds to localhost (127.0.0.1),
+but mobile devices need to connect from external IP addresses.
 """
 
 import http.server
 import socketserver
-import urllib.request
-import urllib.parse
-import json
-from urllib.error import URLError
+import requests
+import os
+import logging
 
-class ProxyHandler(http.server.BaseHTTPRequestHandler):
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+PORT = 8001
+DJANGO_HOST = 'http://127.0.0.1:8000'
+
+class ProxyHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
-        self.proxy_request()
-    
-    def do_POST(self):
-        self.proxy_request()
-    
-    def do_PUT(self):
-        self.proxy_request()
-    
-    def do_DELETE(self):
-        self.proxy_request()
-    
-    def do_OPTIONS(self):
-        self.proxy_request()
-    
-    def proxy_request(self):
-        try:
-            # Forward request to localhost Django server
-            target_url = f"http://127.0.0.1:8000{self.path}"
-            
-            # Prepare headers
-            headers = dict(self.headers)
-            headers['Host'] = '127.0.0.1:8000'
-            
-            # Get request body for POST/PUT requests
-            content_length = int(self.headers.get('Content-Length', 0))
-            post_data = self.rfile.read(content_length) if content_length > 0 else None
-            
-            # Create request
-            req = urllib.request.Request(target_url, data=post_data, headers=headers, method=self.command)
-            
-            # Make request to Django server
-            with urllib.request.urlopen(req) as response:
-                # Send response headers
-                self.send_response(response.status)
-                for header, value in response.headers.items():
-                    if header.lower() not in ['connection', 'transfer-encoding']:
-                        self.send_header(header, value)
-                
-                # Add CORS headers
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-                self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
-                self.send_header('Access-Control-Allow-Credentials', 'true')
-                
-                self.end_headers()
-                
-                # Send response body
-                self.wfile.write(response.read())
-                
-        except URLError as e:
-            print(f"Proxy error: {e}")
-            self.send_error(502, f"Bad Gateway: {e}")
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            self.send_error(500, f"Internal Server Error: {e}")
-    
-    def log_message(self, format, *args):
-        print(f"[PROXY] {format % args}")
+        self.proxy_request('GET')
 
-def start_proxy_server(port=8001):
-    """Start the proxy server on the specified port"""
-    with socketserver.TCPServer(("0.0.0.0", port), ProxyHandler) as httpd:
-        print(f"🚀 Proxy server started on 0.0.0.0:{port}")
-        print(f"📡 Forwarding requests to http://127.0.0.1:8000")
-        print("Press Ctrl+C to stop")
+    def do_POST(self):
+        self.proxy_request('POST')
+
+    def do_PUT(self):
+        self.proxy_request('PUT')
+
+    def do_DELETE(self):
+        self.proxy_request('DELETE')
+
+    def do_OPTIONS(self):
+        # Handle CORS preflight requests
+        self.send_response(200, "OK")
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+        self.send_header('Access-Control-Allow-Credentials', 'true')
+        self.end_headers()
+
+    def proxy_request(self, method):
+        url = f"{DJANGO_HOST}{self.path}"
+        headers = {k: v for k, v in self.headers.items()}
+        
+        # Handle Content-Length for POST/PUT requests
+        data = None
+        if method in ['POST', 'PUT']:
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length > 0:
+                data = self.rfile.read(content_length)
+                headers['Content-Length'] = str(content_length)
+
+        try:
+            logger.info(f"Proxying {method} {self.path} to {url}")
+            response = requests.request(method, url, headers=headers, data=data, verify=False)
+            
+            self.send_response(response.status_code)
+            
+            # Copy response headers (excluding problematic ones)
+            for k, v in response.headers.items():
+                if k.lower() not in ['content-encoding', 'transfer-encoding', 'content-length']:
+                    self.send_header(k, v)
+            
+            # Add CORS headers
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+            self.send_header('Access-Control-Allow-Credentials', 'true')
+            
+            self.end_headers()
+            self.wfile.write(response.content)
+            logger.info(f"Successfully proxied {method} {self.path} - Status: {response.status_code}")
+
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Proxy connection error: {e}")
+            self.send_error(503, f"Proxy connection error: {e}")
+        except Exception as e:
+            logger.error(f"Proxy error: {e}")
+            self.send_error(500, f"Proxy error: {e}")
+
+if __name__ == "__main__":
+    with socketserver.TCPServer(("", PORT), ProxyHandler) as httpd:
+        logger.info(f"🚀 Proxy server running on port {PORT}")
+        logger.info(f"📡 Forwarding requests to Django at {DJANGO_HOST}")
+        logger.info(f"📱 Mobile app should connect to: http://192.168.18.224:{PORT}")
+        logger.info("Press Ctrl+C to stop the proxy server")
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:
-            print("\n🛑 Proxy server stopped")
-
-if __name__ == "__main__":
-    start_proxy_server()
+            logger.info("🛑 Proxy server stopped")
+            httpd.shutdown()

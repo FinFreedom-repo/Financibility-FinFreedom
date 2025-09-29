@@ -10,6 +10,29 @@ A comprehensive financial management platform with both web and mobile applicati
 - **MongoDB** (running locally or cloud instance)
 - **Expo CLI** (for mobile development)
 
+### 🏃‍♂️ Quick Run Commands
+
+**For Website Only:**
+```bash
+# Terminal 1: Backend
+cd backend && pip install -r requirements.txt && python manage.py runserver
+
+# Terminal 2: Frontend  
+cd frontend && npm install && npm start
+```
+
+**For Mobile App:**
+```bash
+# Terminal 1: Backend
+cd backend && pip install -r requirements.txt && python manage.py runserver 127.0.0.1:8000
+
+# Terminal 2: Proxy Server
+cd backend && python proxy_server.py
+
+# Terminal 3: Mobile App
+cd financability-mobile && npm install && npx expo start
+```
+
 ### Installation
 
 1. **Clone the repository**
@@ -95,9 +118,29 @@ A comprehensive financial management platform with both web and mobile applicati
 The mobile app is configured to connect to the backend at `http://192.168.18.224:8001`. 
 
 **For local development:**
-1. Start the Django backend: `python manage.py runserver 127.0.0.1:8000`
-2. Start the proxy server: `python backend/proxy_server.py`
-3. The mobile app will connect through the proxy server
+1. **Start the Django backend:**
+   ```bash
+   cd backend
+   python manage.py runserver 127.0.0.1:8000
+   ```
+
+2. **Start the proxy server (in a new terminal):**
+   ```bash
+   cd backend
+   python proxy_server.py
+   ```
+
+3. **Start the mobile app:**
+   ```bash
+   cd financability-mobile
+   npx expo start
+   ```
+
+**Why the proxy server is needed:**
+- Django's development server only binds to `127.0.0.1:8000` (localhost)
+- Mobile devices run on different IP addresses and cannot access localhost
+- The proxy server runs on `0.0.0.0:8001` and forwards requests to Django
+- This allows mobile devices to connect to the backend through the proxy
 
 ## 🏗️ Project Structure
 
