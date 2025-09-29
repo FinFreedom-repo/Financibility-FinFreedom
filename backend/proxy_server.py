@@ -44,6 +44,10 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
         url = f"{DJANGO_HOST}{self.path}"
         headers = {k: v for k, v in self.headers.items()}
         
+        # Remove problematic headers
+        headers.pop('Host', None)
+        headers.pop('Connection', None)
+        
         # Handle Content-Length for POST/PUT requests
         data = None
         if method in ['POST', 'PUT']:
@@ -54,13 +58,13 @@ class ProxyHandler(http.server.SimpleHTTPRequestHandler):
 
         try:
             logger.info(f"Proxying {method} {self.path} to {url}")
-            response = requests.request(method, url, headers=headers, data=data, verify=False)
+            response = requests.request(method, url, headers=headers, data=data, verify=False, timeout=30)
             
             self.send_response(response.status_code)
             
             # Copy response headers (excluding problematic ones)
             for k, v in response.headers.items():
-                if k.lower() not in ['content-encoding', 'transfer-encoding', 'content-length']:
+                if k.lower() not in ['content-encoding', 'transfer-encoding', 'content-length', 'connection']:
                     self.send_header(k, v)
             
             # Add CORS headers
