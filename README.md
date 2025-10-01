@@ -444,6 +444,22 @@ For support and questions:
 - Check the troubleshooting section above
 - Review the API documentation in the code
 
+## 🚀 Deployment
+
+### Production Deployment (Render)
+
+For production deployment on Render, see the comprehensive [DEPLOYMENT.md](DEPLOYMENT.md) guide.
+
+**Quick Deploy:**
+1. **Backend**: Deploy Django API to Render
+2. **Frontend**: Deploy React app to Render
+3. **Database**: Use MongoDB Atlas for production
+4. **Mobile**: Update API URLs for production
+
+**Production URLs:**
+- **Frontend**: `https://financability-frontend.onrender.com`
+- **Backend API**: `https://financability-backend.onrender.com`
+
 ## 🎯 Roadmap
 
 - [ ] Advanced analytics and reporting
@@ -452,7 +468,7 @@ For support and questions:
 - [ ] Financial goal setting and tracking
 - [ ] Multi-currency support
 - [ ] Advanced security features
-- [ ] Cloud deployment options
+- [x] Cloud deployment options
 
 ---
 

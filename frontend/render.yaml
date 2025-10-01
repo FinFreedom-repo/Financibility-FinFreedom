@@ -6,4 +6,6 @@ services:
     staticPublishPath: ./build
     envVars:
       - key: REACT_APP_API_URL
-        value: https://financability-backend.onrender.com 
+        value: https://financability-backend.onrender.com
+      - key: REACT_APP_ORGANIZATION
+        value: financibility-finFreedom 

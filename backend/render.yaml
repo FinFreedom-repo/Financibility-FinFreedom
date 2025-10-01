@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: financability-backend
+    env: python
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
+    startCommand: gunicorn backend.wsgi:application
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        value: financability-backend.onrender.com,financability-frontend.onrender.com
+      - key: MONGODB_URI
+        value: mongodb+srv://username:password@cluster.mongodb.net/financability
+      - key: MONGODB_NAME
+        value: financability
+      - key: CORS_ALLOW_ALL_ORIGINS
+        value: False
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://financability-frontend.onrender.com
+      - key: USE_MONGO_ACCOUNTS
+        value: True
+      - key: USE_MONGO_DEBTS
+        value: True
+      - key: USE_MONGO_BUDGET
+        value: True
+      - key: USE_MONGO_CATEGORIES
+        value: True
+      - key: USE_MONGO_TRANSACTIONS
+        value: True
