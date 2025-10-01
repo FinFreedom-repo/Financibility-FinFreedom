@@ -54,7 +54,7 @@ A comprehensive financial management platform with both web and mobile applicati
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/AbdurRaffay123/Financibility-FinFreedom.git
+git clone https://github.com/financibility-finFreedom/Financibility-FinFreedom.git
 cd Financibility-FinFreedom
 ```
 
