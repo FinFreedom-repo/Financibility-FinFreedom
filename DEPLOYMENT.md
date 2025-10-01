@@ -72,6 +72,7 @@ This guide provides step-by-step instructions for deploying both the backend and
 1. **Verify Build**: Ensure `npm run build` works locally
 2. **Check API URL**: Verify frontend points to backend URL
 3. **Environment Variables**: Set up production environment variables
+4. **SPA Routing**: Ensure proper configuration for Single Page Application routing
 
 ### Step 2: Create Frontend Service on Render
 
@@ -157,6 +158,12 @@ This guide provides step-by-step instructions for deploying both the backend and
 - Verify MongoDB Atlas connection string
 - Check network access settings in MongoDB Atlas
 - Ensure database user has proper permissions
+
+**5. SPA Routing Issues (404 on refresh)**
+- Ensure `_redirects` file is in `frontend/public/` directory
+- Verify `404.html` file exists in `frontend/public/` directory
+- Check that `routes` configuration is set in `frontend/render.yaml`
+- Redeploy frontend service after adding routing files
 
 ### Debug Commands
 
