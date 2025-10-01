@@ -14,10 +14,6 @@ services:
       - path: /*
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
     envVars:
       - key: REACT_APP_API_URL
         value: https://financability-backend.onrender.com
