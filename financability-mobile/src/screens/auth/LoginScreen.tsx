@@ -37,6 +37,7 @@ const LoginScreen: React.FC = () => {
   const [errors, setErrors] = useState<Partial<LoginCredentials>>({});
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState<string>('');
 
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginCredentials> = {};
@@ -62,62 +63,50 @@ const LoginScreen: React.FC = () => {
   };
 
   const handleLogin = async () => {
+    // Clear previous errors
+    setLoginError('');
+    setErrors({});
+    
     if (!validateForm()) {
       return;
     }
 
     try {
-      
       const result = await login(credentials);
       
-      
       if (!result.success) {
-        Alert.alert(
-          'Login Failed', 
-          `Error: ${result.message}\n\nPlease check:\n1. Your internet connection\n2. Backend server is running\n3. API URL is correct`,
-          [
-            { text: 'OK' },
-            { text: 'Retry', onPress: handleLogin }
-          ]
-        );
+        setLoginError(result.message);
       }
     } catch (error: any) {
-      
       let errorMessage = 'Unknown error occurred';
       
       if (error.message?.includes('Network Error')) {
-        errorMessage = 'Network Error: Cannot connect to server. Please check:\n1. Backend server is running on http://192.168.18.224:8000\n2. Your device is connected to the same WiFi network\n3. Firewall is not blocking the connection';
+        errorMessage = 'Network Error: Cannot connect to server. Please check your internet connection.';
       } else if (error.message?.includes('timeout')) {
         errorMessage = 'Request timeout: Server took too long to respond. Please try again.';
       } else if (error.message?.includes('ECONNREFUSED')) {
         errorMessage = 'Connection refused: Backend server is not running or not accessible.';
       } else if (error.message?.includes('ENOTFOUND')) {
-        errorMessage = 'Server not found: Check if the IP address 192.168.18.224 is correct.';
+        errorMessage = 'Server not found: Please check your internet connection.';
       } else {
-        errorMessage = `Error: ${error.message || 'Unknown error'}`;
+        errorMessage = error.message || 'Unknown error occurred';
       }
       
-      Alert.alert(
-        'Login Error', 
-        errorMessage,
-        [
-          { text: 'OK' },
-          { text: 'Retry', onPress: handleLogin }
-        ]
-      );
+      setLoginError(errorMessage);
     }
   };
 
   const handleBiometricLogin = async () => {
     try {
       setBiometricLoading(true);
+      setLoginError(''); // Clear any previous errors
       const result = await loginWithBiometric();
       
       if (!result.success) {
-        Alert.alert('Biometric Login Failed', result.message);
+        setLoginError(result.message);
       }
-    } catch (error) {
-      Alert.alert('Error', 'Biometric authentication failed');
+    } catch (error: any) {
+      setLoginError('Biometric authentication failed');
     } finally {
       setBiometricLoading(false);
     }
@@ -174,7 +163,10 @@ const LoginScreen: React.FC = () => {
               <Input
                 label="Username"
                 value={credentials.username}
-                onChangeText={(text) => setCredentials({ ...credentials, username: text })}
+                onChangeText={(text) => {
+                  setCredentials({ ...credentials, username: text });
+                  if (loginError) setLoginError(''); // Clear error when user starts typing
+                }}
                 placeholder="Enter your username"
                 error={errors.username}
                 autoCapitalize="none"
@@ -185,7 +177,10 @@ const LoginScreen: React.FC = () => {
               <Input
                 label="Password"
                 value={credentials.password}
-                onChangeText={(text) => setCredentials({ ...credentials, password: text })}
+                onChangeText={(text) => {
+                  setCredentials({ ...credentials, password: text });
+                  if (loginError) setLoginError(''); // Clear error when user starts typing
+                }}
                 placeholder="Enter your password"
                 secureTextEntry
                 error={errors.password}
@@ -193,6 +188,14 @@ const LoginScreen: React.FC = () => {
                 rightIcon={showPassword ? "eye-off" : "eye"}
                 onRightIconPress={() => setShowPassword(!showPassword)}
               />
+
+              {/* Login Error Message */}
+              {loginError ? (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle" size={20} color="#ff4444" />
+                  <Text style={styles.errorText}>{loginError}</Text>
+                </View>
+              ) : null}
 
               <LinearGradient
                 colors={['#ff0000', '#0066ff']}
@@ -389,6 +392,24 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.primary,
     fontSize: 16,
     fontWeight: '600',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffebee',
+    borderColor: '#ff4444',
+    borderWidth: 1,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  errorText: {
+    color: '#ff4444',
+    fontSize: 14,
+    marginLeft: theme.spacing.sm,
+    flex: 1,
+    fontWeight: '500',
   },
   footer: {
     alignItems: 'center',

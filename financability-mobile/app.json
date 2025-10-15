@@ -18,7 +18,19 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.financability.mobile",
-      "buildNumber": "1.0.0"
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSExceptionDomains": {
+            "financability-backend.onrender.com": {
+              "NSExceptionAllowsInsecureHTTPLoads": false,
+              "NSExceptionMinimumTLSVersion": "TLSv1.2",
+              "NSIncludesSubdomains": true
+            }
+          }
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,14 +40,16 @@
       "package": "com.financability.mobile",
       "versionCode": 1,
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": false,
+      "networkSecurityConfig": "./android-network-security.xml"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiBaseUrl": "http://192.168.18.224:8001",
-      "apiTimeout": 10000,
+      "apiBaseUrl": "https://financability-backend.onrender.com",
+      "apiTimeout": 30000,
       "appName": "Financability",
       "appVersion": "1.0.0",
       "debug": true,

@@ -4,14 +4,21 @@ import Constants from 'expo-constants';
 // For mobile devices, we need to use the computer's IP address, not localhost
 const getBaseURL = () => {
   // Always use the configured API base URL from app.json
-  return Constants.expoConfig?.extra?.apiBaseUrl || 'http://192.168.18.224:8001';
+  return Constants.expoConfig?.extra?.apiBaseUrl || 'https://financability-backend.onrender.com';
 };
 
 const baseURL = getBaseURL();
 
+// Debug logging for API configuration
+console.log('🔧 API Configuration:', {
+  baseURL,
+  timeout: Constants.expoConfig?.extra?.apiTimeout || 30000,
+  expoConfig: Constants.expoConfig?.extra
+});
+
 export const API_CONFIG = {
   BASE_URL: baseURL,
-  TIMEOUT: Constants.expoConfig?.extra?.apiTimeout || 10000,
+  TIMEOUT: Constants.expoConfig?.extra?.apiTimeout || 30000, // Increased to 30 seconds
   ENDPOINTS: {
     AUTH: {
       LOGIN: '/api/mongodb/auth/mongodb/login/',

@@ -161,7 +161,8 @@ python3 proxy_server.py
 # Terminal 3: Start Mobile App
 cd financability-mobile
 npm install
-npx expo start
+#Start server swith tunnel
+npx expo start --tunnel
 ```
 
 #### 3. Connect Mobile Device
