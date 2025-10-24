@@ -7,26 +7,27 @@ import mongoengine
 from mongoengine import connect, Document, StringField, IntField, FloatField, DateTimeField, DateField, BooleanField, ListField, DictField, DecimalField, ObjectIdField
 from decimal import Decimal
 from datetime import datetime, date
-from backend.mongodb_settings import MONGODB_CONNECTION
+from mongodb_config import get_mongodb_connection
 
 # Connect to MongoDB - lazy connection
-def get_mongodb_connection():
-    """Get MongoDB connection, connecting if not already connected"""
+def get_mongodb_connection_mongoengine():
+    """Get MongoDB connection using mongoengine, connecting if not already connected"""
     try:
         # Check if already connected
         from mongoengine.connection import get_connection
         get_connection('default')
     except:
-        # Not connected, establish connection
+        # Not connected, establish connection using unified config
+        connection_config = get_mongodb_connection()
         connect(
-            db=MONGODB_CONNECTION['db'],
-            host=MONGODB_CONNECTION['host'],
-            port=MONGODB_CONNECTION.get('port', 27017),
+            db=connection_config['db'],
+            host=connection_config['host'],
+            port=connection_config.get('port', 27017),
             alias='default'
         )
 
 # Initialize connection
-get_mongodb_connection()
+get_mongodb_connection_mongoengine()
 
 # MongoDB Models
 class MongoUser(Document):

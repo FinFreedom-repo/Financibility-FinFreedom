@@ -71,7 +71,7 @@ class MongoDBUser:
         return self.first_name
     
     def has_perm(self, perm, obj=None):
-        return True  # For now, all authenticated users have all permissions
+        return True 
     
     def has_perms(self, perm_list, obj=None):
         return True

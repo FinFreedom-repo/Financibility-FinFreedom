@@ -35,41 +35,23 @@ class MongoDBService:
         pass
     
     def connect(self):
-        """Connect to MongoDB Atlas"""
+        """Connect to MongoDB using unified configuration"""
         try:
-            # MongoDB Atlas URI - Using single server connection
-            mongodb_uri = 'mongodb://kraffay96:ToHkxcn2x8HeeW7L@ac-nujzpj8-shard-00-00.wghh7fu.mongodb.net:27017/financability_db?ssl=true&authSource=admin&retryWrites=true&w=majority'
-            db_name = 'financability_db'
+            # Import unified MongoDB configuration
+            from mongodb_config import MongoDBConfig
             
-            # MongoDB Atlas connection with direct connection settings
-            self.client = MongoClient(
-                mongodb_uri,
-                # Connection timeouts
-                serverSelectionTimeoutMS=30000,
-                connectTimeoutMS=30000,
-                socketTimeoutMS=30000,
-                
-                # Connection pool settings
-                maxPoolSize=50,
-                minPoolSize=5,
-                maxIdleTimeMS=300000,
-                waitQueueTimeoutMS=30000,
-                
-                # Retry settings
-                retryWrites=True,
-                retryReads=True,
-                
-                # Direct connection settings to avoid replica set issues
-                directConnection=False,
-                readPreference='primaryPreferred',
-                
-                # Application name
-                appName='FinancabilityApp'
-            )
+            # Get configuration from unified config
+            config = MongoDBConfig.get_config()
+            mongodb_uri = config['uri']
+            db_name = config['database']
+            options = config['options']
+            
+            # MongoDB connection using unified configuration
+            self.client = MongoClient(mongodb_uri, **options)
             
             # Test the connection with retry mechanism
             self._test_connection_with_retry()
-            logger.info("Connected to MongoDB Atlas successfully")
+            logger.info("Connected to MongoDB successfully")
             
             self.db = self.client[db_name]
             
@@ -105,8 +87,8 @@ class MongoDBService:
         
         for attempt in range(max_retries):
             try:
-                # Test connection with timeout
-                self.client.admin.command('ping', serverSelectionTimeoutMS=10000)
+                # Test connection with simple ping (no timeout parameter)
+                self.client.admin.command('ping')
                 logger.info(f"MongoDB connection test successful on attempt {attempt + 1}")
                 return True
             except Exception as e:
@@ -123,7 +105,7 @@ class MongoDBService:
         """Check if MongoDB connection is healthy - for production monitoring"""
         try:
             # Quick ping test
-            self.client.admin.command('ping', serverSelectionTimeoutMS=5000)
+            self.client.admin.command('ping')
             return True
         except Exception as e:
             logger.warning(f"MongoDB health check failed: {e}")

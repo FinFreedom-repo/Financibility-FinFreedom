@@ -1,212 +1,257 @@
 #!/usr/bin/env python3
 """
-MongoDB Configuration Management
-Handles different environments and connection issues
+Unified MongoDB Configuration Management
+Handles all MongoDB connections, environments, and health monitoring
 """
 
 import os
-import socket
+import logging
 from typing import Dict, Any, Optional
+from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure
+import time
+
+logger = logging.getLogger(__name__)
 
 class MongoDBConfig:
-    """MongoDB configuration manager for different environments"""
-    
-    # Production MongoDB Atlas Configuration
-    PRODUCTION_CONFIG = {
-        'uri': 'mongodb+srv://kraffay96:ToHkxcn2x8HeeW7L@financability-cluster.wghh7fu.mongodb.net/?retryWrites=true&w=majority&appName=financability-cluster',
-        'database': 'financability_db',
-        'options': {
-            'serverSelectionTimeoutMS': 30000,
-            'connectTimeoutMS': 30000,
-            'socketTimeoutMS': 30000,
-            'maxPoolSize': 100,
-            'minPoolSize': 10,
-            'maxIdleTimeMS': 300000,
-            'waitQueueTimeoutMS': 30000,
-            'retryWrites': True,
-            'retryReads': True,
-            'readPreference': 'primaryPreferred',
-            'tls': True,
-            'tlsAllowInvalidCertificates': False,
-            'tlsAllowInvalidHostnames': False,
-            'appName': 'FinancabilityApp-Production'
-        }
-    }
-    
-    # Development MongoDB Atlas Configuration (Fallback)
-    DEVELOPMENT_CONFIG = {
-        'uri': 'mongodb://kraffay96:ToHkxcn2x8HeeW7L@ac-nujzpj8-shard-00-00.wghh7fu.mongodb.net:27017/financability_db?ssl=true&authSource=admin&retryWrites=true&w=majority',
-        'database': 'financability_db',
-        'options': {
-            'serverSelectionTimeoutMS': 30000,
-            'connectTimeoutMS': 30000,
-            'socketTimeoutMS': 30000,
-            'maxPoolSize': 50,
-            'minPoolSize': 5,
-            'maxIdleTimeMS': 300000,
-            'waitQueueTimeoutMS': 30000,
-            'retryWrites': True,
-            'retryReads': True,
-            'readPreference': 'primaryPreferred',
-            'tls': True,
-            'tlsAllowInvalidCertificates': True,  # More permissive for development
-            'tlsAllowInvalidHostnames': True,     # More permissive for development
-            'appName': 'FinancabilityApp-Development'
-        }
-    }
-    
-    # Local MongoDB Configuration (Fallback)
-    LOCAL_CONFIG = {
-        'uri': 'mongodb://localhost:27017/financability_db',
-        'database': 'financability_db',
-        'options': {
-            'serverSelectionTimeoutMS': 10000,
-            'connectTimeoutMS': 10000,
-            'socketTimeoutMS': 10000,
-            'maxPoolSize': 20,
-            'minPoolSize': 2,
-            'maxIdleTimeMS': 300000,
-            'waitQueueTimeoutMS': 10000,
-            'retryWrites': True,
-            'retryReads': True,
-            'appName': 'FinancabilityApp-Local'
-        }
-    }
-    
+    """Unified MongoDB configuration manager for all environments"""
+
+    @staticmethod
+    def _get_env(name: str, default: Optional[str] = None) -> Optional[str]:
+        """Get environment variable with optional default"""
+        return os.getenv(name, default)
+
     @staticmethod
     def get_environment() -> str:
         """Determine the current environment"""
-        env = os.getenv('DJANGO_ENV', 'development').lower()
-        if env in ['production', 'prod']:
+        env = MongoDBConfig._get_env('DJANGO_ENV', 'development').lower()
+        if env in ('production', 'prod'):
             return 'production'
-        elif env in ['staging', 'stage']:
+        if env in ('staging', 'stage'):
             return 'staging'
+        return 'development'
+
+    @staticmethod
+    def _build_mongodb_uri() -> str:
+        """Build MongoDB URI from environment configuration"""
+        # Get the base URI from environment
+        atlas_uri = MongoDBConfig._get_env('MONGODB_ATLAS_URI')
+        
+        if not atlas_uri:
+            # Fallback to localhost for development
+            logger.warning("MONGODB_ATLAS_URI not set, using localhost")
+            return "mongodb://localhost:27017"
+        
+        # Ensure proper URI format
+        if atlas_uri.startswith(('mongodb://', 'mongodb+srv://')):
+            return atlas_uri
         else:
-            return 'development'
-    
+            return f"mongodb://{atlas_uri}"
+
+    @staticmethod
+    def get_database_name() -> str:
+        """Get database name from environment"""
+        return MongoDBConfig._get_env('MONGODB_NAME', 'financability_db')
+
+    @staticmethod
+    def get_connection_options() -> Dict[str, Any]:
+        """Get MongoDB connection options based on environment"""
+        env = MongoDBConfig.get_environment()
+        
+        # Base options for all environments - use sensible defaults
+        base_options = {
+            'serverSelectionTimeoutMS': 30000,
+            'connectTimeoutMS': 10000,
+            'socketTimeoutMS': 10000,
+            'maxPoolSize': 50,
+            'minPoolSize': 0,
+            'maxIdleTimeMS': 300000,
+            'appName': 'FinancabilityApp',
+        }
+        
+        # Environment-specific options
+        if env == 'production':
+            base_options.update({
+                'retryWrites': True,
+                'retryReads': True,
+                'readPreference': 'primaryPreferred',
+            })
+        elif env == 'staging':
+            base_options.update({
+                'retryWrites': True,
+                'retryReads': True,
+                'readPreference': 'primaryPreferred',
+            })
+        else:  # development
+            base_options.update({
+                'retryWrites': False,
+                'retryReads': False,
+            })
+        
+        return base_options
+
     @staticmethod
     def test_connection(uri: str, options: Dict[str, Any]) -> bool:
-        """Test MongoDB connection"""
+        """Test MongoDB connection by issuing a ping"""
         try:
-            from pymongo import MongoClient
             client = MongoClient(uri, **options)
             client.admin.command('ping')
             client.close()
             return True
         except Exception as e:
-            print(f"Connection test failed: {e}")
+            logger.debug("Connection test failed: %s", e)
             return False
-    
+
     @staticmethod
-    def get_optimal_config() -> Dict[str, Any]:
-        """Get the best working MongoDB configuration"""
+    def get_config() -> Dict[str, Any]:
+        """Get complete MongoDB configuration"""
+        uri = MongoDBConfig._build_mongodb_uri()
+        database = MongoDBConfig.get_database_name()
+        options = MongoDBConfig.get_connection_options()
         environment = MongoDBConfig.get_environment()
         
-        # Try configurations in order of preference
-        configs = []
-        
-        if environment == 'production':
-            configs = [
-                ('production', MongoDBConfig.PRODUCTION_CONFIG),
-                ('development', MongoDBConfig.DEVELOPMENT_CONFIG),
-                ('local', MongoDBConfig.LOCAL_CONFIG)
-            ]
+        # Test connection
+        if MongoDBConfig.test_connection(uri, options):
+            logger.info(f"MongoDB connection successful for {environment} environment")
         else:
-            configs = [
-                ('development', MongoDBConfig.DEVELOPMENT_CONFIG),
-                ('production', MongoDBConfig.PRODUCTION_CONFIG),
-                ('local', MongoDBConfig.LOCAL_CONFIG)
-            ]
-        
-        # Test each configuration
-        for config_name, config in configs:
-            print(f"🔍 Testing {config_name} configuration...")
-            if MongoDBConfig.test_connection(config['uri'], config['options']):
-                print(f"✅ {config_name} configuration works!")
-                return config
-            else:
-                print(f"❌ {config_name} configuration failed")
-        
-        # If all fail, return development config as fallback
-        print("⚠️ All configurations failed, using development as fallback")
-        return MongoDBConfig.DEVELOPMENT_CONFIG
-    
-    @staticmethod
-    def get_connection_info() -> Dict[str, Any]:
-        """Get detailed connection information"""
-        config = MongoDBConfig.get_optimal_config()
+            logger.warning(f"MongoDB connection test failed for {environment} environment, but proceeding with configuration")
         
         return {
-            'uri': config['uri'],
-            'database': config['database'],
-            'options': config['options'],
-            'environment': MongoDBConfig.get_environment(),
-            'hostname': socket.gethostname(),
-            'local_ip': socket.gethostbyname(socket.gethostname())
+            'uri': uri,
+            'database': database,
+            'options': options,
+            'environment': environment
         }
 
-# Health check and monitoring
+    @staticmethod
+    def get_client() -> MongoClient:
+        """Get a MongoDB client instance"""
+        config = MongoDBConfig.get_config()
+        return MongoClient(config['uri'], **config['options'])
+
+    @staticmethod
+    def get_database():
+        """Get the database instance"""
+        config = MongoDBConfig.get_config()
+        client = MongoDBConfig.get_client()
+        return client[config['database']]
+
+
 class MongoDBHealthCheck:
-    """MongoDB health monitoring"""
-    
+    """MongoDB health monitoring and diagnostics"""
+
     @staticmethod
     def check_connection_health() -> Dict[str, Any]:
         """Comprehensive health check"""
-        config = MongoDBConfig.get_optimal_config()
+        config = MongoDBConfig.get_config()
+        allow_write_test = False  # Disable write tests by default
         
         try:
-            from pymongo import MongoClient
-            import time
-            
             start_time = time.time()
-            client = MongoClient(config['uri'], **config['options'])
-            
+            client = MongoDBConfig.get_client()
+
             # Test basic connectivity
             ping_result = client.admin.command('ping')
-            
+
             # Test database access
-            db = client[config['database']]
+            db = MongoDBConfig.get_database()
             collections = db.list_collection_names()
-            
-            # Test write operation
-            test_collection = db['health_check']
-            test_doc = {'timestamp': time.time(), 'test': True}
-            result = test_collection.insert_one(test_doc)
-            test_collection.delete_one({'_id': result.inserted_id})
-            
+
+            write_test_result = None
+            if allow_write_test:
+                try:
+                    test_collection = db.get_collection('_health_check')
+                    test_doc = {'timestamp': time.time(), 'test': True}
+                    result = test_collection.insert_one(test_doc)
+                    test_collection.delete_one({'_id': result.inserted_id})
+                    write_test_result = 'ok'
+                except Exception as e:
+                    write_test_result = f'write_test_failed: {e}'
+
             client.close()
-            
             response_time = (time.time() - start_time) * 1000
-            
+
             return {
                 'status': 'healthy',
                 'response_time_ms': round(response_time, 2),
                 'collections_count': len(collections),
                 'ping_result': ping_result,
-                'config_used': config.get('appName', 'unknown')
+                'write_test': write_test_result,
+                'environment': config['environment']
             }
-            
+
         except Exception as e:
+            logger.exception("Health check failed")
             return {
                 'status': 'unhealthy',
                 'error': str(e),
-                'config_used': config.get('appName', 'unknown')
+                'environment': config['environment']
             }
 
-# Usage example
+    @staticmethod
+    def get_connection_info() -> Dict[str, Any]:
+        """Get connection information for debugging"""
+        config = MongoDBConfig.get_config()
+        return {
+            'environment': config['environment'],
+            'database': config['database'],
+            'uri_masked': MongoDBConfig._mask_uri(config['uri']),
+            'options': config['options']
+        }
+
+    @staticmethod
+    def _mask_uri(uri: str) -> str:
+        """Mask sensitive information in URI for logging"""
+        if '@' in uri:
+            # Mask password in URI
+            parts = uri.split('@')
+            if len(parts) == 2:
+                user_pass = parts[0].split('//')[-1]
+                if ':' in user_pass:
+                    user = user_pass.split(':')[0]
+                    return uri.replace(user_pass, f"{user}:***")
+        return uri
+
+
+# Django-specific configuration for compatibility
+def get_django_mongodb_config() -> Dict[str, Any]:
+    """Get MongoDB configuration in Django format"""
+    config = MongoDBConfig.get_config()
+    return {
+        'ENGINE': 'djongo',
+        'NAME': config['database'],
+        'ENFORCE_SCHEMA': True,
+        'CLIENT': {
+            'host': config['uri'],
+        }
+    }
+
+
+def get_mongodb_connection() -> Dict[str, str]:
+    """Get MongoDB connection settings for mongoengine"""
+    config = MongoDBConfig.get_config()
+    return {
+        'host': config['uri'],
+        'db': config['database'],
+    }
+
+
 if __name__ == "__main__":
-    print("🔧 MongoDB Configuration Test")
-    print("=" * 50)
+    # Configure logging for testing
+    logging.basicConfig(level=logging.INFO)
     
-    config = MongoDBConfig.get_optimal_config()
-    print(f"✅ Using configuration: {config.get('appName', 'unknown')}")
-    print(f"📊 Database: {config['database']}")
+    logger.info("MongoDB Configuration Test")
     
+    config = MongoDBConfig.get_config()
+    logger.info("Environment: %s", config['environment'])
+    logger.info("Database: %s", config['database'])
+    logger.info("App Name: %s", config['options'].get('appName'))
+
     health = MongoDBHealthCheck.check_connection_health()
-    print(f"🏥 Health Status: {health['status']}")
+    logger.info("Health Status: %s", health.get('status'))
     
-    if health['status'] == 'healthy':
-        print(f"⏱️ Response Time: {health['response_time_ms']}ms")
-        print(f"📁 Collections: {health['collections_count']}")
+    if health.get('status') == 'healthy':
+        logger.info("Response Time: %sms", health.get('response_time_ms'))
+        logger.info("Collections Count: %s", health.get('collections_count'))
     else:
-        print(f"❌ Error: {health['error']}") 
+        logger.error("Health Check Error: %s", health.get('error'))

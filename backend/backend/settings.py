@@ -98,12 +98,13 @@ DATABASES = {
     }
 }
 
-# Import MongoDB settings
-from .mongodb_settings import MONGODB_CONNECTION, MONGODB_CONFIG
+# Import unified MongoDB configuration
+from mongodb_config import get_django_mongodb_config, get_mongodb_connection, MongoDBConfig
 
 # Set MongoDB connection for the application
-MONGODB_URI = MONGODB_CONNECTION.get('host')
-MONGODB_NAME = MONGODB_CONNECTION.get('db')
+mongodb_config = MongoDBConfig.get_config()
+MONGODB_URI = mongodb_config['uri']
+MONGODB_NAME = mongodb_config['database']
 
 
 # Password validation
