@@ -4,7 +4,10 @@ import Constants from 'expo-constants';
 // For mobile devices, we need to use the computer's IP address, not localhost
 const getBaseURL = () => {
   // Always use the configured API base URL from app.json
-  return Constants.expoConfig?.extra?.apiBaseUrl || 'https://financability-backend.onrender.com';
+  return (
+    Constants.expoConfig?.extra?.apiBaseUrl ||
+    'https://financibility-finfreedom-backend.onrender.com'
+  );
 };
 
 const baseURL = getBaseURL();
@@ -13,7 +16,7 @@ const baseURL = getBaseURL();
 console.log('🔧 API Configuration:', {
   baseURL,
   timeout: Constants.expoConfig?.extra?.apiTimeout || 30000,
-  expoConfig: Constants.expoConfig?.extra
+  expoConfig: Constants.expoConfig?.extra,
 });
 
 export const API_CONFIG = {
@@ -195,8 +198,16 @@ export const SUCCESS_MESSAGES = {
 
 // Chart Colors
 export const CHART_COLORS = [
-  '#2196F3', '#FF9800', '#4CAF50', '#F44336', '#9C27B0',
-  '#00BCD4', '#FFC107', '#795548', '#607D8B', '#E91E63',
+  '#2196F3',
+  '#FF9800',
+  '#4CAF50',
+  '#F44336',
+  '#9C27B0',
+  '#00BCD4',
+  '#FFC107',
+  '#795548',
+  '#607D8B',
+  '#E91E63',
 ] as const;
 
 // Account Types
@@ -219,15 +230,33 @@ export const DEBT_TYPES = [
 
 // Budget Categories
 export const BUDGET_CATEGORIES = [
-  'Housing', 'Food', 'Transportation', 'Utilities', 'Healthcare',
-  'Entertainment', 'Shopping', 'Education', 'Insurance', 'Savings',
-  'Debt Payment', 'Other'
+  'Housing',
+  'Food',
+  'Transportation',
+  'Utilities',
+  'Healthcare',
+  'Entertainment',
+  'Shopping',
+  'Education',
+  'Insurance',
+  'Savings',
+  'Debt Payment',
+  'Other',
 ] as const;
 
 // Transaction Categories
 export const TRANSACTION_CATEGORIES = [
-  'Income', 'Housing', 'Food', 'Transportation', 'Utilities',
-  'Healthcare', 'Entertainment', 'Shopping', 'Education',
-  'Insurance', 'Savings', 'Debt Payment', 'Other'
+  'Income',
+  'Housing',
+  'Food',
+  'Transportation',
+  'Utilities',
+  'Healthcare',
+  'Entertainment',
+  'Shopping',
+  'Education',
+  'Insurance',
+  'Savings',
+  'Debt Payment',
+  'Other',
 ] as const;
-

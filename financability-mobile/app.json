@@ -23,7 +23,7 @@
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false,
           "NSExceptionDomains": {
-            "financability-backend.onrender.com": {
+            "financibility-finfreedom-backend.onrender.com": {
               "NSExceptionAllowsInsecureHTTPLoads": false,
               "NSExceptionMinimumTLSVersion": "TLSv1.2",
               "NSIncludesSubdomains": true
@@ -48,7 +48,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiBaseUrl": "https://financability-backend.onrender.com",
+      "apiBaseUrl": "https://financibility-finfreedom-backend.onrender.com",
       "apiTimeout": 30000,
       "appName": "Financability",
       "appVersion": "1.0.0",
