@@ -228,10 +228,11 @@ def get_django_mongodb_config() -> Dict[str, Any]:
 
 
 def get_mongodb_connection() -> Dict[str, str]:
-    """Get MongoDB connection settings for mongoengine - simplified"""
+    """Get MongoDB connection settings for mongoengine"""
+    config = MongoDBConfig.get_config()
     return {
-        'host': os.getenv('MONGODB_ATLAS_URI', 'mongodb://localhost:27017'),
-        'db': os.getenv('MONGODB_NAME', 'financability_db'),
+        'host': config['uri'],
+        'db': config['database'],
     }
 
 

@@ -4,8 +4,6 @@ class AccountsDebtsService {
   // Get all accounts and debts with summary
   async getAccountsDebtsSummary() {
     try {
-      // FIXED: Always use authenticated endpoints to ensure proper user isolation
-      // No more test endpoints that show shared data
       const [accountsResponse, debtsResponse] = await Promise.all([
             axios.get('/api/mongodb/accounts/'),
     axios.get('/api/mongodb/debts/')

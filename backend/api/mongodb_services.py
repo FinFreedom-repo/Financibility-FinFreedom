@@ -7,7 +7,7 @@ import mongoengine
 from mongoengine import connect, Document, StringField, IntField, FloatField, DateTimeField, DateField, BooleanField, ListField, DictField, DecimalField, ObjectIdField
 from decimal import Decimal
 from datetime import datetime, date
-from mongodb_config import get_mongodb_connection
+import os
 
 # Connect to MongoDB - lazy connection
 def get_mongodb_connection_mongoengine():
@@ -17,12 +17,13 @@ def get_mongodb_connection_mongoengine():
         from mongoengine.connection import get_connection
         get_connection('default')
     except:
-        # Not connected, establish connection using unified config
-        connection_config = get_mongodb_connection()
+        # Not connected, establish connection using environment variables directly
+        mongodb_uri = os.getenv('MONGODB_ATLAS_URI', 'mongodb://localhost:27017')
+        mongodb_name = os.getenv('MONGODB_NAME', 'financability_db')
+        
         connect(
-            db=connection_config['db'],
-            host=connection_config['host'],
-            port=connection_config.get('port', 27017),
+            host=mongodb_uri,
+            db=mongodb_name,
             alias='default'
         )
 

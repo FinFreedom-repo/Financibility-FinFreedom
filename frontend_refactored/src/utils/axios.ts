@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const instance = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || "http://localhost:8000",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
   headers: {
     "Content-Type": "application/json",
   },
@@ -12,7 +12,7 @@ instance.interceptors.request.use(
   (config) => {
     // Check if we're in development mode or on localhost
     const isDevelopment =
-      process.env.NODE_ENV === "development" ||
+      import.meta.env.MODE === "development" ||
       window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1";
 
@@ -47,7 +47,7 @@ instance.interceptors.response.use(
     );
 
     // In development mode, don't handle auth errors since backend allows any access
-    if (process.env.NODE_ENV === "development") {
+    if (import.meta.env.MODE === "development") {
       console.log(
         "Development mode - skipping auth error handling, passing error through"
       );
@@ -85,7 +85,7 @@ instance.interceptors.response.use(
 
         const response = await axios.post(
           `${
-            process.env.REACT_APP_API_URL || "http://localhost:8000"
+            import.meta.env.VITE_API_URL || "http://localhost:8000"
           }/api/mongodb/auth/mongodb/refresh/`,
           {
             refresh: refreshToken,
@@ -110,7 +110,7 @@ instance.interceptors.response.use(
     // For any other error, if it's an unauthorized response and not an auth request, redirect to login
     if (error.response?.status === 401 && !isAuthRequest) {
       // In development mode, don't clear tokens or redirect
-      if (process.env.NODE_ENV === "development") {
+      if (import.meta.env.MODE === "development") {
         console.log(
           "Development mode - not clearing tokens or redirecting on 401"
         );

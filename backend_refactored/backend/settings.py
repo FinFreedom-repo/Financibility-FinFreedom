@@ -42,28 +42,36 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,192.168.18.224')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
-    'django.contrib.auth',  # Keep for Django compatibility
+    'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
-    'api',
-  #  'routers',
+    # Custom apps
+    'authentication',
+    'accounts',
+    'debts',
+    'budgets',
+    'transactions',
+    'wealth',
+    'notifications',
+    'dashboard',
+    'analytics',
 ]
 
 MIDDLEWARE = [
-    'api.cors_middleware.CustomCorsMiddleware',  # Custom CORS middleware
-    'corsheaders.middleware.CorsMiddleware',  # CORS middleware should be at the top
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add whitenoise for static files
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     # 'django.middleware.csrf.CsrfViewMiddleware',  # Disabled for API testing
-    'django.contrib.auth.middleware.AuthenticationMiddleware',  # Keep for Django compatibility
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'common.middleware.CustomCorsMiddleware',
 ]
 
 ROOT_URLCONF = 'backend.urls'
@@ -172,8 +180,6 @@ CORS_ALLOW_METHODS = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3001",
 ]
 
 # Production CORS settings
