@@ -335,7 +335,7 @@ const DashboardScreen: React.FC = () => {
       {/* Welcome Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.welcomeTitle}>Welcome to Financability! 👋</Text>
+          <Text style={styles.welcomeTitle}>Welcome to FinFreedom! 👋</Text>
           <NotificationBadge
             onPress={() => setShowNotificationModal(true)}
             style={styles.notificationBadge}

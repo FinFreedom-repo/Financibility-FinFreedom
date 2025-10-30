@@ -20,7 +20,7 @@ import ProfileInformationScreen from '../screens/profile/ProfileInformationScree
 import PaymentPlansScreen from '../screens/payment/PaymentPlansScreen';
 import WealthProjectionScreen from '../screens/wealth/WealthProjectionScreen';
 import DebtPlanningScreen from '../screens/debt/DebtPlanningScreen';
-import SettingsScreen from '../screens/settings/SettingsScreen';
+import SettingsScreen from '../screens/settings/SettingsScreen'; /*  */
 import ProfileScreen from '../screens/settings/ProfileScreen';
 import LoadingScreen from '../components/common/LoadingScreen';
 
@@ -35,6 +35,7 @@ const TabNavigator: React.FC = () => {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
+        /*  */
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
@@ -68,9 +69,10 @@ const TabNavigator: React.FC = () => {
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.textSecondary + '20',
-          height: 60,
+          height: 80,
           paddingBottom: 8,
           paddingTop: 8,
+          paddingHorizontal: 10,
         },
         headerStyle: {
           backgroundColor: theme.colors.surface,
@@ -82,33 +84,33 @@ const TabNavigator: React.FC = () => {
         },
       })}
     >
-      <Tab.Screen 
-        name="Dashboard" 
+      <Tab.Screen
+        name="Dashboard"
         component={DashboardScreen}
         options={{ title: 'Dashboard' }}
       />
-      <Tab.Screen 
-        name="Accounts" 
+      <Tab.Screen
+        name="Accounts"
         component={AccountsAndDebtsScreen}
         options={{ title: 'Accounts & Debts' }}
       />
-      <Tab.Screen 
-        name="Budget" 
+      <Tab.Screen
+        name="Budget"
         component={MonthlyBudgetScreen}
         options={{ title: 'Monthly Budget' }}
       />
-      <Tab.Screen 
-        name="WealthProjection" 
+      <Tab.Screen
+        name="WealthProjection"
         component={WealthProjectionScreen}
         options={{ title: 'Wealth Projection' }}
       />
-      <Tab.Screen 
-        name="DebtPlanning" 
+      <Tab.Screen
+        name="DebtPlanning"
         component={DebtPlanningScreen}
         options={{ title: 'Debt Planning' }}
       />
-      <Tab.Screen 
-        name="Settings" 
+      <Tab.Screen
+        name="Settings"
         component={SettingsScreen}
         options={{ title: 'Settings' }}
       />
@@ -136,10 +138,10 @@ const DrawerNavigator: React.FC = () => {
         headerTintColor: theme.colors.text,
       }}
     >
-      <Drawer.Screen 
-        name="Main" 
+      <Drawer.Screen
+        name="Main"
         component={TabNavigator}
-        options={{ 
+        options={{
           title: 'Financability',
           headerShown: false,
         }}
@@ -203,31 +205,31 @@ const AppNavigator: React.FC = () => {
       >
         {isAuthenticated ? (
           <>
-            <Stack.Screen 
-              name="Main" 
+            <Stack.Screen
+              name="Main"
               component={DrawerNavigator}
               options={{ headerShown: false }}
             />
-            <Stack.Screen 
-              name="ProfileSettings" 
+            <Stack.Screen
+              name="ProfileSettings"
               component={ProfileSettingsScreen}
-              options={{ 
+              options={{
                 title: 'Profile Settings',
                 headerBackTitle: 'Settings',
               }}
             />
-            <Stack.Screen 
-              name="ProfileInformation" 
+            <Stack.Screen
+              name="ProfileInformation"
               component={ProfileInformationScreen}
-              options={{ 
+              options={{
                 title: 'Profile Information',
                 headerBackTitle: 'Settings',
               }}
             />
-            <Stack.Screen 
-              name="PaymentPlans" 
+            <Stack.Screen
+              name="PaymentPlans"
               component={PaymentPlansScreen}
-              options={{ 
+              options={{
                 title: 'Payment Plans',
                 headerBackTitle: 'Settings',
               }}
@@ -235,18 +237,18 @@ const AppNavigator: React.FC = () => {
           </>
         ) : (
           <>
-            <Stack.Screen 
-              name="Login" 
+            <Stack.Screen
+              name="Login"
               component={LoginScreen}
-              options={{ 
+              options={{
                 title: 'Login',
                 headerShown: false,
               }}
             />
-            <Stack.Screen 
-              name="Register" 
+            <Stack.Screen
+              name="Register"
               component={RegisterScreen}
-              options={{ 
+              options={{
                 title: 'Create Account',
                 headerShown: false,
               }}
