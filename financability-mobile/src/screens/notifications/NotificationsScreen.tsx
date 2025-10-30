@@ -1,33 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Alert,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useFocusEffect } from '@react-navigation/native';
 import { useNotifications } from '../../contexts/NotificationContext';
 import { Notification } from '../../services/notificationService';
 import { NotificationList } from '../../components/notifications';
 
 const NotificationsScreen: React.FC = () => {
   const { theme } = useTheme();
-  const { 
-    notifications, 
-    unreadCount, 
-    loading, 
-    markAsRead, 
-    markAllAsRead, 
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    markAsRead,
+    markAllAsRead,
     deleteNotification,
-    refreshNotifications 
+    refreshNotifications,
   } = useNotifications();
+
+  // Refresh notifications when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      refreshNotifications();
+    }, [refreshNotifications])
+  );
 
   const handleNotificationPress = useCallback((notification: Notification) => {
     // Handle notification press - could navigate to specific screens based on type
     console.log('Notification pressed:', notification);
-    
+
     // Example navigation logic based on notification type
     switch (notification.type) {
       case 'budget_alert':
@@ -47,21 +49,27 @@ const NotificationsScreen: React.FC = () => {
     }
   }, []);
 
-  const handleMarkAsRead = useCallback(async (notificationId: string) => {
-    try {
-      await markAsRead(notificationId);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to mark notification as read');
-    }
-  }, [markAsRead]);
+  const handleMarkAsRead = useCallback(
+    async (notificationId: string) => {
+      try {
+        await markAsRead(notificationId);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to mark notification as read');
+      }
+    },
+    [markAsRead]
+  );
 
-  const handleDelete = useCallback(async (notificationId: string) => {
-    try {
-      await deleteNotification(notificationId);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to delete notification');
-    }
-  }, [deleteNotification]);
+  const handleDelete = useCallback(
+    async (notificationId: string) => {
+      try {
+        await deleteNotification(notificationId);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to delete notification');
+      }
+    },
+    [deleteNotification]
+  );
 
   const handleMarkAllAsRead = useCallback(async () => {
     try {
@@ -74,7 +82,9 @@ const NotificationsScreen: React.FC = () => {
   const styles = createStyles(theme);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -93,7 +103,7 @@ const NotificationsScreen: React.FC = () => {
               </View>
             )}
           </View>
-          
+
           {notifications.length > 0 && (
             <TouchableOpacity
               style={styles.markAllButton}
@@ -104,14 +114,16 @@ const NotificationsScreen: React.FC = () => {
                 size={20}
                 color={theme.colors.primary}
               />
-              <Text style={[styles.markAllText, { color: theme.colors.primary }]}>
+              <Text
+                style={[styles.markAllText, { color: theme.colors.primary }]}
+              >
                 Mark All Read
               </Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
-      
+
       {/* Notification List */}
       <NotificationList
         onNotificationPress={handleNotificationPress}
@@ -121,63 +133,63 @@ const NotificationsScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginLeft: theme.spacing.sm,
-  },
-  badge: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    marginLeft: theme.spacing.sm,
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  markAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: 8,
-    backgroundColor: theme.colors.primary + '10',
-  },
-  markAllText: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: theme.spacing.xs,
-  },
-  listContainer: {
-    flex: 1,
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    header: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    headerContent: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: '600',
+      marginLeft: theme.spacing.sm,
+    },
+    badge: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 6,
+      marginLeft: theme.spacing.sm,
+    },
+    badgeText: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    markAllButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: 8,
+      backgroundColor: theme.colors.primary + '10',
+    },
+    markAllText: {
+      fontSize: 14,
+      fontWeight: '500',
+      marginLeft: theme.spacing.xs,
+    },
+    listContainer: {
+      flex: 1,
+    },
+  });
 
 export default NotificationsScreen;
-
