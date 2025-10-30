@@ -1,4 +1,4 @@
-import axios from '../utils/axios';
+import axios from "../utils/axios";
 
 const settingsService = {
   /**
@@ -7,10 +7,10 @@ const settingsService = {
    */
   getSettings: async () => {
     try {
-      const response = await axios.get('/api/mongodb/settings/');
+      const response = await axios.get("/api/auth/settings/");
       return response.data;
     } catch (error) {
-      console.error('Error fetching settings:', error);
+      console.error("Error fetching settings:", error);
       throw error;
     }
   },
@@ -22,10 +22,10 @@ const settingsService = {
    */
   updateSettings: async (settings) => {
     try {
-      const response = await axios.put('/api/mongodb/settings/update/', settings);
+      const response = await axios.put("/api/auth/settings/update/", settings);
       return response.data;
     } catch (error) {
-      console.error('Error updating settings:', error);
+      console.error("Error updating settings:", error);
       throw error;
     }
   },
@@ -36,17 +36,17 @@ const settingsService = {
    */
   getDefaultSettings: () => {
     return {
-      theme: 'light',
-      payment_plan: 'basic',
+      theme: "light",
+      payment_plan: "basic",
       notifications: {
         email: true,
         push: false,
-        sms: false
+        sms: false,
       },
-      language: 'en',
-      timezone: 'UTC'
+      language: "en",
+      timezone: "UTC",
     };
-  }
+  },
 };
 
-export default settingsService; 
+export default settingsService;

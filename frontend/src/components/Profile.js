@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Card,
@@ -37,8 +37,8 @@ import {
   ListItemButton,
   Badge,
   useTheme,
-  alpha
-} from '@mui/material';
+  alpha,
+} from "@mui/material";
 import {
   Person as PersonIcon,
   Edit as EditIcon,
@@ -66,9 +66,9 @@ import {
   Work as WorkIcon,
   Favorite as FavoriteIcon,
   HeartBroken as HeartBrokenIcon,
-  InvertColors as InvertColorsIcon
-} from '@mui/icons-material';
-import axios from '../utils/axios';
+  InvertColors as InvertColorsIcon,
+} from "@mui/icons-material";
+import axios from "../utils/axios";
 
 const Profile = () => {
   const theme = useTheme();
@@ -83,10 +83,16 @@ const Profile = () => {
   const [imageUploadDialog, setImageUploadDialog] = useState(false);
   const [imageDeleteDialog, setImageDeleteDialog] = useState(false);
   const [passwordData, setPasswordData] = useState({
-    old_password: '', new_password: '', confirm_password: ''
+    old_password: "",
+    new_password: "",
+    confirm_password: "",
   });
-  const [usernameData, setUsernameData] = useState({ new_username: '' });
-  const [deleteData, setDeleteData] = useState({ password: '', confirm_delete: false });
+  const [usernameData, setUsernameData] = useState({ new_username: "" });
+  const [deleteData, setDeleteData] = useState({
+    password: "",
+    confirm_delete: false,
+  });
+  
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -105,11 +111,11 @@ const Profile = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/mongodb/auth/mongodb/profile/');
+      const response = await axios.get("/api/auth/profile/");
       setProfile(response.data);
     } catch (error) {
-      console.error('Error fetching profile:', error);
-      setError('Failed to load profile');
+      console.error("Error fetching profile:", error);
+      setError("Failed to load profile");
     } finally {
       setLoading(false);
     }
@@ -118,29 +124,34 @@ const Profile = () => {
   const handleSaveProfile = async () => {
     try {
       setSaving(true);
-      console.log('🔧 Sending profile update data:', editData);
-      
+      console.log("🔧 Sending profile update data:", editData);
+
       // Use the comprehensive update endpoint
       const updateData = {
         profile: {
-          first_name: profile?.profile?.first_name || '',
-          last_name: profile?.profile?.last_name || '',
+          first_name: profile?.profile?.first_name || "",
+          last_name: profile?.profile?.last_name || "",
           age: editData.age,
-          gender: editData.sex === 'M' ? 'male' : editData.sex === 'F' ? 'female' : 'other',
+          gender:
+            editData.sex === "M"
+              ? "male"
+              : editData.sex === "F"
+              ? "female"
+              : "other",
           marital_status: editData.marital_status,
           date_of_birth: editData.date_of_birth,
-          avatar: profile?.profile?.avatar || ''
-        }
+          avatar: profile?.profile?.avatar || "",
+        },
       };
-      
-      await axios.put('/api/mongodb/auth/mongodb/user/update/', updateData);
-      setSuccess('Profile updated successfully');
+
+      await axios.put("/api/auth/user/update/", updateData);
+      setSuccess("Profile updated successfully");
       setEditing(false);
       fetchProfile();
     } catch (error) {
-      console.error('Error updating profile:', error);
-      console.error('Error response:', error.response?.data);
-      setError('Failed to update profile');
+      console.error("Error updating profile:", error);
+      console.error("Error response:", error.response?.data);
+      setError("Failed to update profile");
     } finally {
       setSaving(false);
     }
@@ -149,30 +160,34 @@ const Profile = () => {
   const handlePasswordChange = async () => {
     try {
       setSaving(true);
-      
+
       // Validate passwords
       if (passwordData.new_password !== passwordData.confirm_password) {
-        setError('New passwords do not match');
+        setError("New passwords do not match");
         return;
       }
-      
+
       if (passwordData.new_password.length < 6) {
-        setError('Password must be at least 6 characters long');
+        setError("Password must be at least 6 characters long");
         return;
       }
-      
+
       // Use the comprehensive update endpoint for password change
       const updateData = {
-        password: passwordData.new_password
+        password: passwordData.new_password,
       };
-      
-      await axios.put('/api/mongodb/auth/mongodb/user/update/', updateData);
-      setSuccess('Password changed successfully');
+
+      await axios.put("/api/auth/user/update/", updateData);
+      setSuccess("Password changed successfully");
       setPasswordDialog(false);
-      setPasswordData({ old_password: '', new_password: '', confirm_password: '' });
+      setPasswordData({
+        old_password: "",
+        new_password: "",
+        confirm_password: "",
+      });
     } catch (error) {
-      console.error('Error changing password:', error);
-      setError('Failed to change password');
+      console.error("Error changing password:", error);
+      setError("Failed to change password");
     } finally {
       setSaving(false);
     }
@@ -181,25 +196,25 @@ const Profile = () => {
   const handleUsernameUpdate = async () => {
     try {
       setSaving(true);
-      
+
       if (!usernameData.new_username.trim()) {
-        setError('Username cannot be empty');
+        setError("Username cannot be empty");
         return;
       }
-      
+
       // Use the comprehensive update endpoint for username change
       const updateData = {
-        username: usernameData.new_username.trim()
+        username: usernameData.new_username.trim(),
       };
-      
-      await axios.put('/api/mongodb/auth/mongodb/user/update/', updateData);
-      setSuccess('Username updated successfully');
+
+      await axios.put("/api/auth/user/update/", updateData);
+      setSuccess("Username updated successfully");
       setUsernameDialog(false);
-      setUsernameData({ new_username: '' });
+      setUsernameData({ new_username: "" });
       fetchProfile();
     } catch (error) {
-      console.error('Error updating username:', error);
-      setError('Failed to update username');
+      console.error("Error updating username:", error);
+      setError("Failed to update username");
     } finally {
       setSaving(false);
     }
@@ -208,21 +223,21 @@ const Profile = () => {
   const handleAccountDelete = async () => {
     try {
       setSaving(true);
-      
+
       // Use the delete user endpoint
-      await axios.delete('/api/mongodb/auth/mongodb/user/delete/');
-      setSuccess('Account deleted successfully');
-      
+      await axios.delete("/api/auth/user/delete/");
+      setSuccess("Account deleted successfully");
+
       // Redirect to logout or home page after a short delay
       setTimeout(() => {
         // Clear local storage and redirect to login
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "/login";
       }, 2000);
     } catch (error) {
-      console.error('Error deleting account:', error);
-      setError('Failed to delete account');
+      console.error("Error deleting account:", error);
+      setError("Failed to delete account");
     } finally {
       setSaving(false);
     }
@@ -234,23 +249,27 @@ const Profile = () => {
     try {
       setImageUploading(true);
       const formData = new FormData();
-      formData.append('image', selectedImage);
+      formData.append("image", selectedImage);
 
-      const response = await axios.post('/api/mongodb/auth/mongodb/user/upload-image/', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await axios.post(
+        "/api/auth/user/upload-image/",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
       setProfile(response.data);
       setSelectedImage(null);
       setImagePreview(null);
       setImageUploadDialog(false);
-      setSuccess('Profile image uploaded successfully');
+      setSuccess("Profile image uploaded successfully");
       fetchProfile(); // Refresh profile data
     } catch (error) {
-      console.error('Error uploading image:', error);
-      setError('Failed to upload image');
+      console.error("Error uploading image:", error);
+      setError("Failed to upload image");
     } finally {
       setImageUploading(false);
     }
@@ -259,14 +278,14 @@ const Profile = () => {
   const handleImageDelete = async () => {
     try {
       setSaving(true);
-      
-      await axios.delete('/api/mongodb/auth/mongodb/user/delete-image/');
-      setSuccess('Profile image deleted successfully');
+
+      await axios.delete("/api/auth/user/delete-image/");
+      setSuccess("Profile image deleted successfully");
       setImageDeleteDialog(false);
       fetchProfile();
     } catch (error) {
-      console.error('Error deleting image:', error);
-      setError('Failed to delete image');
+      console.error("Error deleting image:", error);
+      setError("Failed to delete image");
     } finally {
       setSaving(false);
     }
@@ -287,7 +306,7 @@ const Profile = () => {
   };
 
   const handleDeleteDialogOpen = () => {
-    setDeleteData({ password: '', confirm_delete: false });
+    setDeleteData({ password: "", confirm_delete: false });
     setShowDeletePassword(false);
     setDeleteDialog(true);
   };
@@ -299,45 +318,61 @@ const Profile = () => {
 
   const getSexIcon = (sex) => {
     switch (sex) {
-      case 'M': return <MaleIcon />;
-      case 'F': return <FemaleIcon />;
-      case 'O': return <PersonIcon />;
-      default: return <PersonIcon />;
+      case "M":
+        return <MaleIcon />;
+      case "F":
+        return <FemaleIcon />;
+      case "O":
+        return <PersonIcon />;
+      default:
+        return <PersonIcon />;
     }
   };
 
   const getMaritalStatusIcon = (status) => {
     switch (status) {
-      case 'single': return <PersonIcon />;
-      case 'married': return <FavoriteIcon />;
-      case 'divorced': return <HeartBrokenIcon />;
-      case 'widowed': return <InvertColorsIcon />;
-      default: return <PersonIcon />;
+      case "single":
+        return <PersonIcon />;
+      case "married":
+        return <FavoriteIcon />;
+      case "divorced":
+        return <HeartBrokenIcon />;
+      case "widowed":
+        return <InvertColorsIcon />;
+      default:
+        return <PersonIcon />;
     }
   };
 
   const formatMemberSince = (dateJoined) => {
-    if (!dateJoined) return 'Not available';
-    
+    if (!dateJoined) return "Not available";
+
     try {
       const joinDate = new Date(dateJoined);
       return joinDate.toLocaleDateString();
     } catch (error) {
-      return 'Not available';
+      return "Not available";
     }
   };
 
   if (loading) {
     return (
-      <Box 
-        display="flex" 
-        justifyContent="center" 
-        alignItems="center" 
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
         minHeight="60vh"
         sx={{
-          background: theme.palette.mode === 'dark' 
-            ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`
-            : `linear-gradient(135deg, ${alpha(theme.palette.primary.light, 0.1)} 0%, ${alpha(theme.palette.secondary.light, 0.1)} 100%)`
+          background:
+            theme.palette.mode === "dark"
+              ? `linear-gradient(135deg, ${alpha(
+                  theme.palette.primary.main,
+                  0.1
+                )} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`
+              : `linear-gradient(135deg, ${alpha(
+                  theme.palette.primary.light,
+                  0.1
+                )} 0%, ${alpha(theme.palette.secondary.light, 0.1)} 100%)`,
         }}
       >
         <CircularProgress size={60} />
@@ -346,70 +381,89 @@ const Profile = () => {
   }
 
   return (
-    <Box 
+    <Box
       sx={{
-        minHeight: '100vh',
-        background: theme.palette.mode === 'dark'
-          ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.secondary.main, 0.08)} 50%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`
-          : `linear-gradient(135deg, ${alpha(theme.palette.primary.light, 0.15)} 0%, ${alpha(theme.palette.secondary.light, 0.15)} 50%, ${alpha(theme.palette.primary.light, 0.08)} 100%)`,
+        minHeight: "100vh",
+        background:
+          theme.palette.mode === "dark"
+            ? `linear-gradient(135deg, ${alpha(
+                theme.palette.primary.main,
+                0.08
+              )} 0%, ${alpha(theme.palette.secondary.main, 0.08)} 50%, ${alpha(
+                theme.palette.primary.main,
+                0.05
+              )} 100%)`
+            : `linear-gradient(135deg, ${alpha(
+                theme.palette.primary.light,
+                0.15
+              )} 0%, ${alpha(theme.palette.secondary.light, 0.15)} 50%, ${alpha(
+                theme.palette.primary.light,
+                0.08
+              )} 100%)`,
         padding: 0,
-        position: 'relative',
-        '&::before': {
+        position: "relative",
+        "&::before": {
           content: '""',
-          position: 'absolute',
+          position: "absolute",
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          background: `radial-gradient(circle at 20% 80%, ${alpha(theme.palette.primary.main, 0.1)} 0%, transparent 50%),
-                       radial-gradient(circle at 80% 20%, ${alpha(theme.palette.secondary.main, 0.1)} 0%, transparent 50%)`,
-          pointerEvents: 'none'
-        }
+          background: `radial-gradient(circle at 20% 80%, ${alpha(
+            theme.palette.primary.main,
+            0.1
+          )} 0%, transparent 50%),
+                       radial-gradient(circle at 80% 20%, ${alpha(
+                         theme.palette.secondary.main,
+                         0.1
+                       )} 0%, transparent 50%)`,
+          pointerEvents: "none",
+        },
       }}
     >
       {/* Header */}
-      <Paper 
-        elevation={0} 
+      <Paper
+        elevation={0}
         sx={{
           background: alpha(theme.palette.background.paper, 0.95),
-          backdropFilter: 'blur(10px)',
+          backdropFilter: "blur(10px)",
           borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-          padding: { xs: '1.5rem 0', md: '2.5rem 0' },
-          marginBottom: { xs: '1.5rem', md: '2.5rem' },
-          position: 'relative',
-          zIndex: 1
+          padding: { xs: "1.5rem 0", md: "2.5rem 0" },
+          marginBottom: { xs: "1.5rem", md: "2.5rem" },
+          position: "relative",
+          zIndex: 1,
         }}
       >
-        <Box 
+        <Box
           sx={{
             maxWidth: 1800,
-            margin: '0 auto',
-            padding: { xs: '0 1.5rem', sm: '0 2rem', md: '0 3rem' },
-            textAlign: 'center'
+            margin: "0 auto",
+            padding: { xs: "0 1.5rem", sm: "0 2rem", md: "0 3rem" },
+            textAlign: "center",
           }}
         >
-          <Typography 
-            variant="h3" 
+          <Typography
+            variant="h3"
             sx={{
               background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
               fontWeight: 700,
-              marginBottom: '0.75rem',
-              fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
+              marginBottom: "0.75rem",
+              fontSize: { xs: "2rem", sm: "2.5rem", md: "3rem" },
             }}
           >
             Profile Settings
           </Typography>
-          <Typography 
-            variant="h6" 
+          <Typography
+            variant="h6"
             sx={{
               color: theme.palette.success.main,
-              fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
+              fontSize: { xs: "1rem", sm: "1.1rem", md: "1.2rem" },
               margin: 0,
               fontWeight: 400,
-              opacity: 0.9
+              opacity: 0.9,
             }}
           >
             Manage your account and preferences
@@ -418,49 +472,58 @@ const Profile = () => {
       </Paper>
 
       {/* Main Content */}
-      <Box 
+      <Box
         sx={{
           maxWidth: 1800,
-          margin: '0 auto',
-          padding: { xs: '0 1.5rem', sm: '0 2rem', md: '0 3rem' },
-          paddingBottom: { xs: '2rem', md: '3rem' },
-          position: 'relative',
-          zIndex: 1
+          margin: "0 auto",
+          padding: { xs: "0 1.5rem", sm: "0 2rem", md: "0 3rem" },
+          paddingBottom: { xs: "2rem", md: "3rem" },
+          position: "relative",
+          zIndex: 1,
         }}
       >
-        <Grid container spacing={{ xs: 2, sm: 3, md: 4 }} sx={{ minHeight: '70vh' }}>
+        <Grid
+          container
+          spacing={{ xs: 2, sm: 3, md: 4 }}
+          sx={{ minHeight: "70vh" }}
+        >
           {/* Sidebar */}
           <Grid item xs={12} lg={4}>
-            <Card 
+            <Card
               sx={{
                 background: alpha(theme.palette.background.paper, 0.95),
-                backdropFilter: 'blur(10px)',
+                backdropFilter: "blur(10px)",
                 borderRadius: 4,
                 boxShadow: theme.shadows[12],
                 border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                height: 'fit-content',
-                position: 'sticky',
-                top: '2rem',
-                minHeight: { xs: 'auto', lg: '600px' },
-                display: 'flex',
-                flexDirection: 'column'
+                height: "fit-content",
+                position: "sticky",
+                top: "2rem",
+                minHeight: { xs: "auto", lg: "600px" },
+                display: "flex",
+                flexDirection: "column",
               }}
             >
-              <CardContent sx={{ 
-                padding: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column'
-              }}>
+              <CardContent
+                sx={{
+                  padding: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
                 {/* Profile Image and Personal Info Section */}
-                <Box sx={{ marginBottom: '2.5rem', flex: 1 }}>
+                <Box sx={{ marginBottom: "2.5rem", flex: 1 }}>
                   <Grid container spacing={3}>
                     {/* Profile Image */}
                     <Grid item xs={12} sm={4}>
-                      <Box sx={{ textAlign: 'center', marginBottom: 0 }}>
+                      <Box sx={{ textAlign: "center", marginBottom: 0 }}>
                         <Badge
                           overlap="circular"
-                          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                          anchorOrigin={{
+                            vertical: "bottom",
+                            horizontal: "right",
+                          }}
                           badgeContent={
                             <Tooltip title="Upload photo">
                               <Fab
@@ -469,11 +532,11 @@ const Profile = () => {
                                 onClick={() => setImageUploadDialog(true)}
                                 sx={{
                                   boxShadow: theme.shadows[6],
-                                  transition: 'transform 0.2s ease',
-                                  '&:hover': {
-                                    transform: 'scale(1.1)',
-                                    backgroundColor: theme.palette.primary.dark
-                                  }
+                                  transition: "transform 0.2s ease",
+                                  "&:hover": {
+                                    transform: "scale(1.1)",
+                                    backgroundColor: theme.palette.primary.dark,
+                                  },
                                 }}
                               >
                                 <PhotoCameraIcon />
@@ -482,19 +545,28 @@ const Profile = () => {
                           }
                         >
                           <Avatar
-                            src={profile?.user?.profile?.avatar || profile?.profile?.avatar || profile?.profile_image_url}
-                            sx={{ 
+                            src={
+                              profile?.user?.profile?.avatar ||
+                              profile?.profile?.avatar ||
+                              profile?.profile_image_url
+                            }
+                            sx={{
                               width: { xs: 80, sm: 100, md: 120 },
                               height: { xs: 80, sm: 100, md: 120 },
                               border: `4px solid ${theme.palette.primary.main}`,
-                              boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.3)}`,
-                              transition: 'transform 0.3s ease',
-                              '&:hover': {
-                                transform: 'scale(1.05)'
-                              }
+                              boxShadow: `0 8px 32px ${alpha(
+                                theme.palette.primary.main,
+                                0.3
+                              )}`,
+                              transition: "transform 0.3s ease",
+                              "&:hover": {
+                                transform: "scale(1.05)",
+                              },
                             }}
                           >
-                            <PersonIcon sx={{ fontSize: { xs: 40, sm: 50, md: 60 } }} />
+                            <PersonIcon
+                              sx={{ fontSize: { xs: 40, sm: 50, md: 60 } }}
+                            />
                           </Avatar>
                         </Badge>
                       </Box>
@@ -502,118 +574,169 @@ const Profile = () => {
 
                     {/* Personal Info */}
                     <Grid item xs={12} sm={8}>
-                      <Box sx={{ paddingLeft: { xs: 0, sm: '1rem' } }}>
-                        <Typography 
-                          variant="h5" 
+                      <Box sx={{ paddingLeft: { xs: 0, sm: "1rem" } }}>
+                        <Typography
+                          variant="h5"
                           sx={{
                             fontWeight: 700,
-                            marginBottom: '0.75rem',
+                            marginBottom: "0.75rem",
                             color: theme.palette.text.primary,
-                            fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' }
+                            fontSize: {
+                              xs: "1.5rem",
+                              sm: "1.75rem",
+                              md: "2rem",
+                            },
                           }}
                         >
                           {profile?.user?.username || profile?.username}
                         </Typography>
-                        <Typography 
-                          variant="body1" 
+                        <Typography
+                          variant="body1"
                           sx={{
                             color: theme.palette.text.secondary,
-                            marginBottom: '1.5rem',
-                            fontSize: { xs: '0.9rem', sm: '1rem' },
-                            fontWeight: 500
+                            marginBottom: "1.5rem",
+                            fontSize: { xs: "0.9rem", sm: "1rem" },
+                            fontWeight: 500,
                           }}
                         >
                           {profile?.user?.email || profile?.email}
                         </Typography>
-                        
+
                         <Chip
                           icon={<CheckCircleIcon />}
                           label="Active"
                           color="success"
                           size="medium"
-                          sx={{ 
-                            marginBottom: '1.5rem',
-                            fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                            height: { xs: 28, sm: 32 }
+                          sx={{
+                            marginBottom: "1.5rem",
+                            fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                            height: { xs: 28, sm: 32 },
                           }}
                         />
 
                         {/* Quick Personal Info */}
-                        <Box sx={{ 
-                          background: alpha(theme.palette.background.default, 0.5),
-                          borderRadius: 2,
-                          padding: '1.5rem',
-                          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
-                        }}>
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            marginBottom: '1rem',
-                            padding: '0.75rem',
-                            borderRadius: 1,
-                            transition: 'background-color 0.2s ease',
-                            '&:hover': {
-                              backgroundColor: alpha(theme.palette.action.hover, 0.1)
-                            }
-                          }}>
-                            <CakeIcon sx={{ 
-                              marginRight: '0.75rem', 
-                              color: theme.palette.primary.main,
-                              fontSize: '1.3rem'
-                            }} />
-                            <Typography variant="body2" sx={{ 
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500
-                            }}>
-                              Age: {profile?.user?.profile?.age || profile?.age || 'Not specified'}
+                        <Box
+                          sx={{
+                            background: alpha(
+                              theme.palette.background.default,
+                              0.5
+                            ),
+                            borderRadius: 2,
+                            padding: "1.5rem",
+                            border: `1px solid ${alpha(
+                              theme.palette.divider,
+                              0.1
+                            )}`,
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              marginBottom: "1rem",
+                              padding: "0.75rem",
+                              borderRadius: 1,
+                              transition: "background-color 0.2s ease",
+                              "&:hover": {
+                                backgroundColor: alpha(
+                                  theme.palette.action.hover,
+                                  0.1
+                                ),
+                              },
+                            }}
+                          >
+                            <CakeIcon
+                              sx={{
+                                marginRight: "0.75rem",
+                                color: theme.palette.primary.main,
+                                fontSize: "1.3rem",
+                              }}
+                            />
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: theme.palette.text.secondary,
+                                fontWeight: 500,
+                              }}
+                            >
+                              Age:{" "}
+                              {profile?.user?.profile?.age ||
+                                profile?.age ||
+                                "Not specified"}
                             </Typography>
                           </Box>
-                          
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            marginBottom: '1rem',
-                            padding: '0.75rem',
-                            borderRadius: 1,
-                            transition: 'background-color 0.2s ease',
-                            '&:hover': {
-                              backgroundColor: alpha(theme.palette.action.hover, 0.1)
-                            }
-                          }}>
+
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              marginBottom: "1rem",
+                              padding: "0.75rem",
+                              borderRadius: 1,
+                              transition: "background-color 0.2s ease",
+                              "&:hover": {
+                                backgroundColor: alpha(
+                                  theme.palette.action.hover,
+                                  0.1
+                                ),
+                              },
+                            }}
+                          >
                             {getSexIcon(profile?.sex)}
-                            <Typography variant="body2" sx={{ 
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500
-                            }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: theme.palette.text.secondary,
+                                fontWeight: 500,
+                              }}
+                            >
                               {(() => {
-                                const gender = profile?.user?.profile?.gender || profile?.sex;
-                                if (gender === 'male' || gender === 'M') return 'Male';
-                                if (gender === 'female' || gender === 'F') return 'Female';
-                                if (gender === 'other' || gender === 'O') return 'Other';
-                                return 'Not specified';
+                                const gender =
+                                  profile?.user?.profile?.gender ||
+                                  profile?.sex;
+                                if (gender === "male" || gender === "M")
+                                  return "Male";
+                                if (gender === "female" || gender === "F")
+                                  return "Female";
+                                if (gender === "other" || gender === "O")
+                                  return "Other";
+                                return "Not specified";
                               })()}
                             </Typography>
                           </Box>
-                          
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            marginBottom: '0.5rem',
-                            padding: '0.75rem',
-                            borderRadius: 1,
-                            transition: 'background-color 0.2s ease',
-                            '&:hover': {
-                              backgroundColor: alpha(theme.palette.action.hover, 0.1)
-                            }
-                          }}>
+
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              marginBottom: "0.5rem",
+                              padding: "0.75rem",
+                              borderRadius: 1,
+                              transition: "background-color 0.2s ease",
+                              "&:hover": {
+                                backgroundColor: alpha(
+                                  theme.palette.action.hover,
+                                  0.1
+                                ),
+                              },
+                            }}
+                          >
                             {getMaritalStatusIcon(profile?.marital_status)}
-                            <Typography variant="body2" sx={{ 
-                              color: theme.palette.text.secondary,
-                              fontWeight: 500
-                            }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: theme.palette.text.secondary,
+                                fontWeight: 500,
+                              }}
+                            >
                               {(() => {
-                                const status = profile?.user?.profile?.marital_status || profile?.marital_status;
-                                return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Not specified';
+                                const status =
+                                  profile?.user?.profile?.marital_status ||
+                                  profile?.marital_status;
+                                return status
+                                  ? status.charAt(0).toUpperCase() +
+                                      status.slice(1)
+                                  : "Not specified";
                               })()}
                             </Typography>
                           </Box>
@@ -626,83 +749,108 @@ const Profile = () => {
                 <Divider sx={{ my: 3 }} />
 
                 {/* Navigation Tabs */}
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <Box
+                  sx={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                  }}
+                >
                   <Tabs
                     orientation="vertical"
                     value={activeTab}
                     onChange={(e, newValue) => setActiveTab(newValue)}
                     sx={{
-                      '& .MuiTabs-indicator': {
+                      "& .MuiTabs-indicator": {
                         backgroundColor: theme.palette.primary.main,
                         width: 4,
-                        borderRadius: 2
-                      }
+                        borderRadius: 2,
+                      },
                     }}
                   >
                     <Tab
                       icon={<AccountCircleIcon />}
                       label="Account Info"
                       sx={{
-                        alignItems: 'flex-start',
-                        textAlign: 'left',
+                        alignItems: "flex-start",
+                        textAlign: "left",
                         minHeight: 56,
-                        padding: '16px 20px',
+                        padding: "16px 20px",
                         color: theme.palette.text.secondary,
-                        fontSize: { xs: '0.9rem', sm: '1rem' },
+                        fontSize: { xs: "0.9rem", sm: "1rem" },
                         fontWeight: 500,
-                        '&.Mui-selected': {
+                        "&.Mui-selected": {
                           color: theme.palette.primary.main,
-                          backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                          borderRadius: 2
+                          backgroundColor: alpha(
+                            theme.palette.primary.main,
+                            0.1
+                          ),
+                          borderRadius: 2,
                         },
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.action.hover, 0.1),
-                          borderRadius: 2
-                        }
+                        "&:hover": {
+                          backgroundColor: alpha(
+                            theme.palette.action.hover,
+                            0.1
+                          ),
+                          borderRadius: 2,
+                        },
                       }}
                     />
                     <Tab
                       icon={<VpnKeyIcon />}
                       label="Security"
                       sx={{
-                        alignItems: 'flex-start',
-                        textAlign: 'left',
+                        alignItems: "flex-start",
+                        textAlign: "left",
                         minHeight: 56,
-                        padding: '16px 20px',
+                        padding: "16px 20px",
                         color: theme.palette.text.secondary,
-                        fontSize: { xs: '0.9rem', sm: '1rem' },
+                        fontSize: { xs: "0.9rem", sm: "1rem" },
                         fontWeight: 500,
-                        '&.Mui-selected': {
+                        "&.Mui-selected": {
                           color: theme.palette.primary.main,
-                          backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                          borderRadius: 2
+                          backgroundColor: alpha(
+                            theme.palette.primary.main,
+                            0.1
+                          ),
+                          borderRadius: 2,
                         },
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.action.hover, 0.1),
-                          borderRadius: 2
-                        }
+                        "&:hover": {
+                          backgroundColor: alpha(
+                            theme.palette.action.hover,
+                            0.1
+                          ),
+                          borderRadius: 2,
+                        },
                       }}
                     />
                     <Tab
                       icon={<SettingsIcon />}
                       label="Preferences"
                       sx={{
-                        alignItems: 'flex-start',
-                        textAlign: 'left',
+                        alignItems: "flex-start",
+                        textAlign: "left",
                         minHeight: 56,
-                        padding: '16px 20px',
+                        padding: "16px 20px",
                         color: theme.palette.text.secondary,
-                        fontSize: { xs: '0.9rem', sm: '1rem' },
+                        fontSize: { xs: "0.9rem", sm: "1rem" },
                         fontWeight: 500,
-                        '&.Mui-selected': {
+                        "&.Mui-selected": {
                           color: theme.palette.primary.main,
-                          backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                          borderRadius: 2
+                          backgroundColor: alpha(
+                            theme.palette.primary.main,
+                            0.1
+                          ),
+                          borderRadius: 2,
                         },
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.action.hover, 0.1),
-                          borderRadius: 2
-                        }
+                        "&:hover": {
+                          backgroundColor: alpha(
+                            theme.palette.action.hover,
+                            0.1
+                          ),
+                          borderRadius: 2,
+                        },
                       }}
                     />
                   </Tabs>
@@ -713,49 +861,62 @@ const Profile = () => {
 
           {/* Main Content */}
           <Grid item xs={12} lg={8}>
-            <Card 
+            <Card
               sx={{
                 background: alpha(theme.palette.background.paper, 0.95),
-                backdropFilter: 'blur(10px)',
+                backdropFilter: "blur(10px)",
                 borderRadius: 4,
                 boxShadow: theme.shadows[12],
                 border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                height: 'fit-content',
-                minHeight: { xs: 'auto', lg: '800px' },
-                display: 'flex',
-                flexDirection: 'column'
+                height: "fit-content",
+                minHeight: { xs: "auto", lg: "800px" },
+                display: "flex",
+                flexDirection: "column",
               }}
             >
-              <CardContent sx={{ 
-                padding: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: { xs: 'auto', lg: '800px' },
-                height: { xs: 'auto', lg: '100%' },
-                width: '100%',
-                minWidth: { xs: '100%', md: '800px' }
-              }}>
+              <CardContent
+                sx={{
+                  padding: { xs: "2rem", sm: "2.5rem", md: "3rem" },
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  minHeight: { xs: "auto", lg: "800px" },
+                  height: { xs: "auto", lg: "100%" },
+                  width: "100%",
+                  minWidth: { xs: "100%", md: "800px" },
+                }}
+              >
                 {activeTab === 0 && (
-                  <Box sx={{ 
-                    flex: 1, 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    width: '100%',
-                    minWidth: { xs: '100%', md: '900px' },
-                    maxWidth: '100%'
-                  }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-                      <Typography 
-                        variant="h4" 
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      width: "100%",
+                      minWidth: { xs: "100%", md: "900px" },
+                      maxWidth: "100%",
+                    }}
+                  >
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      mb={4}
+                    >
+                      <Typography
+                        variant="h4"
                         sx={{
                           fontWeight: 700,
                           color: theme.palette.text.primary,
                           background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                          WebkitBackgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent',
-                          backgroundClip: 'text',
-                          fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' }
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          backgroundClip: "text",
+                          fontSize: {
+                            xs: "1.75rem",
+                            sm: "2rem",
+                            md: "2.25rem",
+                          },
                         }}
                       >
                         Account Information
@@ -766,12 +927,20 @@ const Profile = () => {
                         onClick={() => {
                           if (!editing) {
                             // Start editing - populate editData with current profile data
-                            const userProfile = profile?.user?.profile || profile?.profile || {};
+                            const userProfile =
+                              profile?.user?.profile || profile?.profile || {};
                             setEditData({
-                              age: userProfile.age || '',
-                              sex: userProfile.gender === 'male' ? 'M' : userProfile.gender === 'female' ? 'F' : userProfile.gender === 'other' ? 'O' : userProfile.sex || '',
-                              marital_status: userProfile.marital_status || '',
-                              date_of_birth: userProfile.date_of_birth || ''
+                              age: userProfile.age || "",
+                              sex:
+                                userProfile.gender === "male"
+                                  ? "M"
+                                  : userProfile.gender === "female"
+                                  ? "F"
+                                  : userProfile.gender === "other"
+                                  ? "O"
+                                  : userProfile.sex || "",
+                              marital_status: userProfile.marital_status || "",
+                              date_of_birth: userProfile.date_of_birth || "",
                             });
                           }
                           setEditing(!editing);
@@ -780,219 +949,356 @@ const Profile = () => {
                         size="large"
                         sx={{
                           borderRadius: 3,
-                          textTransform: 'none',
+                          textTransform: "none",
                           fontWeight: 600,
                           boxShadow: theme.shadows[4],
-                          padding: '12px 24px',
-                          fontSize: { xs: '0.9rem', sm: '1rem' },
-                          '&:hover': {
-                            boxShadow: theme.shadows[8]
-                          }
+                          padding: "12px 24px",
+                          fontSize: { xs: "0.9rem", sm: "1rem" },
+                          "&:hover": {
+                            boxShadow: theme.shadows[8],
+                          },
                         }}
                       >
-                        {editing ? 'Cancel Edit' : 'Edit Profile'}
+                        {editing ? "Cancel Edit" : "Edit Profile"}
                       </Button>
                     </Box>
-                    
+
                     {!editing ? (
-                      <Grid container spacing={{ xs: 2, sm: 3, md: 4 }} sx={{ flex: 1 }}>
+                      <Grid
+                        container
+                        spacing={{ xs: 2, sm: 3, md: 4 }}
+                        sx={{ flex: 1 }}
+                      >
                         <Grid item xs={12} sm={6}>
-                          <Box sx={{
-                            padding: { xs: '1.25rem', sm: '1.5rem' },
-                            borderRadius: 3,
-                            backgroundColor: alpha(theme.palette.background.default, 0.5),
-                            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                            transition: 'all 0.3s ease',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'flex-start',
-                            '&:hover': {
-                              backgroundColor: alpha(theme.palette.action.hover, 0.1),
-                              transform: 'translateY(-4px)',
-                              boxShadow: theme.shadows[8]
-                            }
-                          }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem' }}>
-                              <PersonIcon sx={{ 
-                                marginRight: '0.75rem', 
-                                color: theme.palette.primary.main,
-                                fontSize: '1.3rem'
-                              }} />
-                              <Typography variant="body2" color="textSecondary" sx={{ 
-                                fontWeight: 600,
-                                fontSize: { xs: '0.85rem', sm: '0.9rem' }
-                              }}>
+                          <Box
+                            sx={{
+                              padding: { xs: "1.25rem", sm: "1.5rem" },
+                              borderRadius: 3,
+                              backgroundColor: alpha(
+                                theme.palette.background.default,
+                                0.5
+                              ),
+                              border: `1px solid ${alpha(
+                                theme.palette.divider,
+                                0.1
+                              )}`,
+                              transition: "all 0.3s ease",
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "flex-start",
+                              "&:hover": {
+                                backgroundColor: alpha(
+                                  theme.palette.action.hover,
+                                  0.1
+                                ),
+                                transform: "translateY(-4px)",
+                                boxShadow: theme.shadows[8],
+                              },
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                marginBottom: "0.75rem",
+                              }}
+                            >
+                              <PersonIcon
+                                sx={{
+                                  marginRight: "0.75rem",
+                                  color: theme.palette.primary.main,
+                                  fontSize: "1.3rem",
+                                }}
+                              />
+                              <Typography
+                                variant="body2"
+                                color="textSecondary"
+                                sx={{
+                                  fontWeight: 600,
+                                  fontSize: { xs: "0.85rem", sm: "0.9rem" },
+                                }}
+                              >
                                 Username
                               </Typography>
                             </Box>
-                            <Typography variant="body1" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              fontSize: { xs: '1rem', sm: '1.1rem' },
-                              lineHeight: 1.3
-                            }}>
+                            <Typography
+                              variant="body1"
+                              sx={{
+                                fontWeight: 600,
+                                color: theme.palette.text.primary,
+                                fontSize: { xs: "1rem", sm: "1.1rem" },
+                                lineHeight: 1.3,
+                              }}
+                            >
                               {profile?.user?.username || profile?.username}
                             </Typography>
                           </Box>
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
-                          <Box sx={{
-                            padding: { xs: '1.25rem', sm: '1.5rem' },
-                            borderRadius: 3,
-                            backgroundColor: alpha(theme.palette.background.default, 0.5),
-                            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                            transition: 'all 0.3s ease',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'flex-start',
-                            '&:hover': {
-                              backgroundColor: alpha(theme.palette.action.hover, 0.1),
-                              transform: 'translateY(-4px)',
-                              boxShadow: theme.shadows[8]
-                            }
-                          }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem' }}>
-                              <AccountCircleIcon sx={{ 
-                                marginRight: '0.75rem', 
-                                color: theme.palette.primary.main,
-                                fontSize: '1.3rem'
-                              }} />
-                              <Typography variant="body2" color="textSecondary" sx={{ 
-                                fontWeight: 600,
-                                fontSize: { xs: '0.85rem', sm: '0.9rem' }
-                              }}>
+                          <Box
+                            sx={{
+                              padding: { xs: "1.25rem", sm: "1.5rem" },
+                              borderRadius: 3,
+                              backgroundColor: alpha(
+                                theme.palette.background.default,
+                                0.5
+                              ),
+                              border: `1px solid ${alpha(
+                                theme.palette.divider,
+                                0.1
+                              )}`,
+                              transition: "all 0.3s ease",
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "flex-start",
+                              "&:hover": {
+                                backgroundColor: alpha(
+                                  theme.palette.action.hover,
+                                  0.1
+                                ),
+                                transform: "translateY(-4px)",
+                                boxShadow: theme.shadows[8],
+                              },
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                marginBottom: "0.75rem",
+                              }}
+                            >
+                              <AccountCircleIcon
+                                sx={{
+                                  marginRight: "0.75rem",
+                                  color: theme.palette.primary.main,
+                                  fontSize: "1.3rem",
+                                }}
+                              />
+                              <Typography
+                                variant="body2"
+                                color="textSecondary"
+                                sx={{
+                                  fontWeight: 600,
+                                  fontSize: { xs: "0.85rem", sm: "0.9rem" },
+                                }}
+                              >
                                 Email
                               </Typography>
                             </Box>
-                            <Typography variant="body1" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              fontSize: { xs: '1rem', sm: '1.1rem' },
-                              lineHeight: 1.3
-                            }}>
+                            <Typography
+                              variant="body1"
+                              sx={{
+                                fontWeight: 600,
+                                color: theme.palette.text.primary,
+                                fontSize: { xs: "1rem", sm: "1.1rem" },
+                                lineHeight: 1.3,
+                              }}
+                            >
                               {profile?.user?.email || profile?.email}
                             </Typography>
                           </Box>
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
-                          <Box sx={{
-                            padding: { xs: '1.25rem', sm: '1.5rem' },
-                            borderRadius: 3,
-                            backgroundColor: alpha(theme.palette.background.default, 0.5),
-                            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                            transition: 'all 0.3s ease',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'flex-start',
-                            '&:hover': {
-                              backgroundColor: alpha(theme.palette.action.hover, 0.1),
-                              transform: 'translateY(-4px)',
-                              boxShadow: theme.shadows[8]
-                            }
-                          }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem' }}>
-                              <CalendarIcon sx={{ 
-                                marginRight: '0.75rem', 
-                                color: theme.palette.primary.main,
-                                fontSize: '1.3rem'
-                              }} />
-                              <Typography variant="body2" color="textSecondary" sx={{ 
-                                fontWeight: 600,
-                                fontSize: { xs: '0.85rem', sm: '0.9rem' }
-                              }}>
+                          <Box
+                            sx={{
+                              padding: { xs: "1.25rem", sm: "1.5rem" },
+                              borderRadius: 3,
+                              backgroundColor: alpha(
+                                theme.palette.background.default,
+                                0.5
+                              ),
+                              border: `1px solid ${alpha(
+                                theme.palette.divider,
+                                0.1
+                              )}`,
+                              transition: "all 0.3s ease",
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "flex-start",
+                              "&:hover": {
+                                backgroundColor: alpha(
+                                  theme.palette.action.hover,
+                                  0.1
+                                ),
+                                transform: "translateY(-4px)",
+                                boxShadow: theme.shadows[8],
+                              },
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                marginBottom: "0.75rem",
+                              }}
+                            >
+                              <CalendarIcon
+                                sx={{
+                                  marginRight: "0.75rem",
+                                  color: theme.palette.primary.main,
+                                  fontSize: "1.3rem",
+                                }}
+                              />
+                              <Typography
+                                variant="body2"
+                                color="textSecondary"
+                                sx={{
+                                  fontWeight: 600,
+                                  fontSize: { xs: "0.85rem", sm: "0.9rem" },
+                                }}
+                              >
                                 Date of Birth
                               </Typography>
                             </Box>
-                            <Typography variant="body1" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              fontSize: { xs: '1rem', sm: '1.1rem' },
-                              lineHeight: 1.3
-                            }}>
-                              {profile?.user?.profile?.date_of_birth || profile?.date_of_birth || 'Not specified'}
+                            <Typography
+                              variant="body1"
+                              sx={{
+                                fontWeight: 600,
+                                color: theme.palette.text.primary,
+                                fontSize: { xs: "1rem", sm: "1.1rem" },
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              {profile?.user?.profile?.date_of_birth ||
+                                profile?.date_of_birth ||
+                                "Not specified"}
                             </Typography>
                           </Box>
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
-                          <Box sx={{
-                            padding: { xs: '1.25rem', sm: '1.5rem' },
-                            borderRadius: 3,
-                            backgroundColor: alpha(theme.palette.background.default, 0.5),
-                            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                            transition: 'all 0.3s ease',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'flex-start',
-                            '&:hover': {
-                              backgroundColor: alpha(theme.palette.action.hover, 0.1),
-                              transform: 'translateY(-4px)',
-                              boxShadow: theme.shadows[8]
-                            }
-                          }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem' }}>
-                              <AccountCircleIcon sx={{ 
-                                marginRight: '0.75rem', 
-                                color: theme.palette.primary.main,
-                                fontSize: '1.3rem'
-                              }} />
-                              <Typography variant="body2" color="textSecondary" sx={{ 
-                                fontWeight: 600,
-                                fontSize: { xs: '0.85rem', sm: '0.9rem' }
-                              }}>
+                          <Box
+                            sx={{
+                              padding: { xs: "1.25rem", sm: "1.5rem" },
+                              borderRadius: 3,
+                              backgroundColor: alpha(
+                                theme.palette.background.default,
+                                0.5
+                              ),
+                              border: `1px solid ${alpha(
+                                theme.palette.divider,
+                                0.1
+                              )}`,
+                              transition: "all 0.3s ease",
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "flex-start",
+                              "&:hover": {
+                                backgroundColor: alpha(
+                                  theme.palette.action.hover,
+                                  0.1
+                                ),
+                                transform: "translateY(-4px)",
+                                boxShadow: theme.shadows[8],
+                              },
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                marginBottom: "0.75rem",
+                              }}
+                            >
+                              <AccountCircleIcon
+                                sx={{
+                                  marginRight: "0.75rem",
+                                  color: theme.palette.primary.main,
+                                  fontSize: "1.3rem",
+                                }}
+                              />
+                              <Typography
+                                variant="body2"
+                                color="textSecondary"
+                                sx={{
+                                  fontWeight: 600,
+                                  fontSize: { xs: "0.85rem", sm: "0.9rem" },
+                                }}
+                              >
                                 Member Since
                               </Typography>
                             </Box>
-                            <Typography variant="body1" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              fontSize: { xs: '1rem', sm: '1.1rem' },
-                              lineHeight: 1.3
-                            }}>
-                              {formatMemberSince(profile?.user?.date_joined || profile?.date_joined)}
+                            <Typography
+                              variant="body1"
+                              sx={{
+                                fontWeight: 600,
+                                color: theme.palette.text.primary,
+                                fontSize: { xs: "1rem", sm: "1.1rem" },
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              {formatMemberSince(
+                                profile?.user?.date_joined ||
+                                  profile?.date_joined
+                              )}
                             </Typography>
                           </Box>
                         </Grid>
                       </Grid>
                     ) : (
-                      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                        <Grid container spacing={{ xs: 2, sm: 3, md: 3 }} sx={{ flex: 1 }}>
+                      <Box
+                        sx={{
+                          flex: 1,
+                          display: "flex",
+                          flexDirection: "column",
+                        }}
+                      >
+                        <Grid
+                          container
+                          spacing={{ xs: 2, sm: 3, md: 3 }}
+                          sx={{ flex: 1 }}
+                        >
                           <Grid item xs={12} sm={6}>
                             <TextField
                               fullWidth
                               type="number"
                               label="Age"
-                              value={editData.age || ''}
-                              onChange={(e) => setEditData({ ...editData, age: e.target.value })}
+                              value={editData.age || ""}
+                              onChange={(e) =>
+                                setEditData({
+                                  ...editData,
+                                  age: e.target.value,
+                                })
+                              }
                               size="large"
                               sx={{
-                                '& .MuiOutlinedInput-root': {
+                                "& .MuiOutlinedInput-root": {
                                   borderRadius: 3,
-                                  fontSize: '1rem',
-                                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                                    borderColor: theme.palette.primary.main
-                                  }
-                                }
+                                  fontSize: "1rem",
+                                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                                    borderColor: theme.palette.primary.main,
+                                  },
+                                },
                               }}
                             />
                           </Grid>
-                          
+
                           <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth size="large" sx={{
-                              '& .MuiOutlinedInput-root': {
-                                borderRadius: 3,
-                                fontSize: '1.1rem',
-                                '&:hover .MuiOutlinedInput-notchedOutline': {
-                                  borderColor: theme.palette.primary.main
-                                }
-                              }
-                            }}>
+                            <FormControl
+                              fullWidth
+                              size="large"
+                              sx={{
+                                "& .MuiOutlinedInput-root": {
+                                  borderRadius: 3,
+                                  fontSize: "1.1rem",
+                                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                                    borderColor: theme.palette.primary.main,
+                                  },
+                                },
+                              }}
+                            >
                               <InputLabel>Sex</InputLabel>
                               <Select
-                                value={editData.sex || ''}
-                                onChange={(e) => setEditData({ ...editData, sex: e.target.value })}
+                                value={editData.sex || ""}
+                                onChange={(e) =>
+                                  setEditData({
+                                    ...editData,
+                                    sex: e.target.value,
+                                  })
+                                }
                                 label="Sex"
                               >
                                 <MenuItem value="M">Male</MenuItem>
@@ -1001,21 +1307,30 @@ const Profile = () => {
                               </Select>
                             </FormControl>
                           </Grid>
-                          
+
                           <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth size="large" sx={{
-                              '& .MuiOutlinedInput-root': {
-                                borderRadius: 3,
-                                fontSize: '1.1rem',
-                                '&:hover .MuiOutlinedInput-notchedOutline': {
-                                  borderColor: theme.palette.primary.main
-                                }
-                              }
-                            }}>
+                            <FormControl
+                              fullWidth
+                              size="large"
+                              sx={{
+                                "& .MuiOutlinedInput-root": {
+                                  borderRadius: 3,
+                                  fontSize: "1.1rem",
+                                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                                    borderColor: theme.palette.primary.main,
+                                  },
+                                },
+                              }}
+                            >
                               <InputLabel>Marital Status</InputLabel>
                               <Select
-                                value={editData.marital_status || ''}
-                                onChange={(e) => setEditData({ ...editData, marital_status: e.target.value })}
+                                value={editData.marital_status || ""}
+                                onChange={(e) =>
+                                  setEditData({
+                                    ...editData,
+                                    marital_status: e.target.value,
+                                  })
+                                }
                                 label="Marital Status"
                               >
                                 <MenuItem value="single">Single</MenuItem>
@@ -1024,28 +1339,33 @@ const Profile = () => {
                               </Select>
                             </FormControl>
                           </Grid>
-                          
+
                           <Grid item xs={12} sm={6}>
                             <TextField
                               fullWidth
                               type="date"
                               label="Date of Birth"
-                              value={editData.date_of_birth || ''}
-                              onChange={(e) => setEditData({ ...editData, date_of_birth: e.target.value })}
+                              value={editData.date_of_birth || ""}
+                              onChange={(e) =>
+                                setEditData({
+                                  ...editData,
+                                  date_of_birth: e.target.value,
+                                })
+                              }
                               size="large"
                               InputLabelProps={{ shrink: true }}
                               sx={{
-                                '& .MuiOutlinedInput-root': {
+                                "& .MuiOutlinedInput-root": {
                                   borderRadius: 3,
-                                  fontSize: '1.1rem',
-                                  '&:hover .MuiOutlinedInput-notchedOutline': {
-                                    borderColor: theme.palette.primary.main
-                                  }
-                                }
+                                  fontSize: "1.1rem",
+                                  "&:hover .MuiOutlinedInput-notchedOutline": {
+                                    borderColor: theme.palette.primary.main,
+                                  },
+                                },
                               }}
                             />
                           </Grid>
-                          
+
                           <Grid item xs={12}>
                             <Button
                               variant="contained"
@@ -1056,18 +1376,18 @@ const Profile = () => {
                               size="large"
                               sx={{
                                 borderRadius: 3,
-                                textTransform: 'none',
+                                textTransform: "none",
                                 fontWeight: 700,
-                                padding: '16px 32px',
-                                fontSize: '1rem',
+                                padding: "16px 32px",
+                                fontSize: "1rem",
                                 boxShadow: theme.shadows[6],
                                 marginTop: -1,
-                                '&:hover': {
-                                  boxShadow: theme.shadows[12]
-                                }
+                                "&:hover": {
+                                  boxShadow: theme.shadows[12],
+                                },
                               }}
                             >
-                              {saving ? 'Saving...' : 'Save Changes'}
+                              {saving ? "Saving..." : "Save Changes"}
                             </Button>
                           </Grid>
                         </Grid>
@@ -1077,56 +1397,71 @@ const Profile = () => {
                 )}
 
                 {activeTab === 1 && (
-                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    <Typography 
-                      variant="h4" 
+                  <Box
+                    sx={{ flex: 1, display: "flex", flexDirection: "column" }}
+                  >
+                    <Typography
+                      variant="h4"
                       sx={{
                         fontWeight: 700,
                         color: theme.palette.text.primary,
                         background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                        marginBottom: '2.5rem',
-                        fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' }
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                        marginBottom: "2.5rem",
+                        fontSize: { xs: "1.75rem", sm: "2rem", md: "2.25rem" },
                       }}
                     >
                       Security Settings
                     </Typography>
-                    
+
                     <List sx={{ padding: 0, flex: 1 }}>
-                      <ListItem sx={{
-                        padding: { xs: '1.5rem', sm: '2rem' },
-                        marginBottom: '1.5rem',
-                        borderRadius: 3,
-                        backgroundColor: alpha(theme.palette.background.default, 0.5),
-                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.action.hover, 0.1),
-                          transform: 'translateY(-4px)',
-                          boxShadow: theme.shadows[8]
-                        }
-                      }}>
-                        <ListItemIcon sx={{ 
-                          color: theme.palette.primary.main,
-                          marginRight: '1rem'
-                        }}>
-                          <VpnKeyIcon sx={{ fontSize: '1.8rem' }} />
+                      <ListItem
+                        sx={{
+                          padding: { xs: "1.5rem", sm: "2rem" },
+                          marginBottom: "1.5rem",
+                          borderRadius: 3,
+                          backgroundColor: alpha(
+                            theme.palette.background.default,
+                            0.5
+                          ),
+                          border: `1px solid ${alpha(
+                            theme.palette.divider,
+                            0.1
+                          )}`,
+                          transition: "all 0.3s ease",
+                          "&:hover": {
+                            backgroundColor: alpha(
+                              theme.palette.action.hover,
+                              0.1
+                            ),
+                            transform: "translateY(-4px)",
+                            boxShadow: theme.shadows[8],
+                          },
+                        }}
+                      >
+                        <ListItemIcon
+                          sx={{
+                            color: theme.palette.primary.main,
+                            marginRight: "1rem",
+                          }}
+                        >
+                          <VpnKeyIcon sx={{ fontSize: "1.8rem" }} />
                         </ListItemIcon>
                         <ListItemText
                           primary="Change Password"
                           secondary="Update your account password"
                           sx={{
-                            '& .MuiListItemText-primary': {
+                            "& .MuiListItemText-primary": {
                               fontWeight: 700,
                               color: theme.palette.text.primary,
-                              fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                              fontSize: { xs: "1.1rem", sm: "1.25rem" },
                             },
-                            '& .MuiListItemText-secondary': {
+                            "& .MuiListItemText-secondary": {
                               color: theme.palette.text.secondary,
-                              fontSize: { xs: '0.9rem', sm: '1rem' }
-                            }
+                              fontSize: { xs: "0.9rem", sm: "1rem" },
+                            },
                           }}
                         />
                         <Button
@@ -1135,48 +1470,61 @@ const Profile = () => {
                           onClick={() => setPasswordDialog(true)}
                           sx={{
                             borderRadius: 3,
-                            textTransform: 'none',
+                            textTransform: "none",
                             fontWeight: 600,
-                            padding: '12px 24px',
-                            fontSize: { xs: '0.9rem', sm: '1rem' }
+                            padding: "12px 24px",
+                            fontSize: { xs: "0.9rem", sm: "1rem" },
                           }}
                         >
                           Change
                         </Button>
                       </ListItem>
 
-                      <ListItem sx={{
-                        padding: { xs: '1.5rem', sm: '2rem' },
-                        marginBottom: '1.5rem',
-                        borderRadius: 3,
-                        backgroundColor: alpha(theme.palette.background.default, 0.5),
-                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.action.hover, 0.1),
-                          transform: 'translateY(-4px)',
-                          boxShadow: theme.shadows[8]
-                        }
-                      }}>
-                        <ListItemIcon sx={{ 
-                          color: theme.palette.primary.main,
-                          marginRight: '1rem'
-                        }}>
-                          <AccountCircleIcon sx={{ fontSize: '1.8rem' }} />
+                      <ListItem
+                        sx={{
+                          padding: { xs: "1.5rem", sm: "2rem" },
+                          marginBottom: "1.5rem",
+                          borderRadius: 3,
+                          backgroundColor: alpha(
+                            theme.palette.background.default,
+                            0.5
+                          ),
+                          border: `1px solid ${alpha(
+                            theme.palette.divider,
+                            0.1
+                          )}`,
+                          transition: "all 0.3s ease",
+                          "&:hover": {
+                            backgroundColor: alpha(
+                              theme.palette.action.hover,
+                              0.1
+                            ),
+                            transform: "translateY(-4px)",
+                            boxShadow: theme.shadows[8],
+                          },
+                        }}
+                      >
+                        <ListItemIcon
+                          sx={{
+                            color: theme.palette.primary.main,
+                            marginRight: "1rem",
+                          }}
+                        >
+                          <AccountCircleIcon sx={{ fontSize: "1.8rem" }} />
                         </ListItemIcon>
                         <ListItemText
                           primary="Change Username"
                           secondary="Update your display username"
                           sx={{
-                            '& .MuiListItemText-primary': {
+                            "& .MuiListItemText-primary": {
                               fontWeight: 700,
                               color: theme.palette.text.primary,
-                              fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                              fontSize: { xs: "1.1rem", sm: "1.25rem" },
                             },
-                            '& .MuiListItemText-secondary': {
+                            "& .MuiListItemText-secondary": {
                               color: theme.palette.text.secondary,
-                              fontSize: { xs: '0.9rem', sm: '1rem' }
-                            }
+                              fontSize: { xs: "0.9rem", sm: "1rem" },
+                            },
                           }}
                         />
                         <Button
@@ -1185,66 +1533,81 @@ const Profile = () => {
                           onClick={() => setUsernameDialog(true)}
                           sx={{
                             borderRadius: 3,
-                            textTransform: 'none',
+                            textTransform: "none",
                             fontWeight: 600,
-                            padding: '12px 24px',
-                            fontSize: { xs: '0.9rem', sm: '1rem' }
+                            padding: "12px 24px",
+                            fontSize: { xs: "0.9rem", sm: "1rem" },
                           }}
                         >
                           Change
                         </Button>
                       </ListItem>
 
-                      <ListItem sx={{
-                        padding: { xs: '1.5rem', sm: '2rem' },
-                        marginBottom: '1.5rem',
-                        borderRadius: 3,
-                        backgroundColor: alpha(theme.palette.background.default, 0.5),
-                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.action.hover, 0.1),
-                          transform: 'translateY(-4px)',
-                          boxShadow: theme.shadows[8]
-                        }
-                      }}>
-                        <ListItemIcon sx={{ 
-                          color: theme.palette.primary.main,
-                          marginRight: '1rem'
-                        }}>
-                          <PhotoCameraIcon sx={{ fontSize: '1.8rem' }} />
+                      <ListItem
+                        sx={{
+                          padding: { xs: "1.5rem", sm: "2rem" },
+                          marginBottom: "1.5rem",
+                          borderRadius: 3,
+                          backgroundColor: alpha(
+                            theme.palette.background.default,
+                            0.5
+                          ),
+                          border: `1px solid ${alpha(
+                            theme.palette.divider,
+                            0.1
+                          )}`,
+                          transition: "all 0.3s ease",
+                          "&:hover": {
+                            backgroundColor: alpha(
+                              theme.palette.action.hover,
+                              0.1
+                            ),
+                            transform: "translateY(-4px)",
+                            boxShadow: theme.shadows[8],
+                          },
+                        }}
+                      >
+                        <ListItemIcon
+                          sx={{
+                            color: theme.palette.primary.main,
+                            marginRight: "1rem",
+                          }}
+                        >
+                          <PhotoCameraIcon sx={{ fontSize: "1.8rem" }} />
                         </ListItemIcon>
                         <ListItemText
                           primary="Profile Photo"
                           secondary="Upload or change your profile picture"
                           sx={{
-                            '& .MuiListItemText-primary': {
+                            "& .MuiListItemText-primary": {
                               fontWeight: 700,
                               color: theme.palette.text.primary,
-                              fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                              fontSize: { xs: "1.1rem", sm: "1.25rem" },
                             },
-                            '& .MuiListItemText-secondary': {
+                            "& .MuiListItemText-secondary": {
                               color: theme.palette.text.secondary,
-                              fontSize: { xs: '0.9rem', sm: '1rem' }
-                            }
+                              fontSize: { xs: "0.9rem", sm: "1rem" },
+                            },
                           }}
                         />
-                        <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Box sx={{ display: "flex", gap: 1 }}>
                           <Button
                             variant="outlined"
                             size="large"
                             onClick={() => setImageUploadDialog(true)}
                             sx={{
                               borderRadius: 3,
-                              textTransform: 'none',
+                              textTransform: "none",
                               fontWeight: 600,
-                              padding: '12px 24px',
-                              fontSize: { xs: '0.9rem', sm: '1rem' }
+                              padding: "12px 24px",
+                              fontSize: { xs: "0.9rem", sm: "1rem" },
                             }}
                           >
                             Upload
                           </Button>
-                          {(profile?.user?.profile?.avatar || profile?.profile?.avatar || profile?.profile_image_url) && (
+                          {(profile?.user?.profile?.avatar ||
+                            profile?.profile?.avatar ||
+                            profile?.profile_image_url) && (
                             <Button
                               variant="outlined"
                               color="error"
@@ -1253,10 +1616,10 @@ const Profile = () => {
                               disabled={saving}
                               sx={{
                                 borderRadius: 3,
-                                textTransform: 'none',
+                                textTransform: "none",
                                 fontWeight: 600,
-                                padding: '12px 24px',
-                                fontSize: { xs: '0.9rem', sm: '1rem' }
+                                padding: "12px 24px",
+                                fontSize: { xs: "0.9rem", sm: "1rem" },
                               }}
                             >
                               Delete
@@ -1269,56 +1632,71 @@ const Profile = () => {
                 )}
 
                 {activeTab === 2 && (
-                  <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    <Typography 
-                      variant="h4" 
+                  <Box
+                    sx={{ flex: 1, display: "flex", flexDirection: "column" }}
+                  >
+                    <Typography
+                      variant="h4"
                       sx={{
                         fontWeight: 700,
                         color: theme.palette.text.primary,
                         background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                        marginBottom: '2.5rem',
-                        fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' }
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        backgroundClip: "text",
+                        marginBottom: "2.5rem",
+                        fontSize: { xs: "1.75rem", sm: "2rem", md: "2.25rem" },
                       }}
                     >
                       Account Preferences
                     </Typography>
-                    
+
                     <List sx={{ padding: 0, flex: 1 }}>
-                      <ListItem sx={{
-                        padding: { xs: '1.5rem', sm: '2rem' },
-                        marginBottom: '1.5rem',
-                        borderRadius: 3,
-                        backgroundColor: alpha(theme.palette.background.default, 0.5),
-                        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.action.hover, 0.1),
-                          transform: 'translateY(-4px)',
-                          boxShadow: theme.shadows[8]
-                        }
-                      }}>
-                        <ListItemIcon sx={{ 
-                          color: theme.palette.error.main,
-                          marginRight: '1rem'
-                        }}>
-                          <WarningIcon sx={{ fontSize: '1.8rem' }} />
+                      <ListItem
+                        sx={{
+                          padding: { xs: "1.5rem", sm: "2rem" },
+                          marginBottom: "1.5rem",
+                          borderRadius: 3,
+                          backgroundColor: alpha(
+                            theme.palette.background.default,
+                            0.5
+                          ),
+                          border: `1px solid ${alpha(
+                            theme.palette.divider,
+                            0.1
+                          )}`,
+                          transition: "all 0.3s ease",
+                          "&:hover": {
+                            backgroundColor: alpha(
+                              theme.palette.action.hover,
+                              0.1
+                            ),
+                            transform: "translateY(-4px)",
+                            boxShadow: theme.shadows[8],
+                          },
+                        }}
+                      >
+                        <ListItemIcon
+                          sx={{
+                            color: theme.palette.error.main,
+                            marginRight: "1rem",
+                          }}
+                        >
+                          <WarningIcon sx={{ fontSize: "1.8rem" }} />
                         </ListItemIcon>
                         <ListItemText
                           primary="Delete Account"
                           secondary="Permanently delete your account and all data"
                           sx={{
-                            '& .MuiListItemText-primary': {
+                            "& .MuiListItemText-primary": {
                               fontWeight: 700,
                               color: theme.palette.text.primary,
-                              fontSize: { xs: '1.1rem', sm: '1.25rem' }
+                              fontSize: { xs: "1.1rem", sm: "1.25rem" },
                             },
-                            '& .MuiListItemText-secondary': {
+                            "& .MuiListItemText-secondary": {
                               color: theme.palette.text.secondary,
-                              fontSize: { xs: '0.9rem', sm: '1rem' }
-                            }
+                              fontSize: { xs: "0.9rem", sm: "1rem" },
+                            },
                           }}
                         />
                         <Button
@@ -1328,10 +1706,10 @@ const Profile = () => {
                           onClick={handleDeleteDialogOpen}
                           sx={{
                             borderRadius: 3,
-                            textTransform: 'none',
+                            textTransform: "none",
                             fontWeight: 600,
-                            padding: '12px 24px',
-                            fontSize: { xs: '0.9rem', sm: '1rem' }
+                            padding: "12px 24px",
+                            fontSize: { xs: "0.9rem", sm: "1rem" },
                           }}
                         >
                           Delete
@@ -1346,36 +1724,55 @@ const Profile = () => {
         </Grid>
 
         {/* Dialogs */}
-        <Dialog open={passwordDialog} onClose={() => setPasswordDialog(false)} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-            color: 'white',
-            fontWeight: 600
-          }}>
+        <Dialog
+          open={passwordDialog}
+          onClose={() => setPasswordDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+              color: "white",
+              fontWeight: 600,
+            }}
+          >
             <LockIcon />
             Change Password
           </DialogTitle>
-          <DialogContent sx={{ padding: '2rem' }}>
+          <DialogContent sx={{ padding: "2rem" }}>
             <TextField
               fullWidth
-              type={showOldPassword ? 'text' : 'password'}
+              type={showOldPassword ? "text" : "password"}
               label="Current Password"
               value={passwordData.old_password}
-              onChange={(e) => setPasswordData({ ...passwordData, old_password: e.target.value })}
+              onChange={(e) =>
+                setPasswordData({
+                  ...passwordData,
+                  old_password: e.target.value,
+                })
+              }
               margin="normal"
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2
-                }
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                },
               }}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton onClick={() => setShowOldPassword(!showOldPassword)} edge="end">
-                      {showOldPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    <IconButton
+                      onClick={() => setShowOldPassword(!showOldPassword)}
+                      edge="end"
+                    >
+                      {showOldPassword ? (
+                        <VisibilityOffIcon />
+                      ) : (
+                        <VisibilityIcon />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 ),
@@ -1383,21 +1780,33 @@ const Profile = () => {
             />
             <TextField
               fullWidth
-              type={showNewPassword ? 'text' : 'password'}
+              type={showNewPassword ? "text" : "password"}
               label="New Password"
               value={passwordData.new_password}
-              onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+              onChange={(e) =>
+                setPasswordData({
+                  ...passwordData,
+                  new_password: e.target.value,
+                })
+              }
               margin="normal"
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2
-                }
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                },
               }}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton onClick={() => setShowNewPassword(!showNewPassword)} edge="end">
-                      {showNewPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    <IconButton
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      edge="end"
+                    >
+                      {showNewPassword ? (
+                        <VisibilityOffIcon />
+                      ) : (
+                        <VisibilityIcon />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 ),
@@ -1405,146 +1814,186 @@ const Profile = () => {
             />
             <TextField
               fullWidth
-              type={showConfirmPassword ? 'text' : 'password'}
+              type={showConfirmPassword ? "text" : "password"}
               label="Confirm New Password"
               value={passwordData.confirm_password}
-              onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+              onChange={(e) =>
+                setPasswordData({
+                  ...passwordData,
+                  confirm_password: e.target.value,
+                })
+              }
               margin="normal"
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2
-                }
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                },
               }}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton onClick={() => setShowConfirmPassword(!showConfirmPassword)} edge="end">
-                      {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    <IconButton
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      edge="end"
+                    >
+                      {showConfirmPassword ? (
+                        <VisibilityOffIcon />
+                      ) : (
+                        <VisibilityIcon />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 ),
               }}
             />
           </DialogContent>
-          <DialogActions sx={{ padding: '1rem 2rem 2rem' }}>
-            <Button 
+          <DialogActions sx={{ padding: "1rem 2rem 2rem" }}>
+            <Button
               onClick={() => setPasswordDialog(false)}
               sx={{
                 borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600
+                textTransform: "none",
+                fontWeight: 600,
               }}
             >
               Cancel
             </Button>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               onClick={handlePasswordChange}
               disabled={saving}
               sx={{
                 borderRadius: 2,
-                textTransform: 'none',
+                textTransform: "none",
                 fontWeight: 600,
                 boxShadow: theme.shadows[2],
-                '&:hover': {
-                  boxShadow: theme.shadows[4]
-                }
+                "&:hover": {
+                  boxShadow: theme.shadows[4],
+                },
               }}
             >
-              {saving ? 'Changing...' : 'Change Password'}
+              {saving ? "Changing..." : "Change Password"}
             </Button>
           </DialogActions>
         </Dialog>
 
-        <Dialog open={usernameDialog} onClose={() => setUsernameDialog(false)} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-            color: 'white',
-            fontWeight: 600
-          }}>
+        <Dialog
+          open={usernameDialog}
+          onClose={() => setUsernameDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+              color: "white",
+              fontWeight: 600,
+            }}
+          >
             <AccountCircleIcon />
             Change Username
           </DialogTitle>
-          <DialogContent sx={{ padding: '2rem' }}>
+          <DialogContent sx={{ padding: "2rem" }}>
             <TextField
               fullWidth
               label="New Username"
               value={usernameData.new_username}
-              onChange={(e) => setUsernameData({ new_username: e.target.value })}
+              onChange={(e) =>
+                setUsernameData({ new_username: e.target.value })
+              }
               margin="normal"
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2
-                }
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                },
               }}
             />
           </DialogContent>
-          <DialogActions sx={{ padding: '1rem 2rem 2rem' }}>
-            <Button 
+          <DialogActions sx={{ padding: "1rem 2rem 2rem" }}>
+            <Button
               onClick={() => setUsernameDialog(false)}
               sx={{
                 borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600
+                textTransform: "none",
+                fontWeight: 600,
               }}
             >
               Cancel
             </Button>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               onClick={handleUsernameUpdate}
               disabled={saving}
               sx={{
                 borderRadius: 2,
-                textTransform: 'none',
+                textTransform: "none",
                 fontWeight: 600,
                 boxShadow: theme.shadows[2],
-                '&:hover': {
-                  boxShadow: theme.shadows[4]
-                }
+                "&:hover": {
+                  boxShadow: theme.shadows[4],
+                },
               }}
             >
-              {saving ? 'Updating...' : 'Update Username'}
+              {saving ? "Updating..." : "Update Username"}
             </Button>
           </DialogActions>
         </Dialog>
 
-        <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
-            color: 'white',
-            fontWeight: 600
-          }}>
+        <Dialog
+          open={deleteDialog}
+          onClose={() => setDeleteDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+              color: "white",
+              fontWeight: 600,
+            }}
+          >
             <DeleteForeverIcon />
             Delete Account
           </DialogTitle>
-          <DialogContent sx={{ padding: '2rem' }}>
+          <DialogContent sx={{ padding: "2rem" }}>
             <Alert severity="warning" sx={{ marginBottom: 2 }}>
-              This action cannot be undone. All your data will be permanently deleted.
+              This action cannot be undone. All your data will be permanently
+              deleted.
             </Alert>
             <TextField
               fullWidth
-              type={showDeletePassword ? 'text' : 'password'}
+              type={showDeletePassword ? "text" : "password"}
               label="Confirm Password"
               value={deleteData.password}
-              onChange={(e) => setDeleteData({ ...deleteData, password: e.target.value })}
+              onChange={(e) =>
+                setDeleteData({ ...deleteData, password: e.target.value })
+              }
               margin="normal"
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2
-                }
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: 2,
+                },
               }}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">
-                    <IconButton onClick={() => setShowDeletePassword(!showDeletePassword)} edge="end">
-                      {showDeletePassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                    <IconButton
+                      onClick={() => setShowDeletePassword(!showDeletePassword)}
+                      edge="end"
+                    >
+                      {showDeletePassword ? (
+                        <VisibilityOffIcon />
+                      ) : (
+                        <VisibilityIcon />
+                      )}
                     </IconButton>
                   </InputAdornment>
                 ),
@@ -1554,7 +2003,12 @@ const Profile = () => {
               control={
                 <Switch
                   checked={deleteData.confirm_delete}
-                  onChange={(e) => setDeleteData({ ...deleteData, confirm_delete: e.target.checked })}
+                  onChange={(e) =>
+                    setDeleteData({
+                      ...deleteData,
+                      confirm_delete: e.target.checked,
+                    })
+                  }
                   color="error"
                 />
               }
@@ -1562,168 +2016,195 @@ const Profile = () => {
               sx={{ marginTop: 2 }}
             />
           </DialogContent>
-          <DialogActions sx={{ padding: '1rem 2rem 2rem' }}>
-            <Button 
+          <DialogActions sx={{ padding: "1rem 2rem 2rem" }}>
+            <Button
               onClick={() => setDeleteDialog(false)}
               sx={{
                 borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600
+                textTransform: "none",
+                fontWeight: 600,
               }}
             >
               Cancel
             </Button>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               color="error"
               onClick={handleAccountDelete}
               disabled={saving || !deleteData.confirm_delete}
               sx={{
                 borderRadius: 2,
-                textTransform: 'none',
+                textTransform: "none",
                 fontWeight: 600,
                 boxShadow: theme.shadows[2],
-                '&:hover': {
-                  boxShadow: theme.shadows[4]
-                }
+                "&:hover": {
+                  boxShadow: theme.shadows[4],
+                },
               }}
             >
-              {saving ? 'Deleting...' : 'Delete Account'}
+              {saving ? "Deleting..." : "Delete Account"}
             </Button>
           </DialogActions>
         </Dialog>
 
-        <Dialog open={imageUploadDialog} onClose={() => setImageUploadDialog(false)} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-            color: 'white',
-            fontWeight: 600
-          }}>
+        <Dialog
+          open={imageUploadDialog}
+          onClose={() => setImageUploadDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+              color: "white",
+              fontWeight: 600,
+            }}
+          >
             <CloudUploadIcon />
             Upload Profile Photo
           </DialogTitle>
-          <DialogContent sx={{ padding: '2rem' }}>
-            <Box sx={{
-              border: `2px dashed ${theme.palette.primary.main}`,
-              borderRadius: 2,
-              padding: '3rem',
-              textAlign: 'center',
-              backgroundColor: alpha(theme.palette.primary.main, 0.05),
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                borderColor: theme.palette.primary.dark
-              }
-            }} onClick={() => document.getElementById('image-upload').click()}>
+          <DialogContent sx={{ padding: "2rem" }}>
+            <Box
+              sx={{
+                border: `2px dashed ${theme.palette.primary.main}`,
+                borderRadius: 2,
+                padding: "3rem",
+                textAlign: "center",
+                backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                  borderColor: theme.palette.primary.dark,
+                },
+              }}
+              onClick={() => document.getElementById("image-upload").click()}
+            >
               <input
                 id="image-upload"
                 type="file"
                 accept="image/*"
                 onChange={handleImageSelect}
-                style={{ display: 'none' }}
+                style={{ display: "none" }}
               />
-              <CloudUploadIcon sx={{ fontSize: 48, color: theme.palette.primary.main, marginBottom: 1 }} />
-              <Typography variant="h6" sx={{ color: theme.palette.primary.main, marginBottom: 1 }}>
+              <CloudUploadIcon
+                sx={{
+                  fontSize: 48,
+                  color: theme.palette.primary.main,
+                  marginBottom: 1,
+                }}
+              />
+              <Typography
+                variant="h6"
+                sx={{ color: theme.palette.primary.main, marginBottom: 1 }}
+              >
                 Click to Upload
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 or drag and drop an image file
               </Typography>
             </Box>
-            
+
             {imagePreview && (
-              <Box sx={{ marginTop: 2, textAlign: 'center' }}>
-                <img 
-                  src={imagePreview} 
-                  alt="Preview" 
-                  style={{ 
-                    maxWidth: '100%', 
-                    maxHeight: 200, 
+              <Box sx={{ marginTop: 2, textAlign: "center" }}>
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: 200,
                     borderRadius: 8,
-                    border: `2px solid ${theme.palette.primary.main}`
-                  }} 
+                    border: `2px solid ${theme.palette.primary.main}`,
+                  }}
                 />
               </Box>
             )}
           </DialogContent>
-          <DialogActions sx={{ padding: '1rem 2rem 2rem' }}>
-            <Button 
+          <DialogActions sx={{ padding: "1rem 2rem 2rem" }}>
+            <Button
               onClick={() => setImageUploadDialog(false)}
               sx={{
                 borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600
+                textTransform: "none",
+                fontWeight: 600,
               }}
             >
               Cancel
             </Button>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               onClick={handleImageUpload}
               disabled={!selectedImage || imageUploading}
               sx={{
                 borderRadius: 2,
-                textTransform: 'none',
+                textTransform: "none",
                 fontWeight: 600,
                 boxShadow: theme.shadows[2],
-                '&:hover': {
-                  boxShadow: theme.shadows[4]
-                }
+                "&:hover": {
+                  boxShadow: theme.shadows[4],
+                },
               }}
             >
-              {imageUploading ? 'Uploading...' : 'Upload Photo'}
+              {imageUploading ? "Uploading..." : "Upload Photo"}
             </Button>
           </DialogActions>
         </Dialog>
 
-        <Dialog open={imageDeleteDialog} onClose={() => setImageDeleteDialog(false)} maxWidth="sm" fullWidth>
-          <DialogTitle sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
-            color: 'white',
-            fontWeight: 600
-          }}>
+        <Dialog
+          open={imageDeleteDialog}
+          onClose={() => setImageDeleteDialog(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+              color: "white",
+              fontWeight: 600,
+            }}
+          >
             <DeleteIcon />
             Delete Profile Photo
           </DialogTitle>
-          <DialogContent sx={{ padding: '2rem' }}>
+          <DialogContent sx={{ padding: "2rem" }}>
             <Alert severity="warning" sx={{ marginBottom: 2 }}>
-              Are you sure you want to delete your profile photo? This action cannot be undone.
+              Are you sure you want to delete your profile photo? This action
+              cannot be undone.
             </Alert>
           </DialogContent>
-          <DialogActions sx={{ padding: '1rem 2rem 2rem' }}>
-            <Button 
+          <DialogActions sx={{ padding: "1rem 2rem 2rem" }}>
+            <Button
               onClick={() => setImageDeleteDialog(false)}
               sx={{
                 borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600
+                textTransform: "none",
+                fontWeight: 600,
               }}
             >
               Cancel
             </Button>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               color="error"
               onClick={handleImageDelete}
               disabled={saving}
               sx={{
                 borderRadius: 2,
-                textTransform: 'none',
+                textTransform: "none",
                 fontWeight: 600,
                 boxShadow: theme.shadows[2],
-                '&:hover': {
-                  boxShadow: theme.shadows[4]
-                }
+                "&:hover": {
+                  boxShadow: theme.shadows[4],
+                },
               }}
             >
-              {saving ? 'Deleting...' : 'Delete Photo'}
+              {saving ? "Deleting..." : "Delete Photo"}
             </Button>
           </DialogActions>
         </Dialog>
@@ -1733,9 +2214,13 @@ const Profile = () => {
           open={!!success}
           autoHideDuration={6000}
           onClose={() => setSuccess(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         >
-          <Alert onClose={() => setSuccess(null)} severity="success" sx={{ width: '100%' }}>
+          <Alert
+            onClose={() => setSuccess(null)}
+            severity="success"
+            sx={{ width: "100%" }}
+          >
             {success}
           </Alert>
         </Snackbar>
@@ -1744,9 +2229,13 @@ const Profile = () => {
           open={!!error}
           autoHideDuration={6000}
           onClose={() => setError(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         >
-          <Alert onClose={() => setError(null)} severity="error" sx={{ width: '100%' }}>
+          <Alert
+            onClose={() => setError(null)}
+            severity="error"
+            sx={{ width: "100%" }}
+          >
             {error}
           </Alert>
         </Snackbar>
@@ -1755,5 +2244,4 @@ const Profile = () => {
   );
 };
 
-export default Profile; 
-
+export default Profile;

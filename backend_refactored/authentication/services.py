@@ -189,20 +189,13 @@ class UserService:
         try:
             if isinstance(user_id, str):
                 user_id = ObjectId(user_id)
-            
-            # Delete user's accounts
+                
+            # Delete all user's accounts, debts, budgets, and transactions
             get_collection('accounts').delete_many({"user_id": str(user_id)})
-            
-            # Delete user's debts
             get_collection('debts').delete_many({"user_id": str(user_id)})
-            
-            # Delete user's budgets
             get_collection('budgets').delete_many({"user_id": str(user_id)})
-            
-            # Delete user's transactions
             get_collection('transactions').delete_many({"user_id": str(user_id)})
-            
-            # Finally delete the user
+
             result = self.users.delete_one({"_id": user_id})
             return result.deleted_count > 0
         except Exception as e:
@@ -216,26 +209,22 @@ class UserService:
                 user_id = ObjectId(user_id)
             
             update_data = {}
-            
-            # Handle profile data
+
             if 'profile' in user_data:
                 update_data['profile'] = user_data['profile']
-            
-            # Handle username update
-            if 'username' in user_data:
+
+            if 'username' in user_data: 
                 existing_user = self.users.find_one({"username": user_data['username']})
                 if existing_user and str(existing_user['_id']) != str(user_id):
                     raise DuplicateUserError("Username already exists")
                 update_data['username'] = user_data['username']
             
-            # Handle email update
             if 'email' in user_data:
                 existing_user = self.users.find_one({"email": user_data['email']})
                 if existing_user and str(existing_user['_id']) != str(user_id):
                     raise DuplicateUserError("Email already exists")
                 update_data['email'] = user_data['email']
             
-            # Handle password update
             if 'password' in user_data:
                 password_hash = bcrypt.hashpw(user_data['password'].encode('utf-8'), bcrypt.gensalt())
                 update_data['password_hash'] = password_hash.decode('utf-8')

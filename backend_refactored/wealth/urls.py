@@ -11,5 +11,6 @@ urlpatterns = [
     path('project/', views.project_wealth, name='project_wealth'),
     path('settings/', views.get_wealth_projection_settings, name='get_settings'),
     path('settings/save/', views.save_wealth_projection_settings, name='save_settings'),
+    path('import-financials/', views.import_financials, name='import_financials'),
 ]
 
