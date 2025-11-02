@@ -19,3 +19,5 @@ class MongoDBIsAuthenticated(BasePermission):
             request.user.is_authenticated
         )
 
+
+

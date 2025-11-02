@@ -9,6 +9,9 @@ from django.contrib.auth.models import AnonymousUser
 from .services import JWTAuthService, UserService
 
 
+
+
+
 class MongoDBJWTAuthentication(authentication.BaseAuthentication):
     """Custom authentication class for MongoDB JWT tokens"""
     

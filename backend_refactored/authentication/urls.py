@@ -28,3 +28,5 @@ urlpatterns = [
     path('settings/update/', views.update_settings, name='update_settings'),
 ]
 
+\
+

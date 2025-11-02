@@ -288,6 +288,8 @@ class UserService:
             return False
 
 
+
+
 class JWTAuthService:
     """Service for JWT token management"""
     
@@ -296,7 +298,7 @@ class JWTAuthService:
             self.secret_key = getattr(settings, 'JWT_SECRET_KEY', settings.SECRET_KEY)
         except:
             self.secret_key = os.getenv('JWT_SECRET_KEY', os.getenv('SECRET_KEY', 'your-secret-key-here'))
-        
+            
         self.algorithm = 'HS256'
         self.access_token_expire_minutes = 60  # 1 hour
         self.token_usage_tracker = {}
