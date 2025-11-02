@@ -529,7 +529,7 @@ const DashboardScreen: React.FC = () => {
                           status === 'completed'
                             ? step.color + '10'
                             : status === 'inactive'
-                              ? '#f5f5f5'
+                              ? theme.colors.surface
                               : 'transparent',
                         opacity: status === 'inactive' ? 0.6 : 1,
                       },
