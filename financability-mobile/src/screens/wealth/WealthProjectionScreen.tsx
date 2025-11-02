@@ -398,6 +398,128 @@ const WealthProjectionScreen: React.FC = () => {
         </View>
       ) : null}
 
+      {/* Chart Display - At Top */}
+      {showChart && (
+        <Card style={styles.chartCard}>
+          <Text style={styles.cardTitle}>Wealth Projection Chart</Text>
+          {chartData && chartData.labels && chartData.labels.length > 0 ? (
+            <View style={styles.chartContainer}>
+              <Chart
+                data={chartData}
+                type="line"
+                height={300}
+                showLegend={true}
+                showGrid={true}
+              />
+            </View>
+          ) : (
+            <View style={styles.chartContainer}>
+              <Text style={styles.placeholderText}>
+                Chart data is being prepared...
+              </Text>
+            </View>
+          )}
+
+          {/* Projection Summary */}
+          {showSummary && projectionData.length > 0 && (
+            <View style={styles.summaryContainer}>
+              <Text style={styles.summaryTitle}>📊 Projection Summary</Text>
+
+              <View style={styles.summaryGrid}>
+                <View style={styles.summaryCard}>
+                  <Text style={styles.summaryCardTitle}>Final Age</Text>
+                  <Text style={styles.summaryCardValue}>
+                    {projectionData[projectionData.length - 1].age} years
+                  </Text>
+                </View>
+
+                <View style={styles.summaryCard}>
+                  <Text style={styles.summaryCardTitle}>Investment Growth</Text>
+                  <Text style={styles.summaryCardValue}>
+                    {wealthProjectionService.formatCurrency(
+                      projectionData[projectionData.length - 1].scenario_1 -
+                        projectionData[projectionData.length - 1].debt_line
+                    )}
+                  </Text>
+                </View>
+
+                <View style={styles.summaryCard}>
+                  <Text style={styles.summaryCardTitle}>Checking Growth</Text>
+                  <Text style={styles.summaryCardValue}>
+                    {wealthProjectionService.formatCurrency(
+                      projectionData[projectionData.length - 1].scenario_3 -
+                        projectionData[projectionData.length - 1].debt_line
+                    )}
+                  </Text>
+                </View>
+
+                <View style={styles.summaryCard}>
+                  <Text style={styles.summaryCardTitle}>Total Assets</Text>
+                  <Text style={styles.summaryCardValue}>
+                    {wealthProjectionService.formatCurrency(
+                      projectionData[projectionData.length - 1].scenario_1
+                    )}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Key Insights */}
+              <View style={styles.insightsContainer}>
+                <Text style={styles.insightsTitle}>💡 Key Insights</Text>
+
+                <View style={styles.insightItem}>
+                  <Ionicons
+                    name="trending-up"
+                    size={16}
+                    color={theme.colors.success}
+                  />
+                  <Text style={styles.insightText}>
+                    Your wealth could grow by{' '}
+                    {wealthProjectionService.formatCurrency(
+                      projectionData[projectionData.length - 1].scenario_1 -
+                        projectionData[0].scenario_1
+                    )}{' '}
+                    over {projectionData.length - 1} years
+                  </Text>
+                </View>
+
+                <View style={styles.insightItem}>
+                  <Ionicons
+                    name="calculator"
+                    size={16}
+                    color={theme.colors.primary}
+                  />
+                  <Text style={styles.insightText}>
+                    Annual contribution of{' '}
+                    {wealthProjectionService.formatCurrency(
+                      formData.annualContributions || 0
+                    )}
+                    at {formData.assetInterest || 0}% return
+                  </Text>
+                </View>
+
+                {(formData.debt || 0) > 0 && (
+                  <View style={styles.insightItem}>
+                    <Ionicons
+                      name="card"
+                      size={16}
+                      color={theme.colors.error}
+                    />
+                    <Text style={styles.insightText}>
+                      Debt of{' '}
+                      {wealthProjectionService.formatCurrency(
+                        formData.debt || 0
+                      )}
+                      at {formData.debtInterest || 0}% interest
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+        </Card>
+      )}
+
       {/* Input Form */}
       <Card style={styles.formCard}>
         <Text style={styles.cardTitle}>Projection Parameters</Text>
@@ -545,128 +667,6 @@ const WealthProjectionScreen: React.FC = () => {
           />
         </View>
       </Card>
-
-      {/* Chart Display */}
-      {showChart && (
-        <Card style={styles.chartCard}>
-          <Text style={styles.cardTitle}>Wealth Projection Chart</Text>
-          {chartData && chartData.labels && chartData.labels.length > 0 ? (
-            <View style={styles.chartContainer}>
-              <Chart
-                data={chartData}
-                type="line"
-                height={300}
-                showLegend={true}
-                showGrid={true}
-              />
-            </View>
-          ) : (
-            <View style={styles.chartContainer}>
-              <Text style={styles.placeholderText}>
-                Chart data is being prepared...
-              </Text>
-            </View>
-          )}
-
-          {/* Projection Summary */}
-          {showSummary && projectionData.length > 0 && (
-            <View style={styles.summaryContainer}>
-              <Text style={styles.summaryTitle}>📊 Projection Summary</Text>
-
-              <View style={styles.summaryGrid}>
-                <View style={styles.summaryCard}>
-                  <Text style={styles.summaryCardTitle}>Final Age</Text>
-                  <Text style={styles.summaryCardValue}>
-                    {projectionData[projectionData.length - 1].age} years
-                  </Text>
-                </View>
-
-                <View style={styles.summaryCard}>
-                  <Text style={styles.summaryCardTitle}>Investment Growth</Text>
-                  <Text style={styles.summaryCardValue}>
-                    {wealthProjectionService.formatCurrency(
-                      projectionData[projectionData.length - 1].scenario_1 -
-                        projectionData[projectionData.length - 1].debt_line
-                    )}
-                  </Text>
-                </View>
-
-                <View style={styles.summaryCard}>
-                  <Text style={styles.summaryCardTitle}>Checking Growth</Text>
-                  <Text style={styles.summaryCardValue}>
-                    {wealthProjectionService.formatCurrency(
-                      projectionData[projectionData.length - 1].scenario_3 -
-                        projectionData[projectionData.length - 1].debt_line
-                    )}
-                  </Text>
-                </View>
-
-                <View style={styles.summaryCard}>
-                  <Text style={styles.summaryCardTitle}>Total Assets</Text>
-                  <Text style={styles.summaryCardValue}>
-                    {wealthProjectionService.formatCurrency(
-                      projectionData[projectionData.length - 1].scenario_1
-                    )}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Key Insights */}
-              <View style={styles.insightsContainer}>
-                <Text style={styles.insightsTitle}>💡 Key Insights</Text>
-
-                <View style={styles.insightItem}>
-                  <Ionicons
-                    name="trending-up"
-                    size={16}
-                    color={theme.colors.success}
-                  />
-                  <Text style={styles.insightText}>
-                    Your wealth could grow by{' '}
-                    {wealthProjectionService.formatCurrency(
-                      projectionData[projectionData.length - 1].scenario_1 -
-                        projectionData[0].scenario_1
-                    )}{' '}
-                    over {projectionData.length - 1} years
-                  </Text>
-                </View>
-
-                <View style={styles.insightItem}>
-                  <Ionicons
-                    name="calculator"
-                    size={16}
-                    color={theme.colors.primary}
-                  />
-                  <Text style={styles.insightText}>
-                    Annual contribution of{' '}
-                    {wealthProjectionService.formatCurrency(
-                      formData.annualContributions || 0
-                    )}
-                    at {formData.assetInterest || 0}% return
-                  </Text>
-                </View>
-
-                {(formData.debt || 0) > 0 && (
-                  <View style={styles.insightItem}>
-                    <Ionicons
-                      name="card"
-                      size={16}
-                      color={theme.colors.error}
-                    />
-                    <Text style={styles.insightText}>
-                      Debt of{' '}
-                      {wealthProjectionService.formatCurrency(
-                        formData.debt || 0
-                      )}
-                      at {formData.debtInterest || 0}% interest
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
-        </Card>
-      )}
     </ScrollView>
   );
 };

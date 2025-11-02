@@ -39,8 +39,16 @@ const Chart: React.FC<ChartProps> = ({
     backgroundGradientFrom: theme.colors.surface,
     backgroundGradientTo: theme.colors.surface,
     decimalPlaces: 0,
-    color: (opacity = 1) => theme.colors.primary + Math.floor(opacity * 255).toString(16).padStart(2, '0'),
-    labelColor: (opacity = 1) => theme.colors.text + Math.floor(opacity * 255).toString(16).padStart(2, '0'),
+    color: (opacity = 1) =>
+      theme.colors.primary +
+      Math.floor(opacity * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    labelColor: (opacity = 1) =>
+      theme.colors.text +
+      Math.floor(opacity * 255)
+        .toString(16)
+        .padStart(2, '0'),
     style: {
       borderRadius: 16,
     },
@@ -62,7 +70,12 @@ const Chart: React.FC<ChartProps> = ({
       data: dataset.data || [],
       color: (opacity = 1) => {
         const color = dataset.color || '#000000';
-        return color + Math.floor(opacity * 255).toString(16).padStart(2, '0');
+        return (
+          color +
+          Math.floor(opacity * 255)
+            .toString(16)
+            .padStart(2, '0')
+        );
       },
       strokeWidth: 2,
     })),
@@ -73,16 +86,19 @@ const Chart: React.FC<ChartProps> = ({
     if (!chartData || !chartData.labels || chartData.labels.length === 0) {
       return (
         <View style={[styles.container, styles.placeholder]}>
-          <Text style={styles.placeholderText}>No data available for chart</Text>
+          <Text style={styles.placeholderText}>
+            No data available for chart
+          </Text>
         </View>
       );
     }
 
     // Ensure all datasets have data and valid numbers
-    const validDatasets = chartData.datasets.filter(dataset => 
-      dataset.data && 
-      dataset.data.length > 0 && 
-      dataset.data.every(value => typeof value === 'number' && !isNaN(value))
+    const validDatasets = chartData.datasets.filter(
+      dataset =>
+        dataset.data &&
+        dataset.data.length > 0 &&
+        dataset.data.every(value => typeof value === 'number' && !isNaN(value))
     );
 
     if (validDatasets.length === 0) {
@@ -94,10 +110,16 @@ const Chart: React.FC<ChartProps> = ({
     }
 
     // Ensure height is a valid number
-    const chartHeight = typeof height === 'number' && !isNaN(height) ? height : 200;
+    const chartHeight =
+      typeof height === 'number' && !isNaN(height) ? height : 200;
 
     try {
-      console.log('💰 Rendering LineChart with height:', chartHeight, 'data points:', chartData.labels.length);
+      console.log(
+        '💰 Rendering LineChart with height:',
+        chartHeight,
+        'data points:',
+        chartData.labels.length
+      );
       return (
         <View style={styles.container}>
           <LineChart
@@ -115,11 +137,11 @@ const Chart: React.FC<ChartProps> = ({
             <View style={styles.legend}>
               {data.datasets.map((dataset, index) => (
                 <View key={index} style={styles.legendItem}>
-                  <View 
+                  <View
                     style={[
-                      styles.legendColor, 
-                      { backgroundColor: dataset.color }
-                    ]} 
+                      styles.legendColor,
+                      { backgroundColor: dataset.color },
+                    ]}
                   />
                   <Text style={styles.legendText}>{dataset.label}</Text>
                 </View>
@@ -148,50 +170,50 @@ const Chart: React.FC<ChartProps> = ({
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    alignItems: 'center',
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  legend: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: theme.spacing.md,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: theme.spacing.sm,
-    marginVertical: theme.spacing.xs,
-  },
-  legendColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: theme.spacing.xs,
-  },
-  legendText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
-  placeholder: {
-    height: 200,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    margin: theme.spacing.md,
-  },
-  placeholderText: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      alignItems: 'center',
+    },
+    chart: {
+      marginVertical: 8,
+      borderRadius: 16,
+    },
+    legend: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      marginTop: theme.spacing.md,
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: theme.spacing.sm,
+      marginVertical: theme.spacing.xs,
+    },
+    legendColor: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      marginRight: theme.spacing.xs,
+    },
+    legendText: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+    },
+    placeholder: {
+      height: 200,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      margin: theme.spacing.md,
+    },
+    placeholderText: {
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+  });
 
 export default Chart;
-
