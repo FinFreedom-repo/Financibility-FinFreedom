@@ -21,6 +21,9 @@ interface ChartProps {
   height?: number;
   showLegend?: boolean;
   showGrid?: boolean;
+  formatYLabel?: (value: string) => string;
+  yAxisLabel?: string;
+  xAxisLabel?: string;
 }
 
 const Chart: React.FC<ChartProps> = ({
@@ -29,6 +32,9 @@ const Chart: React.FC<ChartProps> = ({
   height = 200,
   showLegend = true,
   showGrid = true,
+  formatYLabel,
+  yAxisLabel,
+  xAxisLabel,
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -61,6 +67,15 @@ const Chart: React.FC<ChartProps> = ({
       strokeDasharray: '5,5',
       stroke: theme.colors.textSecondary + '30',
     },
+    formatYLabel:
+      formatYLabel ||
+      ((value: string) => {
+        const num = parseFloat(value);
+        if (isNaN(num)) return value;
+        if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+        if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+        return `$${num.toFixed(0)}`;
+      }),
   };
 
   // Prepare data for react-native-chart-kit with safety checks
@@ -114,27 +129,33 @@ const Chart: React.FC<ChartProps> = ({
       typeof height === 'number' && !isNaN(height) ? height : 200;
 
     try {
-      console.log(
-        '💰 Rendering LineChart with height:',
-        chartHeight,
-        'data points:',
-        chartData.labels.length
-      );
       return (
         <View style={styles.container}>
-          <LineChart
-            data={chartData}
-            width={screenWidth - 40}
-            height={chartHeight}
-            chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-            withDots={true}
-            withShadow={false}
-            withScrollableDot={false}
-          />
+          {yAxisLabel && (
+            <View style={styles.yAxisLabelContainer}>
+              <Text style={styles.yAxisLabel}>{yAxisLabel}</Text>
+            </View>
+          )}
+          <View style={styles.chartWrapper}>
+            <LineChart
+              data={chartData}
+              width={screenWidth - 40}
+              height={chartHeight}
+              chartConfig={chartConfig}
+              bezier
+              style={styles.chart}
+              withDots={true}
+              withShadow={false}
+              withScrollableDot={false}
+            />
+            {xAxisLabel && (
+              <View style={styles.xAxisLabelContainer}>
+                <Text style={styles.xAxisLabel}>{xAxisLabel}</Text>
+              </View>
+            )}
+          </View>
           {showLegend && (
-            <View style={styles.legend}>
+            <View style={[styles.legend, xAxisLabel && styles.legendWithXAxis]}>
               {data.datasets.map((dataset, index) => (
                 <View key={index} style={styles.legendItem}>
                   <View
@@ -151,7 +172,6 @@ const Chart: React.FC<ChartProps> = ({
         </View>
       );
     } catch (error) {
-      console.error('Chart rendering error:', error);
       return (
         <View style={[styles.container, styles.placeholder]}>
           <Text style={styles.placeholderText}>Error rendering chart</Text>
@@ -175,15 +195,44 @@ const createStyles = (theme: any) =>
     container: {
       alignItems: 'center',
     },
+    yAxisLabelContainer: {
+      width: '100%',
+      paddingLeft: 20,
+      marginBottom: 8,
+    },
+    yAxisLabel: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
+    },
+    chartWrapper: {
+      position: 'relative',
+      width: screenWidth - 40,
+    },
     chart: {
-      marginVertical: 8,
+      marginTop: 8,
+      marginBottom: 0,
       borderRadius: 16,
+    },
+    xAxisLabelContainer: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      paddingRight: 20,
+    },
+    xAxisLabel: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
     },
     legend: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'center',
       marginTop: theme.spacing.md,
+    },
+    legendWithXAxis: {
+      marginTop: theme.spacing.lg + 16,
     },
     legendItem: {
       flexDirection: 'row',

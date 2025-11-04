@@ -39,7 +39,7 @@ const WealthProjectionScreen: React.FC = () => {
   );
   const [formData, setFormData] = useState<WealthProjectionData>(
     wealthProjectionService.getDefaultData()
-  );   
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -82,7 +82,6 @@ const WealthProjectionScreen: React.FC = () => {
     const numericValue = parseFloat(value) || 0;
     setFormData(prev => ({ ...prev, [field]: numericValue }));
 
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -410,6 +409,8 @@ const WealthProjectionScreen: React.FC = () => {
                 height={300}
                 showLegend={true}
                 showGrid={true}
+                yAxisLabel="Value ($)"
+                xAxisLabel="Age (years)"
               />
             </View>
           ) : (
