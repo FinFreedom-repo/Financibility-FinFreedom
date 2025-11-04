@@ -224,18 +224,18 @@ const DashboardScreen: React.FC = () => {
     const stepProgress = financialSteps.step_progress;
     const stepData = financialSteps.steps?.[`step_${stepId}`];
 
-    // Check if step is inactive
+    // If this step is completed
+    if (stepData && stepData.completed) {
+      return 'completed';
+    }
+
+    // Check if step is inactive (must check after completed to handle edge cases)
     if (
       stepData &&
       stepData.message &&
       stepData.message.toLowerCase().includes('inactive')
     ) {
       return 'inactive';
-    }
-
-    // If this step is completed
-    if (stepData && stepData.completed) {
-      return 'completed';
     }
 
     // If this is the current step and it's in progress
@@ -245,6 +245,16 @@ const DashboardScreen: React.FC = () => {
 
     // If this step has progress data but isn't completed
     if (stepData && stepData.progress > 0) {
+      return 'in-progress';
+    }
+
+    // If step 1 is not completed and not inactive, it should be in-progress (first actionable step)
+    if (stepId === 1 && stepData && !stepData.completed) {
+      return 'in-progress';
+    }
+
+    // If this step is before or equal to current step and not completed, it should be in-progress
+    if (stepId <= currentStep && stepData && !stepData.completed) {
       return 'in-progress';
     }
 

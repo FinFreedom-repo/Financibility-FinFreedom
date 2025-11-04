@@ -154,10 +154,13 @@ const Chart: React.FC<ChartProps> = ({
               </View>
             )}
           </View>
-          {showLegend && (
+          {showLegend && data.datasets && data.datasets.length > 0 && (
             <View style={[styles.legend, xAxisLabel && styles.legendWithXAxis]}>
               {data.datasets.map((dataset, index) => (
-                <View key={index} style={styles.legendItem}>
+                <View
+                  key={`${dataset.label}-${index}`}
+                  style={styles.legendItem}
+                >
                   <View
                     style={[
                       styles.legendColor,
@@ -229,7 +232,9 @@ const createStyles = (theme: any) =>
       flexDirection: 'row',
       flexWrap: 'wrap',
       justifyContent: 'center',
+      alignItems: 'center',
       marginTop: theme.spacing.md,
+      paddingHorizontal: theme.spacing.sm,
     },
     legendWithXAxis: {
       marginTop: theme.spacing.lg + 16,
@@ -237,8 +242,9 @@ const createStyles = (theme: any) =>
     legendItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginHorizontal: theme.spacing.sm,
+      marginHorizontal: theme.spacing.xs,
       marginVertical: theme.spacing.xs,
+      minWidth: 100,
     },
     legendColor: {
       width: 12,
@@ -248,7 +254,8 @@ const createStyles = (theme: any) =>
     },
     legendText: {
       fontSize: 12,
-      color: theme.colors.textSecondary,
+      color: theme.colors.text,
+      fontWeight: '500',
     },
     placeholder: {
       height: 200,
