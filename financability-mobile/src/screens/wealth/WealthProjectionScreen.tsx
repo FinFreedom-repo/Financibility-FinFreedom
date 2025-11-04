@@ -39,7 +39,7 @@ const WealthProjectionScreen: React.FC = () => {
   );
   const [formData, setFormData] = useState<WealthProjectionData>(
     wealthProjectionService.getDefaultData()
-  );
+  );   
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');

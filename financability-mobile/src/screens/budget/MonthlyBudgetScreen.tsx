@@ -10,17 +10,16 @@ import {
   ActivityIndicator,
   Dimensions,
   Modal,
-  TextInput,
-  Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import { LinearGradient } from 'expo-linear-gradient';
-import { LineChart, PieChart, BarChart } from 'react-native-chart-kit';
+import { PieChart, BarChart } from 'react-native-chart-kit';
 import budgetService, {
   Budget,
   BudgetItem,
@@ -30,13 +29,51 @@ import budgetService, {
 } from '../../services/budgetService';
 import { useFocusEffect } from '@react-navigation/native';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 type TabType = 'overview' | 'income' | 'expenses' | 'savings' | 'stats';
+type ItemType = 'income' | 'expense' | 'savings';
+
+// Constants
+const COLORS = {
+  income: '#2E7D32',
+  expense: '#D32F2F',
+  savings: '#1976D2',
+  netBalancePositive: '#FF9800',
+  netBalanceNegative: '#F44336',
+  success: '#2E7D32',
+  successBackground: '#E8F5E8',
+} as const;
+
+const CHART_HEIGHT = 220;
+const CHART_WIDTH_OFFSET = 80;
+
+// Helper functions
+const getEmptyExpenses = (): BudgetExpenses => ({
+  housing: 0,
+  transportation: 0,
+  food: 0,
+  healthcare: 0,
+  entertainment: 0,
+  shopping: 0,
+  travel: 0,
+  education: 0,
+  utilities: 0,
+  childcare: 0,
+  debt_payments: 0,
+  others: 0,
+});
+
+const formatPercentage = (value: number, total: number): string => {
+  return total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+};
+
+const formatCurrency = (value: number): string => {
+  return `$${value.toLocaleString()}`;
+};
 
 const MonthlyBudgetScreen: React.FC = () => {
   const { theme, isDark } = useTheme();
-  const { user } = useAuth();
 
   // State management
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -54,20 +91,7 @@ const MonthlyBudgetScreen: React.FC = () => {
     additional_income: '',
   });
 
-  const [expenses, setExpenses] = useState<BudgetExpenses>({
-    housing: 0,
-    transportation: 0,
-    food: 0,
-    healthcare: 0,
-    entertainment: 0,
-    shopping: 0,
-    travel: 0,
-    education: 0,
-    utilities: 0,
-    childcare: 0,
-    debt_payments: 0,
-    others: 0,
-  });
+  const [expenses, setExpenses] = useState<BudgetExpenses>(getEmptyExpenses());
 
   const [additionalIncomeItems, setAdditionalIncomeItems] = useState<
     BudgetItem[]
@@ -106,7 +130,6 @@ const MonthlyBudgetScreen: React.FC = () => {
 
   // Get expense categories
   const expenseCategories = budgetService.getExpenseCategories();
-  const savingsOptions = budgetService.getSavingsOptions();
 
   useEffect(() => {
     loadBudgetData();
@@ -122,21 +145,9 @@ const MonthlyBudgetScreen: React.FC = () => {
   const loadBudgetData = async () => {
     try {
       setLoading(true);
-      console.log(`🔄 Loading budget data for ${month}/${year}...`);
       const budget = await budgetService.getMonthBudget(month, year);
-      console.log('📊 Loaded budget:', budget);
 
       if (budget) {
-        console.log('📊 Budget found, setting state...');
-        console.log('📊 Budget income:', budget.income);
-        console.log('📊 Budget expenses:', budget.expenses);
-        console.log(
-          '📊 Budget additional_income_items:',
-          budget.additional_income_items
-        );
-        console.log('📊 Budget additional_items:', budget.additional_items);
-        console.log('📊 Budget savings_items:', budget.savings_items);
-
         setCurrentBudget(budget);
         setFormData({
           income: budget.income.toString(),
@@ -150,33 +161,17 @@ const MonthlyBudgetScreen: React.FC = () => {
         // Calculate summary
         const summary = budgetService.calculateBudgetSummary(budget);
         setBudgetSummary(summary);
-        console.log('📊 Budget summary calculated:', summary);
       } else {
-        console.log('📊 No budget found, initializing with empty values...');
         // Initialize with empty values
         setFormData({ income: '', additional_income: '' });
-        setExpenses({
-          housing: 0,
-          transportation: 0,
-          food: 0,
-          healthcare: 0,
-          entertainment: 0,
-          shopping: 0,
-          travel: 0,
-          education: 0,
-          utilities: 0,
-          childcare: 0,
-          debt_payments: 0,
-          others: 0,
-        });
+        setExpenses(getEmptyExpenses());
         setAdditionalIncomeItems([]);
         setAdditionalExpenses([]);
         setSavingsItems([]);
         setCurrentBudget(null);
         setBudgetSummary(null);
       }
-    } catch (error) {
-      console.error('❌ Error loading budget data:', error);
+    } catch {
       Alert.alert('Error', 'Failed to load budget data');
     } finally {
       setLoading(false);
@@ -192,7 +187,6 @@ const MonthlyBudgetScreen: React.FC = () => {
   const saveBudget = async () => {
     try {
       setSaving(true);
-      console.log('💾 Saving budget...');
 
       const budgetData: CreateBudgetData = {
         month,
@@ -206,35 +200,15 @@ const MonthlyBudgetScreen: React.FC = () => {
         manually_edited_categories: [],
       };
 
-      console.log('💾 Budget data to save:', budgetData);
-      console.log('💾 Current budget exists:', !!currentBudget);
-      console.log('💾 Current budget ID:', currentBudget?._id);
-
       let savedBudget: Budget;
       if (currentBudget && currentBudget._id) {
-        console.log('💾 Updating existing budget with ID:', currentBudget._id);
         savedBudget = await budgetService.updateBudget(
           currentBudget._id,
           budgetData
         );
       } else {
-        console.log('💾 Creating new budget...');
         savedBudget = await budgetService.saveMonthBudget(budgetData);
       }
-
-      console.log('✅ Budget saved successfully:', savedBudget);
-      console.log('✅ Saved budget ID:', savedBudget._id);
-      console.log('✅ Saved budget income:', savedBudget.income);
-      console.log('✅ Saved budget expenses:', savedBudget.expenses);
-      console.log(
-        '✅ Saved budget additional_income_items:',
-        savedBudget.additional_income_items
-      );
-      console.log(
-        '✅ Saved budget additional_items:',
-        savedBudget.additional_items
-      );
-      console.log('✅ Saved budget savings_items:', savedBudget.savings_items);
 
       setCurrentBudget(savedBudget);
       const summary = budgetService.calculateBudgetSummary(savedBudget);
@@ -244,12 +218,10 @@ const MonthlyBudgetScreen: React.FC = () => {
       setTimeout(() => setSuccessMessage(''), 3000);
 
       // Reload data to verify persistence
-      console.log('🔄 Reloading budget data to verify persistence...');
       setTimeout(async () => {
         await loadBudgetData();
       }, 1000);
-    } catch (error) {
-      console.error('❌ Error saving budget:', error);
+    } catch {
       Alert.alert('Error', 'Failed to save budget');
     } finally {
       setSaving(false);
@@ -267,9 +239,33 @@ const MonthlyBudgetScreen: React.FC = () => {
     setExpenses(prev => ({ ...prev, [category]: parseFloat(value) || 0 }));
   };
 
-  const addItem = (type: 'income' | 'expense' | 'savings') => {
+  const getItemsByType = (type: ItemType): BudgetItem[] => {
+    switch (type) {
+      case 'income':
+        return additionalIncomeItems;
+      case 'expense':
+        return additionalExpenses;
+      case 'savings':
+        return savingsItems;
+    }
+  };
+
+  const setItemsByType = (type: ItemType, items: BudgetItem[]) => {
+    switch (type) {
+      case 'income':
+        setAdditionalIncomeItems(items);
+        break;
+      case 'expense':
+        setAdditionalExpenses(items);
+        break;
+      case 'savings':
+        setSavingsItems(items);
+        break;
+    }
+  };
+
+  const addItem = (type: ItemType) => {
     if (type === 'savings') {
-      // Handle savings with predefined options
       if (!selectedSavingsOption && !customSavingsName.trim()) {
         Alert.alert(
           'Error',
@@ -291,22 +287,19 @@ const MonthlyBudgetScreen: React.FC = () => {
         amount: parseFloat(newItem.amount) || 0,
       };
 
+      const items = getItemsByType(type);
       if (editingIndex !== null && editingType === type) {
-        // Update existing item
-        const updated = [...savingsItems];
+        const updated = [...items];
         updated[editingIndex] = item;
-        setSavingsItems(updated);
+        setItemsByType(type, updated);
       } else {
-        // Add new item
-        setSavingsItems(prev => [...prev, item]);
+        setItemsByType(type, [...items, item]);
       }
 
-      // Reset savings modal states
       setSelectedSavingsOption('');
       setCustomSavingsName('');
       setShowCustomSavingsInput(false);
     } else {
-      // Handle income and expense (existing logic)
       if (!newItem.name.trim() || !newItem.amount.trim()) {
         Alert.alert('Error', 'Please fill in both name and amount');
         return;
@@ -317,24 +310,13 @@ const MonthlyBudgetScreen: React.FC = () => {
         amount: parseFloat(newItem.amount) || 0,
       };
 
+      const items = getItemsByType(type);
       if (editingIndex !== null && editingType === type) {
-        // Update existing item
-        if (type === 'income') {
-          const updated = [...additionalIncomeItems];
-          updated[editingIndex] = item;
-          setAdditionalIncomeItems(updated);
-        } else if (type === 'expense') {
-          const updated = [...additionalExpenses];
-          updated[editingIndex] = item;
-          setAdditionalExpenses(updated);
-        }
+        const updated = [...items];
+        updated[editingIndex] = item;
+        setItemsByType(type, updated);
       } else {
-        // Add new item
-        if (type === 'income') {
-          setAdditionalIncomeItems(prev => [...prev, item]);
-        } else if (type === 'expense') {
-          setAdditionalExpenses(prev => [...prev, item]);
-        }
+        setItemsByType(type, [...items, item]);
       }
     }
 
@@ -344,44 +326,34 @@ const MonthlyBudgetScreen: React.FC = () => {
     closeModal();
   };
 
-  const editItem = (index: number, type: 'income' | 'expense' | 'savings') => {
-    let item: BudgetItem;
-    if (type === 'income') {
-      item = additionalIncomeItems[index];
-    } else if (type === 'expense') {
-      item = additionalExpenses[index];
-    } else {
-      item = savingsItems[index];
-    }
+  const editItem = (index: number, type: ItemType) => {
+    const items = getItemsByType(type);
+    const item = items[index];
 
     setNewItem({ name: item.name, amount: item.amount.toString() });
     setEditingIndex(index);
     setEditingType(type);
 
-    if (type === 'income') setShowAddIncomeModal(true);
-    else if (type === 'expense') setShowAddExpenseModal(true);
-    else setShowAddSavingsModal(true);
+    const modalSetters = {
+      income: () => setShowAddIncomeModal(true),
+      expense: () => setShowAddExpenseModal(true),
+      savings: () => setShowAddSavingsModal(true),
+    };
+    modalSetters[type]();
   };
 
-  const deleteItem = (
-    index: number,
-    type: 'income' | 'expense' | 'savings'
-  ) => {
+  const deleteItem = (index: number, type: ItemType) => {
     Alert.alert('Delete Item', 'Are you sure you want to delete this item?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          if (type === 'income') {
-            setAdditionalIncomeItems(prev =>
-              prev.filter((_, i) => i !== index)
-            );
-          } else if (type === 'expense') {
-            setAdditionalExpenses(prev => prev.filter((_, i) => i !== index));
-          } else if (type === 'savings') {
-            setSavingsItems(prev => prev.filter((_, i) => i !== index));
-          }
+          const items = getItemsByType(type);
+          setItemsByType(
+            type,
+            items.filter((_, i) => i !== index)
+          );
         },
       },
     ]);
@@ -457,32 +429,38 @@ const MonthlyBudgetScreen: React.FC = () => {
       <View style={styles.overviewContainer}>
         {/* Summary Cards */}
         <View style={styles.summaryGrid}>
-          <Card style={[styles.summaryCard, { backgroundColor: '#2E7D32' }]}>
+          <Card
+            style={[styles.summaryCard, { backgroundColor: COLORS.income }]}
+          >
             <View style={styles.summaryContent}>
               <Ionicons name="trending-up" size={24} color="#fff" />
               <Text style={styles.summaryLabel}>Total Income</Text>
               <Text style={styles.summaryValue}>
-                ${budgetSummary.totalIncome.toLocaleString()}
+                {formatCurrency(budgetSummary.totalIncome)}
               </Text>
             </View>
           </Card>
 
-          <Card style={[styles.summaryCard, { backgroundColor: '#D32F2F' }]}>
+          <Card
+            style={[styles.summaryCard, { backgroundColor: COLORS.expense }]}
+          >
             <View style={styles.summaryContent}>
               <Ionicons name="trending-down" size={24} color="#fff" />
               <Text style={styles.summaryLabel}>Total Expenses</Text>
               <Text style={styles.summaryValue}>
-                ${budgetSummary.totalExpenses.toLocaleString()}
+                {formatCurrency(budgetSummary.totalExpenses)}
               </Text>
             </View>
           </Card>
 
-          <Card style={[styles.summaryCard, { backgroundColor: '#1976D2' }]}>
+          <Card
+            style={[styles.summaryCard, { backgroundColor: COLORS.savings }]}
+          >
             <View style={styles.summaryContent}>
               <Ionicons name="wallet" size={24} color="#fff" />
               <Text style={styles.summaryLabel}>Total Savings</Text>
               <Text style={styles.summaryValue}>
-                ${budgetSummary.totalSavings.toLocaleString()}
+                {formatCurrency(budgetSummary.totalSavings)}
               </Text>
             </View>
           </Card>
@@ -492,7 +470,9 @@ const MonthlyBudgetScreen: React.FC = () => {
               styles.summaryCard,
               {
                 backgroundColor:
-                  budgetSummary.netBalance >= 0 ? '#FF9800' : '#F44336',
+                  budgetSummary.netBalance >= 0
+                    ? COLORS.netBalancePositive
+                    : COLORS.netBalanceNegative,
               },
             ]}
           >
@@ -508,7 +488,7 @@ const MonthlyBudgetScreen: React.FC = () => {
               />
               <Text style={styles.summaryLabel}>Net Balance</Text>
               <Text style={styles.summaryValue}>
-                ${budgetSummary.netBalance.toLocaleString()}
+                {formatCurrency(budgetSummary.netBalance)}
               </Text>
             </View>
           </Card>
@@ -521,36 +501,31 @@ const MonthlyBudgetScreen: React.FC = () => {
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Fixed Expenses</Text>
               <Text style={styles.statValue}>
-                ${budgetSummary.totalFixedExpenses.toLocaleString()}
+                {formatCurrency(budgetSummary.totalFixedExpenses)}
               </Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Additional Expenses</Text>
               <Text style={styles.statValue}>
-                ${budgetSummary.totalAdditionalExpenses.toLocaleString()}
+                {formatCurrency(budgetSummary.totalAdditionalExpenses)}
               </Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Savings Rate</Text>
               <Text style={styles.statValue}>
-                {budgetSummary.totalIncome > 0
-                  ? (
-                      (budgetSummary.totalSavings / budgetSummary.totalIncome) *
-                      100
-                    ).toFixed(1) + '%'
-                  : '0%'}
+                {formatPercentage(
+                  budgetSummary.totalSavings,
+                  budgetSummary.totalIncome
+                )}
               </Text>
             </View>
             <View style={styles.statItem}>
               <Text style={styles.statLabel}>Expense Rate</Text>
               <Text style={styles.statValue}>
-                {budgetSummary.totalIncome > 0
-                  ? (
-                      (budgetSummary.totalExpenses /
-                        budgetSummary.totalIncome) *
-                      100
-                    ).toFixed(1) + '%'
-                  : '0%'}
+                {formatPercentage(
+                  budgetSummary.totalExpenses,
+                  budgetSummary.totalIncome
+                )}
               </Text>
             </View>
           </View>
@@ -603,7 +578,7 @@ const MonthlyBudgetScreen: React.FC = () => {
               <View style={styles.listItemContent}>
                 <Text style={styles.listItemName}>{item.name}</Text>
                 <Text style={styles.listItemAmount}>
-                  ${item.amount.toLocaleString()}
+                  {formatCurrency(item.amount)}
                 </Text>
               </View>
               <View style={styles.listItemActions}>
@@ -696,7 +671,7 @@ const MonthlyBudgetScreen: React.FC = () => {
               <View style={styles.listItemContent}>
                 <Text style={styles.listItemName}>{item.name}</Text>
                 <Text style={styles.listItemAmount}>
-                  ${item.amount.toLocaleString()}
+                  {formatCurrency(item.amount)}
                 </Text>
               </View>
               <View style={styles.listItemActions}>
@@ -752,7 +727,7 @@ const MonthlyBudgetScreen: React.FC = () => {
               <View style={styles.listItemContent}>
                 <Text style={styles.listItemName}>{item.name}</Text>
                 <Text style={styles.listItemAmount}>
-                  ${item.amount.toLocaleString()}
+                  {formatCurrency(item.amount)}
                 </Text>
               </View>
               <View style={styles.listItemActions}>
@@ -809,32 +784,22 @@ const MonthlyBudgetScreen: React.FC = () => {
       .filter(item => item.value > 0);
 
     const pieData = [
-      { name: 'Income', value: budgetSummary.totalIncome, color: '#2E7D32' },
+      {
+        name: 'Income',
+        value: budgetSummary.totalIncome,
+        color: COLORS.income,
+      },
       {
         name: 'Expenses',
         value: budgetSummary.totalExpenses,
-        color: '#D32F2F',
+        color: COLORS.expense,
       },
-      { name: 'Savings', value: budgetSummary.totalSavings, color: '#1976D2' },
+      {
+        name: 'Savings',
+        value: budgetSummary.totalSavings,
+        color: COLORS.savings,
+      },
     ].filter(item => item.value > 0);
-
-    const barData = [
-      {
-        category: 'Income',
-        amount: budgetSummary.totalIncome,
-        color: '#2E7D32',
-      },
-      {
-        category: 'Expenses',
-        amount: budgetSummary.totalExpenses,
-        color: '#D32F2F',
-      },
-      {
-        category: 'Savings',
-        amount: budgetSummary.totalSavings,
-        color: '#1976D2',
-      },
-    ];
 
     const chartConfig = {
       backgroundColor: theme.colors.surface,
@@ -858,7 +823,7 @@ const MonthlyBudgetScreen: React.FC = () => {
         stroke: '#ffa726',
       },
       barPercentage: 0.7,
-      fillShadowGradient: '#2E7D32',
+      fillShadowGradient: COLORS.income,
       fillShadowGradientOpacity: 0.8,
       propsForLabels: {
         fontSize: 12,
@@ -889,9 +854,9 @@ const MonthlyBudgetScreen: React.FC = () => {
             budgetSummary.totalSavings,
           ],
           colors: [
-            (opacity = 1) => `rgba(46, 125, 50, ${opacity})`, // Green for Income
-            (opacity = 1) => `rgba(211, 47, 47, ${opacity})`, // Red for Expenses
-            (opacity = 1) => `rgba(25, 118, 210, ${opacity})`, // Blue for Savings
+            (opacity = 1) => `rgba(46, 125, 50, ${opacity})`,
+            (opacity = 1) => `rgba(211, 47, 47, ${opacity})`,
+            (opacity = 1) => `rgba(25, 118, 210, ${opacity})`,
           ],
         },
       ],
@@ -905,8 +870,8 @@ const MonthlyBudgetScreen: React.FC = () => {
           <View style={styles.chartContainer}>
             <BarChart
               data={barChartData}
-              width={width - 80}
-              height={220}
+              width={width - CHART_WIDTH_OFFSET}
+              height={CHART_HEIGHT}
               yAxisLabel="$"
               yAxisSuffix=""
               chartConfig={chartConfig}
@@ -922,26 +887,32 @@ const MonthlyBudgetScreen: React.FC = () => {
           <View style={styles.barChartLegend}>
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendColor, { backgroundColor: '#2E7D32' }]}
+                style={[styles.legendColor, { backgroundColor: COLORS.income }]}
               />
               <Text style={styles.legendText}>
-                Income: ${budgetSummary.totalIncome.toLocaleString()}
+                Income: {formatCurrency(budgetSummary.totalIncome)}
               </Text>
             </View>
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendColor, { backgroundColor: '#D32F2F' }]}
+                style={[
+                  styles.legendColor,
+                  { backgroundColor: COLORS.expense },
+                ]}
               />
               <Text style={styles.legendText}>
-                Expenses: ${budgetSummary.totalExpenses.toLocaleString()}
+                Expenses: {formatCurrency(budgetSummary.totalExpenses)}
               </Text>
             </View>
             <View style={styles.legendItem}>
               <View
-                style={[styles.legendColor, { backgroundColor: '#1976D2' }]}
+                style={[
+                  styles.legendColor,
+                  { backgroundColor: COLORS.savings },
+                ]}
               />
               <Text style={styles.legendText}>
-                Savings: ${budgetSummary.totalSavings.toLocaleString()}
+                Savings: {formatCurrency(budgetSummary.totalSavings)}
               </Text>
             </View>
           </View>
@@ -954,8 +925,8 @@ const MonthlyBudgetScreen: React.FC = () => {
             <View style={styles.pieChartContainer}>
               <PieChart
                 data={expenseCategories}
-                width={width - 80}
-                height={220}
+                width={width - CHART_WIDTH_OFFSET}
+                height={CHART_HEIGHT}
                 chartConfig={chartConfig}
                 accessor="value"
                 backgroundColor="transparent"
@@ -973,7 +944,7 @@ const MonthlyBudgetScreen: React.FC = () => {
                   onPress={() => {
                     Alert.alert(
                       item.name,
-                      `Amount: $${item.value.toLocaleString()}\nPercentage: ${((item.value / budgetSummary.totalExpenses) * 100).toFixed(1)}%`,
+                      `Amount: ${formatCurrency(item.value)}\nPercentage: ${formatPercentage(item.value, budgetSummary.totalExpenses)}`,
                       [{ text: 'OK' }]
                     );
                   }}
@@ -985,7 +956,7 @@ const MonthlyBudgetScreen: React.FC = () => {
                     ]}
                   />
                   <Text style={styles.legendText}>
-                    {item.name}: ${item.value.toLocaleString()}
+                    {item.name}: {formatCurrency(item.value)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -999,8 +970,8 @@ const MonthlyBudgetScreen: React.FC = () => {
           <View style={styles.pieChartContainer}>
             <PieChart
               data={pieData}
-              width={width - 80}
-              height={220}
+              width={width - CHART_WIDTH_OFFSET}
+              height={CHART_HEIGHT}
               chartConfig={chartConfig}
               accessor="value"
               backgroundColor="transparent"
@@ -1016,16 +987,9 @@ const MonthlyBudgetScreen: React.FC = () => {
                 key={index}
                 style={styles.legendItem}
                 onPress={() => {
-                  const percentage =
-                    budgetSummary.totalIncome > 0
-                      ? (
-                          (item.value / budgetSummary.totalIncome) *
-                          100
-                        ).toFixed(1)
-                      : '0';
                   Alert.alert(
                     item.name,
-                    `Amount: $${item.value.toLocaleString()}\nPercentage: ${percentage}%`,
+                    `Amount: ${formatCurrency(item.value)}\nPercentage: ${formatPercentage(item.value, budgetSummary.totalIncome)}`,
                     [{ text: 'OK' }]
                   );
                 }}
@@ -1034,7 +998,7 @@ const MonthlyBudgetScreen: React.FC = () => {
                   style={[styles.legendColor, { backgroundColor: item.color }]}
                 />
                 <Text style={styles.legendText}>
-                  {item.name}: ${item.value.toLocaleString()}
+                  {item.name}: {formatCurrency(item.value)}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -1048,24 +1012,19 @@ const MonthlyBudgetScreen: React.FC = () => {
             <View style={styles.metricItem}>
               <Text style={styles.metricLabel}>Savings Rate</Text>
               <Text style={styles.metricValue}>
-                {budgetSummary.totalIncome > 0
-                  ? (
-                      (budgetSummary.totalSavings / budgetSummary.totalIncome) *
-                      100
-                    ).toFixed(1) + '%'
-                  : '0%'}
+                {formatPercentage(
+                  budgetSummary.totalSavings,
+                  budgetSummary.totalIncome
+                )}
               </Text>
             </View>
             <View style={styles.metricItem}>
               <Text style={styles.metricLabel}>Expense Rate</Text>
               <Text style={styles.metricValue}>
-                {budgetSummary.totalIncome > 0
-                  ? (
-                      (budgetSummary.totalExpenses /
-                        budgetSummary.totalIncome) *
-                      100
-                    ).toFixed(1) + '%'
-                  : '0%'}
+                {formatPercentage(
+                  budgetSummary.totalExpenses,
+                  budgetSummary.totalIncome
+                )}
               </Text>
             </View>
             <View style={styles.metricItem}>
@@ -1075,17 +1034,19 @@ const MonthlyBudgetScreen: React.FC = () => {
                   styles.metricValue,
                   {
                     color:
-                      budgetSummary.netBalance >= 0 ? '#2E7D32' : '#D32F2F',
+                      budgetSummary.netBalance >= 0
+                        ? COLORS.income
+                        : COLORS.expense,
                   },
                 ]}
               >
-                ${budgetSummary.netBalance.toLocaleString()}
+                {formatCurrency(budgetSummary.netBalance)}
               </Text>
             </View>
             <View style={styles.metricItem}>
               <Text style={styles.metricLabel}>Fixed Expenses</Text>
               <Text style={styles.metricValue}>
-                ${budgetSummary.totalFixedExpenses.toLocaleString()}
+                {formatCurrency(budgetSummary.totalFixedExpenses)}
               </Text>
             </View>
           </View>
@@ -1126,169 +1087,186 @@ const MonthlyBudgetScreen: React.FC = () => {
     return (
       <Modal visible={isOpen} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: theme.colors.surface },
-            ]}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={80}
+            style={styles.modalOverlay}
           >
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                {title}
-              </Text>
-              <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color={theme.colors.text} />
-              </TouchableOpacity>
-            </View>
+            <View
+              style={[
+                styles.modalContent,
+                { backgroundColor: theme.colors.surface },
+              ]}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                  {title}
+                </Text>
+                <TouchableOpacity
+                  onPress={closeModal}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={24} color={theme.colors.text} />
+                </TouchableOpacity>
+              </View>
 
-            <View style={styles.modalBody}>
-              {type === 'savings' ? (
-                <>
-                  {/* Predefined Savings Options */}
-                  <Text
-                    style={[styles.sectionLabel, { color: theme.colors.text }]}
-                  >
-                    Select Savings Type
-                  </Text>
-                  <View style={styles.savingsOptionsGrid}>
-                    {savingsOptions.map((option, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={[
-                          styles.savingsOption,
-                          {
-                            backgroundColor:
-                              selectedSavingsOption === option.name
-                                ? option.color + '20'
-                                : theme.colors.surface,
-                            borderColor:
-                              selectedSavingsOption === option.name
-                                ? option.color
-                                : theme.colors.textSecondary,
-                          },
-                        ]}
-                        onPress={() => {
-                          setSelectedSavingsOption(option.name);
-                          setShowCustomSavingsInput(false);
-                          setCustomSavingsName('');
-                        }}
-                      >
-                        <Ionicons
-                          name={option.icon as any}
-                          size={20}
-                          color={
-                            selectedSavingsOption === option.name
-                              ? option.color
-                              : theme.colors.textSecondary
-                          }
-                        />
-                        <Text
-                          style={[
-                            styles.savingsOptionText,
-                            {
-                              color:
-                                selectedSavingsOption === option.name
-                                  ? option.color
-                                  : theme.colors.text,
-                            },
-                          ]}
-                        >
-                          {option.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
-                  {/* Custom Savings Option */}
-                  <TouchableOpacity
-                    style={[
-                      styles.customSavingsButton,
-                      {
-                        backgroundColor: showCustomSavingsInput
-                          ? theme.colors.primary + '20'
-                          : theme.colors.surface,
-                        borderColor: showCustomSavingsInput
-                          ? theme.colors.primary
-                          : theme.colors.textSecondary,
-                      },
-                    ]}
-                    onPress={() => {
-                      setShowCustomSavingsInput(true);
-                      setSelectedSavingsOption('');
-                    }}
-                  >
-                    <Ionicons
-                      name="add-circle"
-                      size={20}
-                      color={
-                        showCustomSavingsInput
-                          ? theme.colors.primary
-                          : theme.colors.textSecondary
-                      }
-                    />
+              <ScrollView
+                style={styles.modalBody}
+                contentContainerStyle={{ paddingBottom: 24 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                {type === 'savings' ? (
+                  <>
+                    {/* Predefined Savings Options */}
                     <Text
                       style={[
-                        styles.customSavingsText,
-                        {
-                          color: showCustomSavingsInput
-                            ? theme.colors.primary
-                            : theme.colors.text,
-                        },
+                        styles.sectionLabel,
+                        { color: theme.colors.text },
                       ]}
                     >
-                      Custom Savings Name
+                      Select Savings Type
                     </Text>
-                  </TouchableOpacity>
+                    <View style={styles.savingsOptionsGrid}>
+                      {savingsOptions.map((option, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.savingsOption,
+                            {
+                              backgroundColor:
+                                selectedSavingsOption === option.name
+                                  ? option.color + '20'
+                                  : theme.colors.surface,
+                              borderColor:
+                                selectedSavingsOption === option.name
+                                  ? option.color
+                                  : theme.colors.textSecondary,
+                            },
+                          ]}
+                          onPress={() => {
+                            setSelectedSavingsOption(option.name);
+                            setShowCustomSavingsInput(false);
+                            setCustomSavingsName('');
+                          }}
+                        >
+                          <Ionicons
+                            name={option.icon as any}
+                            size={20}
+                            color={
+                              selectedSavingsOption === option.name
+                                ? option.color
+                                : theme.colors.textSecondary
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.savingsOptionText,
+                              {
+                                color:
+                                  selectedSavingsOption === option.name
+                                    ? option.color
+                                    : theme.colors.text,
+                              },
+                            ]}
+                          >
+                            {option.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
 
-                  {/* Custom Input */}
-                  {showCustomSavingsInput && (
-                    <Input
-                      label="Custom Savings Name"
-                      value={customSavingsName}
-                      onChangeText={setCustomSavingsName}
-                      placeholder="Enter custom savings name"
-                      leftIcon="pencil"
-                    />
-                  )}
-                </>
-              ) : (
+                    {/* Custom Savings Option */}
+                    <TouchableOpacity
+                      style={[
+                        styles.customSavingsButton,
+                        {
+                          backgroundColor: showCustomSavingsInput
+                            ? theme.colors.primary + '20'
+                            : theme.colors.surface,
+                          borderColor: showCustomSavingsInput
+                            ? theme.colors.primary
+                            : theme.colors.textSecondary,
+                        },
+                      ]}
+                      onPress={() => {
+                        setShowCustomSavingsInput(true);
+                        setSelectedSavingsOption('');
+                      }}
+                    >
+                      <Ionicons
+                        name="add-circle"
+                        size={20}
+                        color={
+                          showCustomSavingsInput
+                            ? theme.colors.primary
+                            : theme.colors.textSecondary
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.customSavingsText,
+                          {
+                            color: showCustomSavingsInput
+                              ? theme.colors.primary
+                              : theme.colors.text,
+                          },
+                        ]}
+                      >
+                        Custom Savings Name
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* Custom Input */}
+                    {showCustomSavingsInput && (
+                      <Input
+                        label="Custom Savings Name"
+                        value={customSavingsName}
+                        onChangeText={setCustomSavingsName}
+                        placeholder="Enter custom savings name"
+                        leftIcon="pencil"
+                      />
+                    )}
+                  </>
+                ) : (
+                  <Input
+                    label="Name"
+                    value={newItem.name}
+                    onChangeText={text =>
+                      setNewItem(prev => ({ ...prev, name: text }))
+                    }
+                    placeholder={`Enter ${type} name`}
+                    leftIcon="pencil"
+                  />
+                )}
+
                 <Input
-                  label="Name"
-                  value={newItem.name}
+                  label="Amount"
+                  value={newItem.amount}
                   onChangeText={text =>
-                    setNewItem(prev => ({ ...prev, name: text }))
+                    setNewItem(prev => ({ ...prev, amount: text }))
                   }
-                  placeholder={`Enter ${type} name`}
-                  leftIcon="pencil"
+                  placeholder="0.00"
+                  keyboardType="numeric"
+                  leftIcon="cash"
                 />
-              )}
+              </ScrollView>
 
-              <Input
-                label="Amount"
-                value={newItem.amount}
-                onChangeText={text =>
-                  setNewItem(prev => ({ ...prev, amount: text }))
-                }
-                placeholder="0.00"
-                keyboardType="numeric"
-                leftIcon="cash"
-              />
+              <View style={styles.modalFooter}>
+                <Button
+                  title="Cancel"
+                  onPress={closeModal}
+                  variant="outline"
+                  style={styles.modalButton}
+                />
+                <Button
+                  title={editingIndex !== null ? 'Update' : 'Add'}
+                  onPress={() => addItem(type)}
+                  style={styles.modalButton}
+                />
+              </View>
             </View>
-
-            <View style={styles.modalFooter}>
-              <Button
-                title="Cancel"
-                onPress={closeModal}
-                variant="outline"
-                style={styles.modalButton}
-              />
-              <Button
-                title={editingIndex !== null ? 'Update' : 'Add'}
-                onPress={() => addItem(type)}
-                style={styles.modalButton}
-              />
-            </View>
-          </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     );
@@ -1321,7 +1299,11 @@ const MonthlyBudgetScreen: React.FC = () => {
         </Text>
         {successMessage ? (
           <View style={styles.successMessage}>
-            <Ionicons name="checkmark-circle" size={16} color="#2E7D32" />
+            <Ionicons
+              name="checkmark-circle"
+              size={16}
+              color={COLORS.success}
+            />
             <Text style={styles.successText}>{successMessage}</Text>
           </View>
         ) : null}
@@ -1408,12 +1390,12 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       marginTop: theme.spacing.sm,
       padding: theme.spacing.sm,
-      backgroundColor: '#E8F5E8',
+      backgroundColor: COLORS.successBackground,
       borderRadius: 8,
     },
     successText: {
       marginLeft: theme.spacing.xs,
-      color: '#2E7D32',
+      color: COLORS.success,
       fontWeight: '600',
     },
     tabContainer: {
