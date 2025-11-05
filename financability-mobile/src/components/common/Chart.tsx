@@ -1,5 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  Modal,
+  TouchableOpacity,
+} from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -38,9 +45,13 @@ const Chart: React.FC<ChartProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertData, setAlertData] = useState<{
+    title: string;
+    content: string[];
+  } | null>(null);
 
-  // Convert our data format to react-native-chart-kit format
-  const chartConfig = {
+  const chartConfig: any = {
     backgroundColor: theme.colors.surface,
     backgroundGradientFrom: theme.colors.surface,
     backgroundGradientTo: theme.colors.surface,
@@ -78,7 +89,6 @@ const Chart: React.FC<ChartProps> = ({
       }),
   };
 
-  // Prepare data for react-native-chart-kit with safety checks
   const chartData = {
     labels: data.labels || [],
     datasets: (data.datasets || []).map(dataset => ({
@@ -96,8 +106,19 @@ const Chart: React.FC<ChartProps> = ({
     })),
   };
 
+  const formatYValue = (value: number | string) => {
+    if (formatYLabel) {
+      return formatYLabel(value.toString());
+    }
+    const num =
+      typeof value === 'number' ? value : parseFloat(value.toString());
+    if (isNaN(num)) return value.toString();
+    if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+    return `$${num.toFixed(0)}`;
+  };
+
   if (type === 'line') {
-    // Validate data before rendering
     if (!chartData || !chartData.labels || chartData.labels.length === 0) {
       return (
         <View style={[styles.container, styles.placeholder]}>
@@ -108,7 +129,6 @@ const Chart: React.FC<ChartProps> = ({
       );
     }
 
-    // Ensure all datasets have data and valid numbers
     const validDatasets = chartData.datasets.filter(
       dataset =>
         dataset.data &&
@@ -124,9 +144,35 @@ const Chart: React.FC<ChartProps> = ({
       );
     }
 
-    // Ensure height is a valid number
     const chartHeight =
       typeof height === 'number' && !isNaN(height) ? height : 200;
+
+    const handleDataPointClick = (clickData: any) => {
+      const label = chartData.labels[clickData.index] || '';
+      const datasets: { label: string; value: number; color: string }[] = [];
+
+      data.datasets.forEach((dataset, idx: number) => {
+        const value = chartData.datasets[idx]?.data?.[clickData.index];
+        if (value !== undefined && value !== null && !isNaN(value)) {
+          datasets.push({
+            label: dataset.label,
+            value: value,
+            color: dataset.color,
+          });
+        }
+      });
+
+      if (datasets.length > 0) {
+        const pointData = datasets.map(
+          ds => `${ds.label}: ${formatYValue(ds.value)}`
+        );
+        setAlertData({
+          title: `Age ${label}`,
+          content: pointData,
+        });
+        setAlertVisible(true);
+      }
+    };
 
     try {
       return (
@@ -146,7 +192,7 @@ const Chart: React.FC<ChartProps> = ({
               style={styles.chart}
               withDots={true}
               withShadow={false}
-              withScrollableDot={false}
+              onDataPointClick={handleDataPointClick}
             />
             {xAxisLabel && (
               <View style={styles.xAxisLabelContainer}>
@@ -154,6 +200,39 @@ const Chart: React.FC<ChartProps> = ({
               </View>
             )}
           </View>
+          <Modal
+            visible={alertVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setAlertVisible(false)}
+          >
+            <TouchableOpacity
+              style={styles.alertOverlay}
+              activeOpacity={1}
+              onPress={() => setAlertVisible(false)}
+            >
+              <TouchableOpacity
+                style={styles.alertContainer}
+                activeOpacity={1}
+                onPress={e => e.stopPropagation()}
+              >
+                <Text style={styles.alertTitle}>{alertData?.title || ''}</Text>
+                <View style={styles.alertContent}>
+                  {alertData?.content.map((line, index) => (
+                    <Text key={index} style={styles.alertText}>
+                      {line}
+                    </Text>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  style={styles.alertButton}
+                  onPress={() => setAlertVisible(false)}
+                >
+                  <Text style={styles.alertButtonText}>OK</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Modal>
           {showLegend && data.datasets && data.datasets.length > 0 && (
             <View style={[styles.legend, xAxisLabel && styles.legendWithXAxis]}>
               {data.datasets.map((dataset, index) => (
@@ -174,7 +253,7 @@ const Chart: React.FC<ChartProps> = ({
           )}
         </View>
       );
-    } catch (error) {
+    } catch {
       return (
         <View style={[styles.container, styles.placeholder]}>
           <Text style={styles.placeholderText}>Error rendering chart</Text>
@@ -183,7 +262,6 @@ const Chart: React.FC<ChartProps> = ({
     }
   }
 
-  // For other chart types, return a placeholder
   return (
     <View style={[styles.container, styles.placeholder]}>
       <Text style={styles.placeholderText}>
@@ -269,6 +347,57 @@ const createStyles = (theme: any) =>
       fontSize: 16,
       color: theme.colors.textSecondary,
       textAlign: 'center',
+    },
+    alertOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: theme.spacing.lg,
+    },
+    alertContainer: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.borderRadius.lg || 16,
+      padding: theme.spacing.lg,
+      width: '100%',
+      maxWidth: 400,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    },
+    alertTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: theme.colors.text,
+      marginBottom: theme.spacing.md,
+      textAlign: 'left',
+    },
+    alertContent: {
+      marginBottom: theme.spacing.lg,
+    },
+    alertText: {
+      fontSize: 14,
+      color: theme.colors.text,
+      marginBottom: theme.spacing.xs,
+      lineHeight: 20,
+    },
+    alertButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.lg,
+      borderRadius: theme.borderRadius.sm || 8,
+      alignItems: 'center',
+      height: 40,
+    },
+    alertButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600',
     },
   });
 
