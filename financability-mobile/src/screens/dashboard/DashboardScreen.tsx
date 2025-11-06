@@ -24,6 +24,7 @@ import {
 } from '../../components/notifications';
 import { API_CONFIG } from '../../constants';
 import apiClient from '../../services/api';
+import accountsDebtsService from '../../services/accountsDebtsService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -44,6 +45,7 @@ const DashboardScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [debts, setDebts] = useState<any[]>([]);
 
   // Baby Steps data matching website
   const babySteps = [
@@ -133,12 +135,14 @@ const DashboardScreen: React.FC = () => {
 
   useEffect(() => {
     fetchFinancialSteps();
+    fetchDebts();
   }, []);
 
   // Refetch when screen gains focus
   useFocusEffect(
     useCallback(() => {
       fetchFinancialSteps();
+      fetchDebts();
       refreshNotifications();
     }, [refreshNotifications])
   );
@@ -148,11 +152,20 @@ const DashboardScreen: React.FC = () => {
     try {
       (navigation as any).navigate(screen);
     } catch (error) {
-      console.error('Navigation error:', error);
       Alert.alert(
         'Navigation Error',
         'Unable to navigate to the selected feature.'
       );
+    }
+  };
+
+  const fetchDebts = async () => {
+    try {
+      const debtsData = await accountsDebtsService.getDebts();
+      setDebts(debtsData || []);
+    } catch (error) {
+      // Silently fail - debts are optional for step status
+      setDebts([]);
     }
   };
 
@@ -208,7 +221,11 @@ const DashboardScreen: React.FC = () => {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchFinancialSteps(), refreshNotifications()]);
+      await Promise.all([
+        fetchFinancialSteps(),
+        fetchDebts(),
+        refreshNotifications(),
+      ]);
     } catch (error) {
       console.error('Error refreshing dashboard:', error);
       // Don't show error to user, just continue
@@ -224,12 +241,7 @@ const DashboardScreen: React.FC = () => {
     const stepProgress = financialSteps.step_progress;
     const stepData = financialSteps.steps?.[`step_${stepId}`];
 
-    // If this step is completed
-    if (stepData && stepData.completed) {
-      return 'completed';
-    }
-
-    // Check if step is inactive (must check after completed to handle edge cases)
+    // Check for inactive status first (backend enforces sequential completion)
     if (
       stepData &&
       stepData.message &&
@@ -238,27 +250,49 @@ const DashboardScreen: React.FC = () => {
       return 'inactive';
     }
 
-    // If this is the current step and it's in progress
+    // Step 2: Pay off all debt (except the house)
+    // Frontend validation: If user has any non-mortgage debts, step 2 cannot be completed
+    // This is a safety check in case backend data is stale
+    if (stepId === 2) {
+      const hasNonMortgageDebts = debts.some(
+        debt =>
+          debt.debt_type !== 'mortgage' &&
+          parseFloat(
+            debt.balance?.toString() || debt.amount?.toString() || '0'
+          ) > 0
+      );
+
+      if (hasNonMortgageDebts) {
+        // If there are debts, step 2 cannot be completed
+        // Override backend completion status if debts exist
+        return 'in-progress';
+      }
+    }
+
+    // Check if step is completed (only if no debts for step 2)
+    if (stepData && stepData.completed) {
+      return 'completed';
+    }
+
+    // Check if this is the current step and in progress
     if (currentStep === stepId && stepProgress && !stepProgress.completed) {
       return 'in-progress';
     }
 
-    // If this step has progress data but isn't completed
+    // Check if step has progress data
     if (stepData && stepData.progress > 0) {
       return 'in-progress';
     }
 
-    // If step 1 is not completed and not inactive, it should be in-progress (first actionable step)
+    // Step 1 special case: if not completed, show as in-progress
     if (stepId === 1 && stepData && !stepData.completed) {
       return 'in-progress';
     }
 
-    // If this step is before or equal to current step and not completed, it should be in-progress
+    // If step is before or at current step and not completed, show as in-progress
     if (stepId <= currentStep && stepData && !stepData.completed) {
       return 'in-progress';
     }
-
-    // Future step or no data
     return 'pending';
   };
 
@@ -270,7 +304,6 @@ const DashboardScreen: React.FC = () => {
       const progress = financialSteps.step_progress;
       if (!progress || progress.completed) return null;
 
-      // Safe value extraction with type checking
       const safeProgress = Number(progress.progress) || 0;
       const safeCurrent = Number(
         progress.current_amount ||
@@ -332,12 +365,10 @@ const DashboardScreen: React.FC = () => {
       const progressPercent = Math.round(Number(progress.progress) || 0);
       const progressWidth = (progressPercent + '%') as any;
 
-      // Safe message handling - avoid template literals
       const progressMessage = progress.message
         ? String(progress.message)
         : progressPercent + '% complete';
 
-      // Safe color extraction
       const stepColor = babySteps[stepId - 1]?.color || '#666';
 
       return (
@@ -355,18 +386,6 @@ const DashboardScreen: React.FC = () => {
           </View>
           <View style={styles.progressTextContainer}>
             <Text style={styles.progressText}>{progressMessage}</Text>
-            {stepId !== 2 &&
-              Boolean(progress.current) &&
-              Boolean(progress.goal) &&
-              Number(progress.current) > 0 &&
-              Number(progress.goal) > 0 && (
-                <Text style={styles.progressText}>
-                  {'$' +
-                    Number(progress.current).toLocaleString() +
-                    ' / $' +
-                    Number(progress.goal).toLocaleString()}
-                </Text>
-              )}
           </View>
         </View>
       );
@@ -611,10 +630,7 @@ const DashboardScreen: React.FC = () => {
       <NotificationModal
         visible={showNotificationModal}
         onClose={() => setShowNotificationModal(false)}
-        onNotificationPress={notification => {
-          // Handle notification press - could navigate to specific screens
-          console.log('Notification pressed:', notification);
-        }}
+        onNotificationPress={notification => {}}
       />
     </ScrollView>
   );
@@ -873,7 +889,7 @@ const createStyles = (theme: any) =>
       borderRadius: 4,
     },
     progressTextContainer: {
-      flexDirection: 'row',
+      flexDirection: 'column',
       justifyContent: 'space-between',
       marginTop: theme.spacing.xs,
     },

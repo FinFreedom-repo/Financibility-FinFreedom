@@ -510,7 +510,7 @@ const WealthProjectionScreen: React.FC = () => {
                       Debt of{' '}
                       {wealthProjectionService.formatCurrency(
                         formData.debt || 0
-                      )}
+                      )}{' '}
                       at {formData.debtInterest || 0}% interest
                     </Text>
                   </View>
