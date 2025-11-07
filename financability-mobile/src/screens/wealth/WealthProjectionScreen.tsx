@@ -6,12 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Dimensions,
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
@@ -20,15 +18,13 @@ import Chart from '../../components/common/Chart';
 import wealthProjectionService, {
   WealthProjectionData,
   WealthProjectionPoint,
-  WealthProjectionResponse,
+
 } from '../../services/wealthProjectionService';
 import { useFocusEffect } from '@react-navigation/native';
-
-const { width } = Dimensions.get('window');
+import { formatCurrencyAbbreviated } from '../../utils/formatting';
 
 const WealthProjectionScreen: React.FC = () => {
   const { theme } = useTheme();
-  const { user } = useAuth();
 
   // State management
   const [loading, setLoading] = useState(false);
@@ -66,10 +62,9 @@ const WealthProjectionScreen: React.FC = () => {
         const sanitizedSettings =
           wealthProjectionService.sanitizeData(savedSettings);
         setFormData(sanitizedSettings);
-        console.log('💰 Loaded saved settings:', sanitizedSettings);
       }
     } catch (error) {
-      console.error('💰 Error loading saved settings:', error);
+      Alert.alert('Error', 'Failed to load saved settings');
     } finally {
       setLoading(false);
     }
@@ -404,6 +399,7 @@ const WealthProjectionScreen: React.FC = () => {
           {chartData && chartData.labels && chartData.labels.length > 0 ? (
             <View style={styles.chartContainer}>
               <Chart
+                key={`chart-${chartData?.labels?.length || 0}`}
                 data={chartData}
                 type="line"
                 height={300}
@@ -411,6 +407,7 @@ const WealthProjectionScreen: React.FC = () => {
                 showGrid={true}
                 yAxisLabel="Value ($)"
                 xAxisLabel="Age (years)"
+                formatYLabel={formatCurrencyAbbreviated}
               />
             </View>
           ) : (

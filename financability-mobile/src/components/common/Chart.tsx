@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -51,43 +51,74 @@ const Chart: React.FC<ChartProps> = ({
     content: string[];
   } | null>(null);
 
-  const chartConfig: any = {
-    backgroundColor: theme.colors.surface,
-    backgroundGradientFrom: theme.colors.surface,
-    backgroundGradientTo: theme.colors.surface,
-    decimalPlaces: 0,
-    color: (opacity = 1) =>
-      theme.colors.primary +
-      Math.floor(opacity * 255)
-        .toString(16)
-        .padStart(2, '0'),
-    labelColor: (opacity = 1) =>
-      theme.colors.text +
-      Math.floor(opacity * 255)
-        .toString(16)
-        .padStart(2, '0'),
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: '4',
-      strokeWidth: '2',
-      stroke: theme.colors.primary,
-    },
-    propsForBackgroundLines: {
-      strokeDasharray: '5,5',
-      stroke: theme.colors.textSecondary + '30',
-    },
-    formatYLabel:
-      formatYLabel ||
-      ((value: string) => {
-        const num = parseFloat(value);
-        if (isNaN(num)) return value;
-        if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
-        if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
-        return `$${num.toFixed(0)}`;
-      }),
-  };
+  const chartConfig: any = useMemo(
+    () => ({
+      backgroundColor: theme.colors.surface,
+      backgroundGradientFrom: theme.colors.surface,
+      backgroundGradientTo: theme.colors.surface,
+      decimalPlaces: 0,
+      color: (opacity = 1) =>
+        theme.colors.primary +
+        Math.floor(opacity * 255)
+          .toString(16)
+          .padStart(2, '0'),
+      labelColor: (opacity = 1) =>
+        theme.colors.text +
+        Math.floor(opacity * 255)
+          .toString(16)
+          .padStart(2, '0'),
+      style: {
+        borderRadius: 16,
+      },
+      propsForDots: {
+        r: '4',
+        strokeWidth: '2',
+        stroke: theme.colors.primary,
+      },
+      propsForBackgroundLines: {
+        strokeDasharray: '5,5',
+        stroke: theme.colors.textSecondary + '30',
+      },
+      formatYLabel: formatYLabel
+        ? (value: string | number) => {
+            const strValue =
+              typeof value === 'number' ? value.toString() : String(value);
+            return formatYLabel(strValue);
+          }
+        : (value: string | number) => {
+            const num =
+              typeof value === 'number' ? value : parseFloat(String(value));
+            if (isNaN(num)) return String(value);
+            if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+            if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+            return `$${num.toFixed(0)}`;
+          },
+    }),
+    [
+      theme.colors.surface,
+      theme.colors.primary,
+      theme.colors.text,
+      theme.colors.textSecondary,
+      formatYLabel,
+    ]
+  );
+
+  const defaultFormatYLabel = useMemo(() => {
+    if (formatYLabel) {
+      return (value: string | number) => {
+        const strValue =
+          typeof value === 'number' ? value.toString() : String(value);
+        return formatYLabel(strValue);
+      };
+    }
+    return (value: string | number) => {
+      const num = typeof value === 'number' ? value : parseFloat(String(value));
+      if (isNaN(num)) return String(value);
+      if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+      if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+      return `$${num.toFixed(0)}`;
+    };
+  }, [formatYLabel]);
 
   const chartData = {
     labels: data.labels || [],
@@ -192,6 +223,8 @@ const Chart: React.FC<ChartProps> = ({
               style={styles.chart}
               withDots={true}
               withShadow={false}
+              segments={5}
+              formatYLabel={defaultFormatYLabel}
               onDataPointClick={handleDataPointClick}
             />
             {xAxisLabel && (
