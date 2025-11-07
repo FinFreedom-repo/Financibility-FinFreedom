@@ -101,14 +101,12 @@ class FinancialStepsView(APIView):
     
     def calculate_financial_steps(self, accounts, debts, budget, user_id):
         """
-        Calculate progress for each financial step with sequential completion enforcement
+        Calculate progress for each financial step
         """
-        # Step 1: Accounts (not net worth) > $2,000
         total_accounts = self.calculate_total_accounts(accounts)
         step1_threshold = Decimal('2000.00')
         step1_meets_condition = total_accounts > step1_threshold
         
-        # Step 1 can always be active (first step)
         step1_progress = {
             'completed': bool(step1_meets_condition),
             'progress': float(min((total_accounts / step1_threshold) * 100, 100)) if step1_threshold > 0 else 0,
@@ -117,69 +115,32 @@ class FinancialStepsView(APIView):
             'message': f'${total_accounts:,.2f} of ${step1_threshold:,.2f} in accounts' if not step1_meets_condition else 'Step 1 completed: Accounts exceed $2,000'
         }
         
-        # Step 2: No debt (other than mortgage)
         total_debt = self.calculate_total_debt(debts)
         step2_meets_condition = total_debt <= 0
         
-        # Enforce sequential: Step 2 can only be completed if Step 1 is completed
-        # Explicitly check step1_progress['completed'] to ensure sequential logic
-        step1_is_completed = bool(step1_progress.get('completed', False))
-        
-        if not step1_is_completed:
+        if step2_meets_condition:
+            step2_progress = {
+                'completed': True,
+                'progress': 100,
+                'message': 'Step 2 completed: All non-mortgage debt paid off',
+                'current_debt': 0,
+                'max_total_debt': 0
+            }
+        else:
             step2_progress = {
                 'completed': False,
                 'progress': 0,
-                'message': 'Step 2 inactive: Complete Step 1 first (accounts > $2,000)',
-                'current_debt': float(total_debt) if total_debt > 0 else 0,
-                'max_total_debt': float(total_debt) if total_debt > 0 else 0
+                'message': f'${total_debt:,.2f} in non-mortgage debt remaining',
+                'current_debt': float(total_debt),
+                'max_total_debt': float(total_debt)
             }
-        else:
-            # Step 1 is completed, now check Step 2 condition
-            if step2_meets_condition:
-                step2_progress = {
-                    'completed': True,
-                    'progress': 100,
-                    'message': 'Step 2 completed: All non-mortgage debt paid off',
-                    'current_debt': 0,
-                    'max_total_debt': 0
-                }
-            else:
-                step2_progress = {
-                    'completed': False,
-                    'progress': 0,
-                    'message': f'${total_debt:,.2f} in non-mortgage debt remaining',
-                    'current_debt': float(total_debt),
-                    'max_total_debt': float(total_debt)
-                }
         
-        # Step 3: Net worth > 6x monthly expenses
         monthly_expenses = self.calculate_monthly_expenses(budget)
         net_worth = self.calculate_net_worth(accounts, debts)
         step3_threshold = monthly_expenses * Decimal('6')
         step3_meets_condition = net_worth > step3_threshold
         
-        # Enforce sequential: Step 3 can only be completed if Steps 1-2 are completed
-        # Explicitly check all previous steps to ensure sequential logic
-        step1_completed = bool(step1_progress.get('completed', False))
-        step2_completed = bool(step2_progress.get('completed', False))
-        
-        if not step1_completed:
-            step3_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 3 inactive: Complete Step 1 first (accounts > $2,000)',
-                'current_amount': float(net_worth),
-                'goal_amount': float(step3_threshold)
-            }
-        elif not step2_completed:
-            step3_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 3 inactive: Complete Step 2 first (pay off all non-mortgage debt)',
-                'current_amount': float(net_worth),
-                'goal_amount': float(step3_threshold)
-            }
-        elif step3_meets_condition:
+        if step3_meets_condition:
             step3_progress = {
                 'completed': True,
                 'progress': 100,
@@ -196,7 +157,6 @@ class FinancialStepsView(APIView):
                 'goal_amount': float(step3_threshold)
             }
         
-        # Step 4: Savings > 15% of income each month
         monthly_income = self.calculate_monthly_income(budget)
         net_savings = self.calculate_net_savings(budget)
         additional_savings = self.calculate_additional_savings(budget)
@@ -204,37 +164,7 @@ class FinancialStepsView(APIView):
         savings_threshold = monthly_income * Decimal('0.15')
         step4_meets_condition = total_savings >= savings_threshold
         
-        # Enforce sequential: Step 4 can only be completed if Steps 1-3 are completed
-        # Explicitly check all previous steps to ensure sequential logic
-        step1_completed = bool(step1_progress.get('completed', False))
-        step2_completed = bool(step2_progress.get('completed', False))
-        step3_completed = bool(step3_progress.get('completed', False))
-        
-        if not step1_completed:
-            step4_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 4 inactive: Complete Step 1 first (accounts > $2,000)',
-                'current_amount': float(total_savings),
-                'goal_amount': float(savings_threshold)
-            }
-        elif not step2_completed:
-            step4_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 4 inactive: Complete Step 2 first (pay off all non-mortgage debt)',
-                'current_amount': float(total_savings),
-                'goal_amount': float(savings_threshold)
-            }
-        elif not step3_completed:
-            step4_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 4 inactive: Complete Step 3 first (net worth > 6× monthly expenses)',
-                'current_amount': float(total_savings),
-                'goal_amount': float(savings_threshold)
-            }
-        elif step4_meets_condition:
+        if step4_meets_condition:
             step4_progress = {
                 'completed': True,
                 'progress': 100,
@@ -251,42 +181,10 @@ class FinancialStepsView(APIView):
                 'goal_amount': float(savings_threshold)
             }
         
-        # Step 5: Money going to children's education
         college_fund_savings = self.calculate_college_fund_savings(budget)
         step5_meets_condition = college_fund_savings > 0
         
-        # Enforce sequential: Step 5 can only be completed if Steps 1-4 are completed
-        # Explicitly check all previous steps to ensure sequential logic
-        step1_completed = bool(step1_progress.get('completed', False))
-        step2_completed = bool(step2_progress.get('completed', False))
-        step3_completed = bool(step3_progress.get('completed', False))
-        step4_completed = bool(step4_progress.get('completed', False))
-        
-        if not step1_completed:
-            step5_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 5 inactive: Complete Step 1 first (accounts > $2,000)'
-            }
-        elif not step2_completed:
-            step5_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 5 inactive: Complete Step 2 first (pay off all non-mortgage debt)'
-            }
-        elif not step3_completed:
-            step5_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 5 inactive: Complete Step 3 first (net worth > 6× monthly expenses)'
-            }
-        elif not step4_completed:
-            step5_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 5 inactive: Complete Step 4 first (savings > 15% of income)'
-            }
-        elif step5_meets_condition:
+        if step5_meets_condition:
             step5_progress = {
                 'completed': True,
                 'progress': 100,
@@ -296,62 +194,13 @@ class FinancialStepsView(APIView):
             step5_progress = {
                 'completed': False,
                 'progress': 0,
-                'message': 'Step 5 inactive: No college fund savings detected'
+                'message': 'No college fund savings detected'
             }
         
-        # Step 6: Mortgage paid off
         mortgage_balance = self.calculate_mortgage_balance(debts)
         step6_meets_condition = mortgage_balance <= 0
         
-        # Enforce sequential: Step 6 can only be completed if Steps 1-5 are completed
-        # Explicitly check all previous steps to ensure sequential logic
-        step1_completed = bool(step1_progress.get('completed', False))
-        step2_completed = bool(step2_progress.get('completed', False))
-        step3_completed = bool(step3_progress.get('completed', False))
-        step4_completed = bool(step4_progress.get('completed', False))
-        step5_completed = bool(step5_progress.get('completed', False))
-        
-        if not step1_completed:
-            step6_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 6 inactive: Complete Step 1 first (accounts > $2,000)',
-                'current_amount': float(mortgage_balance),
-                'goal_amount': 0
-            }
-        elif not step2_completed:
-            step6_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 6 inactive: Complete Step 2 first (pay off all non-mortgage debt)',
-                'current_amount': float(mortgage_balance),
-                'goal_amount': 0
-            }
-        elif not step3_completed:
-            step6_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 6 inactive: Complete Step 3 first (net worth > 6× monthly expenses)',
-                'current_amount': float(mortgage_balance),
-                'goal_amount': 0
-            }
-        elif not step4_completed:
-            step6_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 6 inactive: Complete Step 4 first (savings > 15% of income)',
-                'current_amount': float(mortgage_balance),
-                'goal_amount': 0
-            }
-        elif not step5_completed:
-            step6_progress = {
-                'completed': False,
-                'progress': 0,
-                'message': 'Step 6 inactive: Complete Step 5 first (save for children\'s education)',
-                'current_amount': float(mortgage_balance),
-                'goal_amount': 0
-            }
-        elif step6_meets_condition:
+        if step6_meets_condition:
             step6_progress = {
                 'completed': True,
                 'progress': 100,

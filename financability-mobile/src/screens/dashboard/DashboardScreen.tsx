@@ -8,13 +8,11 @@ import {
   Alert,
   ActivityIndicator,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -26,8 +24,6 @@ import { API_CONFIG } from '../../constants';
 import apiClient from '../../services/api';
 import accountsDebtsService from '../../services/accountsDebtsService';
 
-const { width, height } = Dimensions.get('window');
-
 interface FinancialSteps {
   current_step: number;
   step_progress: any;
@@ -36,7 +32,6 @@ interface FinancialSteps {
 
 const DashboardScreen: React.FC = () => {
   const { theme } = useTheme();
-  const { user } = useAuth();
   const { refreshNotifications } = useNotifications();
   const navigation = useNavigation();
   const [financialSteps, setFinancialSteps] = useState<FinancialSteps | null>(
@@ -151,7 +146,7 @@ const DashboardScreen: React.FC = () => {
   const handleFeaturePress = (screen: string) => {
     try {
       (navigation as any).navigate(screen);
-    } catch (error) {
+    } catch {
       Alert.alert(
         'Navigation Error',
         'Unable to navigate to the selected feature.'
@@ -163,8 +158,7 @@ const DashboardScreen: React.FC = () => {
     try {
       const debtsData = await accountsDebtsService.getDebts();
       setDebts(debtsData || []);
-    } catch (error) {
-      // Silently fail - debts are optional for step status
+    } catch {
       setDebts([]);
     }
   };
@@ -211,7 +205,7 @@ const DashboardScreen: React.FC = () => {
       } else if (response.error) {
         Alert.alert('Error', response.error);
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to load financial data');
     } finally {
       setLoading(false);
@@ -226,9 +220,7 @@ const DashboardScreen: React.FC = () => {
         fetchDebts(),
         refreshNotifications(),
       ]);
-    } catch (error) {
-      console.error('Error refreshing dashboard:', error);
-      // Don't show error to user, just continue
+    } catch {
     } finally {
       setRefreshing(false);
     }
@@ -241,18 +233,6 @@ const DashboardScreen: React.FC = () => {
     const stepProgress = financialSteps.step_progress;
     const stepData = financialSteps.steps?.[`step_${stepId}`];
 
-    // Check for inactive status first (backend enforces sequential completion)
-    if (
-      stepData &&
-      stepData.message &&
-      stepData.message.toLowerCase().includes('inactive')
-    ) {
-      return 'inactive';
-    }
-
-    // Step 2: Pay off all debt (except the house)
-    // Frontend validation: If user has any non-mortgage debts, step 2 cannot be completed
-    // This is a safety check in case backend data is stale
     if (stepId === 2) {
       const hasNonMortgageDebts = debts.some(
         debt =>
@@ -263,33 +243,26 @@ const DashboardScreen: React.FC = () => {
       );
 
       if (hasNonMortgageDebts) {
-        // If there are debts, step 2 cannot be completed
-        // Override backend completion status if debts exist
         return 'in-progress';
       }
     }
 
-    // Check if step is completed (only if no debts for step 2)
     if (stepData && stepData.completed) {
       return 'completed';
     }
 
-    // Check if this is the current step and in progress
     if (currentStep === stepId && stepProgress && !stepProgress.completed) {
       return 'in-progress';
     }
 
-    // Check if step has progress data
     if (stepData && stepData.progress > 0) {
       return 'in-progress';
     }
 
-    // Step 1 special case: if not completed, show as in-progress
     if (stepId === 1 && stepData && !stepData.completed) {
       return 'in-progress';
     }
 
-    // If step is before or at current step and not completed, show as in-progress
     if (stepId <= currentStep && stepData && !stepData.completed) {
       return 'in-progress';
     }
@@ -327,7 +300,7 @@ const DashboardScreen: React.FC = () => {
         amount_paid_off: safeAmountPaidOff,
         message: safeMessage,
       };
-    } catch (error) {
+    } catch {
       return null;
     }
   };
@@ -339,8 +312,6 @@ const DashboardScreen: React.FC = () => {
         return <Ionicons name="checkmark-circle" size={20} color="#2e7d32" />;
       case 'in-progress':
         return <Ionicons name="refresh" size={20} color="#ed6c02" />;
-      case 'inactive':
-        return <Ionicons name="radio-button-off" size={20} color="#9e9e9e" />;
       default:
         return (
           <Ionicons
@@ -389,7 +360,7 @@ const DashboardScreen: React.FC = () => {
           </View>
         </View>
       );
-    } catch (error) {
+    } catch {
       return null;
     }
   };
@@ -545,7 +516,6 @@ const DashboardScreen: React.FC = () => {
           <View style={styles.stepsList}>
             {babySteps.map(step => {
               const status = getStepStatus(step.id);
-              const stepData = financialSteps?.steps?.[`step_${step.id}`];
 
               return (
                 <View key={step.id} style={styles.stepItem}>
@@ -557,10 +527,7 @@ const DashboardScreen: React.FC = () => {
                         backgroundColor:
                           status === 'completed'
                             ? step.color + '10'
-                            : status === 'inactive'
-                              ? theme.colors.surface
-                              : 'transparent',
-                        opacity: status === 'inactive' ? 0.6 : 1,
+                            : 'transparent',
                       },
                     ]}
                   >
@@ -600,20 +567,6 @@ const DashboardScreen: React.FC = () => {
                         <Text style={styles.stepDescription}>
                           {step.description}
                         </Text>
-
-                        {status === 'inactive' &&
-                          Boolean(stepData?.message) && (
-                            <View style={styles.inactiveAlert}>
-                              <Ionicons
-                                name="information-circle"
-                                size={16}
-                                color={theme.colors.primary}
-                              />
-                              <Text style={styles.inactiveText}>
-                                {String(stepData.message || '')}
-                              </Text>
-                            </View>
-                          )}
 
                         {renderStepProgress(step.id)}
                       </View>
@@ -860,20 +813,6 @@ const createStyles = (theme: any) =>
       fontSize: 14,
       color: theme.colors.textSecondary,
       lineHeight: 20,
-    },
-    inactiveAlert: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: theme.spacing.sm,
-      padding: theme.spacing.sm,
-      backgroundColor: theme.colors.primary + '10',
-      borderRadius: 8,
-    },
-    inactiveText: {
-      fontSize: 12,
-      color: theme.colors.primary,
-      marginLeft: theme.spacing.xs,
-      flex: 1,
     },
     progressContainer: {
       marginTop: theme.spacing.sm,
