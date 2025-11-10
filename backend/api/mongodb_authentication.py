@@ -7,6 +7,7 @@ from rest_framework import exceptions
 from django.contrib.auth.models import AnonymousUser
 from .mongodb_service import JWTAuthService, UserService
 
+
 class MongoDBJWTAuthentication(authentication.BaseAuthentication):
     """Custom authentication class for MongoDB JWT tokens"""
     

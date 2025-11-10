@@ -23,7 +23,9 @@ interface MobileDebtPayoffTimelineGridProps {
   theme: any;
 }
 
-const MobileDebtPayoffTimelineGrid: React.FC<MobileDebtPayoffTimelineGridProps> = ({
+const MobileDebtPayoffTimelineGrid: React.FC<
+  MobileDebtPayoffTimelineGridProps
+> = ({
   payoffPlan,
   outstandingDebts,
   strategy,
@@ -37,49 +39,81 @@ const MobileDebtPayoffTimelineGrid: React.FC<MobileDebtPayoffTimelineGridProps> 
   // Generate grid data in the same format as Budget Projection
   const generateGridData = () => {
     const currentMonthIdx = months.findIndex(m => m.type === 'current');
-    
+
+    // Safety check: if no payoff plan, return empty grid
+    if (!payoffPlan || !payoffPlan.plan || payoffPlan.plan.length === 0) {
+      return [];
+    }
+
     // Create grid data in the same format as Budget Projection
     const gridData = [
       {
         category: 'Remaining Debt',
         type: 'calculated',
-        ...months.reduce((acc, _, idx) => { 
+        ...months.reduce((acc, _, idx) => {
           const planIdx = idx - currentMonthIdx;
-          let value = idx >= currentMonthIdx ? (payoffPlan?.plan?.[planIdx]?.debts?.reduce((sum: number, debt: any) => sum + (debt.balance || 0), 0) || 0) : 0;
+          if (idx < currentMonthIdx || planIdx < 0) {
+            return { ...acc, [`month_${idx}`]: 0 } as any;
+          }
+          let value =
+            payoffPlan?.plan?.[planIdx]?.debts?.reduce(
+              (sum: number, debt: any) => sum + (debt.balance || 0),
+              0
+            ) || 0;
           // Keep zero sticky after clearance
           if (idx > currentMonthIdx) {
             const prev = acc[`month_${idx - 1}`];
             if (typeof prev === 'number' && prev <= 0) value = 0;
           }
-            return { ...acc, [`month_${idx}`]: value } as any;
-        }, {})
+          return { ...acc, [`month_${idx}`]: value } as any;
+        }, {}),
       },
       {
         category: 'Principal Paid Down',
         type: 'calculated',
-        ...months.reduce((acc, _, idx) => { 
+        ...months.reduce((acc, _, idx) => {
           const planIdx = idx - currentMonthIdx;
           if (idx < currentMonthIdx) {
             return { ...acc, [`month_${idx}`]: 0 };
           }
-          
-          const totalPaid = payoffPlan?.plan?.[planIdx]?.totalPaid ?? (payoffPlan?.plan?.[planIdx]?.debts?.reduce((sum: number, debt: any) => sum + (debt.paid || 0), 0) || 0);
-          const totalInterest = payoffPlan?.plan?.[planIdx]?.totalInterest ?? (payoffPlan?.plan?.[planIdx]?.debts?.reduce((sum: number, debt: any) => sum + (debt.interest || 0), 0) || 0);
+
+          const totalPaid =
+            payoffPlan?.plan?.[planIdx]?.totalPaid ??
+            (payoffPlan?.plan?.[planIdx]?.debts?.reduce(
+              (sum: number, debt: any) => sum + (debt.paid || 0),
+              0
+            ) ||
+              0);
+          const totalInterest =
+            payoffPlan?.plan?.[planIdx]?.totalInterest ??
+            (payoffPlan?.plan?.[planIdx]?.debts?.reduce(
+              (sum: number, debt: any) => sum + (debt.interest || 0),
+              0
+            ) ||
+              0);
           const principalPaid = Math.max(0, totalPaid - totalInterest);
-          
+
           return { ...acc, [`month_${idx}`]: principalPaid };
-        }, {})
+        }, {}),
       },
       {
         category: 'Interest Paid',
         type: 'calculated',
-        ...months.reduce((acc, _, idx) => ({ 
-          ...acc, 
-          [`month_${idx}`]: idx >= currentMonthIdx 
-            ? (payoffPlan?.plan?.[idx - currentMonthIdx]?.totalInterest ?? (payoffPlan?.plan?.[idx - currentMonthIdx]?.debts?.reduce((sum: number, debt: any) => sum + (debt.interest || 0), 0) || 0))
-            : 0
-        }), {})
-      }
+        ...months.reduce((acc, _, idx) => {
+          const planIdx = idx - currentMonthIdx;
+          if (idx < currentMonthIdx || planIdx < 0) {
+            return { ...acc, [`month_${idx}`]: 0 };
+          }
+          const value =
+            payoffPlan?.plan?.[planIdx]?.totalInterest ??
+            (payoffPlan?.plan?.[planIdx]?.debts?.reduce(
+              (sum: number, debt: any) => sum + (debt.interest || 0),
+              0
+            ) ||
+              0);
+          return { ...acc, [`month_${idx}`]: value };
+        }, {}),
+      },
     ];
 
     // Add individual debt rows in the order they are being paid off according to strategy
@@ -87,9 +121,14 @@ const MobileDebtPayoffTimelineGrid: React.FC<MobileDebtPayoffTimelineGridProps> 
       // Sort debts by strategy (Snowball: lowest to highest balance, Avalanche: highest to lowest interest rate)
       const sortedDebts = [...outstandingDebts].sort((a, b) => {
         if (strategy === 'snowball') {
-          return parseFloat(a.balance.toString()) - parseFloat(b.balance.toString()); // Smallest balance first
+          return (
+            parseFloat(a.balance.toString()) - parseFloat(b.balance.toString())
+          ); // Smallest balance first
         } else {
-          return parseFloat(b.interest_rate.toString()) - parseFloat(a.interest_rate.toString()); // Highest rate first
+          return (
+            parseFloat(b.interest_rate.toString()) -
+            parseFloat(a.interest_rate.toString())
+          ); // Highest rate first
         }
       });
 
@@ -97,17 +136,26 @@ const MobileDebtPayoffTimelineGrid: React.FC<MobileDebtPayoffTimelineGridProps> 
         const debtRow = {
           category: debt.name,
           type: 'debt',
-          ...months.reduce((acc, _, idx) => { 
+          ...months.reduce((acc, _, idx) => {
             const planIdx = idx - currentMonthIdx;
-            let value = idx >= currentMonthIdx ? 
-              (payoffPlan?.plan?.[planIdx]?.debts?.find((d: any) => d.name === debt.name)?.balance || 0) : 
-              parseFloat(debt.balance.toString()) || 0;
+            if (idx < currentMonthIdx || planIdx < 0) {
+              // Historical months: use initial debt balance
+              return {
+                ...acc,
+                [`month_${idx}`]: parseFloat(debt.balance.toString()) || 0,
+              } as any;
+            }
+            // Current and future months: use plan data
+            let value =
+              payoffPlan?.plan?.[planIdx]?.debts?.find(
+                (d: any) => d.name === debt.name
+              )?.balance || 0;
             if (idx > currentMonthIdx) {
               const prev = (acc as any)[`month_${idx - 1}`];
               if (typeof prev === 'number' && prev <= 0) value = 0;
             }
             return { ...acc, [`month_${idx}`]: value } as any;
-          }, {})
+          }, {}),
         };
         gridData.push(debtRow);
       });
@@ -120,7 +168,7 @@ const MobileDebtPayoffTimelineGrid: React.FC<MobileDebtPayoffTimelineGridProps> 
 
   const getCellStyle = (month: any, category: string, value: number) => {
     const baseStyle = [styles.cell];
-    
+
     // Time-based styling
     if (month.type === 'historical') {
       baseStyle.push(styles.historicalCell);
@@ -129,7 +177,7 @@ const MobileDebtPayoffTimelineGrid: React.FC<MobileDebtPayoffTimelineGridProps> 
     } else if (month.type === 'future') {
       baseStyle.push(styles.futureCell);
     }
-    
+
     // Category-specific styling
     if (category === 'Remaining Debt') {
       baseStyle.push(styles.remainingDebtCell);
@@ -137,10 +185,14 @@ const MobileDebtPayoffTimelineGrid: React.FC<MobileDebtPayoffTimelineGridProps> 
       baseStyle.push(styles.principalPaidCell);
     } else if (category === 'Interest Paid') {
       baseStyle.push(styles.interestPaidCell);
-    } else if (category !== 'Remaining Debt' && category !== 'Principal Paid Down' && category !== 'Interest Paid') {
+    } else if (
+      category !== 'Remaining Debt' &&
+      category !== 'Principal Paid Down' &&
+      category !== 'Interest Paid'
+    ) {
       baseStyle.push(styles.debtCell);
     }
-    
+
     return baseStyle;
   };
 
@@ -159,14 +211,11 @@ const MobileDebtPayoffTimelineGrid: React.FC<MobileDebtPayoffTimelineGridProps> 
 
   const renderCell = (monthIdx: number, category: string, value: number) => {
     const month = months[monthIdx];
-    
+
     return (
       <View style={getCellStyle(month, category, value)}>
         <Text
-          style={[
-            styles.cellText,
-            { color: getTextColor(category, value) }
-          ]}
+          style={[styles.cellText, { color: getTextColor(category, value) }]}
         >
           {formatCurrency(value)}
         </Text>
@@ -182,23 +231,34 @@ const MobileDebtPayoffTimelineGrid: React.FC<MobileDebtPayoffTimelineGridProps> 
             style={[
               styles.categoryText,
               {
-                color: row.category === 'Remaining Debt' ? theme.colors.error :
-                       row.category === 'Principal Paid Down' ? theme.colors.success :
-                       row.category === 'Interest Paid' ? theme.colors.warning : theme.colors.text,
+                color:
+                  row.category === 'Remaining Debt'
+                    ? theme.colors.error
+                    : row.category === 'Principal Paid Down'
+                      ? theme.colors.success
+                      : row.category === 'Interest Paid'
+                        ? theme.colors.warning
+                        : theme.colors.text,
                 fontWeight: row.category === 'Remaining Debt' ? 'bold' : '600',
-              }
+              },
             ]}
           >
-            {row.category === 'Principal Paid Down' ? 'Principal\nPaid Down' : row.category}
+            {row.category === 'Principal Paid Down'
+              ? 'Principal\nPaid Down'
+              : row.category}
           </Text>
         </View>
-        
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.monthsContainer}>
             {months.map((month, idx) => (
               <View key={idx} style={styles.monthColumn}>
                 <Text style={styles.monthHeader}>{month.label}</Text>
-                {renderCell(idx, row.category, parseFloat(row[`month_${idx}`]) || 0)}
+                {renderCell(
+                  idx,
+                  row.category,
+                  parseFloat(row[`month_${idx}`]) || 0
+                )}
               </View>
             ))}
           </View>
@@ -216,28 +276,32 @@ const MobileDebtPayoffTimelineGrid: React.FC<MobileDebtPayoffTimelineGridProps> 
           <TouchableOpacity
             style={[
               styles.strategyButton,
-              strategy === 'snowball' && styles.activeStrategyButton
+              strategy === 'snowball' && styles.activeStrategyButton,
             ]}
             onPress={() => onStrategyChange('snowball')}
           >
-            <Text style={[
-              styles.strategyButtonText,
-              strategy === 'snowball' && styles.activeStrategyButtonText
-            ]}>
+            <Text
+              style={[
+                styles.strategyButtonText,
+                strategy === 'snowball' && styles.activeStrategyButtonText,
+              ]}
+            >
               Snowball
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.strategyButton,
-              strategy === 'avalanche' && styles.activeStrategyButton
+              strategy === 'avalanche' && styles.activeStrategyButton,
             ]}
             onPress={() => onStrategyChange('avalanche')}
           >
-            <Text style={[
-              styles.strategyButtonText,
-              strategy === 'avalanche' && styles.activeStrategyButtonText
-            ]}>
+            <Text
+              style={[
+                styles.strategyButtonText,
+                strategy === 'avalanche' && styles.activeStrategyButtonText,
+              ]}
+            >
               Avalanche
             </Text>
           </TouchableOpacity>
@@ -277,206 +341,207 @@ const MobileDebtPayoffTimelineGrid: React.FC<MobileDebtPayoffTimelineGridProps> 
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    margin: theme.spacing.sm,
-  },
-  strategyContainer: {
-    marginBottom: theme.spacing.md,
-  },
-  strategyTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    marginBottom: theme.spacing.sm,
-  },
-  strategyButtons: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-  },
-  strategyButton: {
-    flex: 1,
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.background,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    alignItems: 'center',
-  },
-  activeStrategyButton: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  strategyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  activeStrategyButtonText: {
-    color: 'white',
-  },
-  addDebtButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.primary,
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.borderRadius.sm,
-    marginBottom: theme.spacing.md,
-  },
-  addDebtButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    marginLeft: theme.spacing.xs,
-  },
-  grid: {
-    minWidth: width * 0.9,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.sm,
-    marginBottom: theme.spacing.sm,
-  },
-  categoryHeader: {
-    width: 120,
-    padding: theme.spacing.sm,
-    justifyContent: 'center',
-  },
-  headerText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-  },
-  monthsContainer: {
-    flexDirection: 'row',
-  },
-  monthColumn: {
-    width: 80,
-    alignItems: 'center',
-  },
-  monthHeader: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.xs,
-    textAlign: 'center',
-  },
-  row: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    paddingVertical: theme.spacing.xs,
-  },
-  categoryCell: {
-    width: 120,
-    padding: theme.spacing.sm,
-    justifyContent: 'center',
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  cell: {
-    width: 70,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 2,
-    borderRadius: theme.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  historicalCell: {
-    backgroundColor: theme.colors.background,
-    opacity: 0.7,
-    width: 70,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 2,
-    borderRadius: theme.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  currentCell: {
-    backgroundColor: theme.colors.primary + '20',
-    borderColor: theme.colors.primary,
-    width: 70,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 2,
-    borderRadius: theme.borderRadius.sm,
-    borderWidth: 1,
-  },
-  futureCell: {
-    backgroundColor: theme.colors.surface,
-    width: 70,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 2,
-    borderRadius: theme.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  remainingDebtCell: {
-    backgroundColor: theme.colors.error + '10',
-    width: 70,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 2,
-    borderRadius: theme.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  principalPaidCell: {
-    backgroundColor: theme.colors.success + '10',
-    width: 70,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 2,
-    borderRadius: theme.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  interestPaidCell: {
-    backgroundColor: theme.colors.warning + '10',
-    width: 70,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 2,
-    borderRadius: theme.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  debtCell: {
-    backgroundColor: theme.colors.background,
-    width: 70,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 2,
-    borderRadius: theme.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  cellText: {
-    fontSize: 12,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.borderRadius.md,
+      padding: theme.spacing.md,
+      margin: theme.spacing.sm,
+    },
+    strategyContainer: {
+      marginBottom: theme.spacing.md,
+    },
+    strategyTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: theme.colors.text,
+      marginBottom: theme.spacing.sm,
+    },
+    strategyButtons: {
+      flexDirection: 'row',
+      gap: theme.spacing.sm,
+    },
+    strategyButton: {
+      flex: 1,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+      borderRadius: theme.borderRadius.sm,
+      backgroundColor: theme.colors.background,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      alignItems: 'center',
+    },
+    activeStrategyButton: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    strategyButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    activeStrategyButtonText: {
+      color: 'white',
+    },
+    addDebtButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primary,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+      borderRadius: theme.borderRadius.sm,
+      marginBottom: theme.spacing.md,
+    },
+    addDebtButtonText: {
+      color: 'white',
+      fontWeight: '600',
+      marginLeft: theme.spacing.xs,
+    },
+    grid: {
+      minWidth: width * 0.9,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      backgroundColor: theme.colors.background,
+      borderRadius: theme.borderRadius.sm,
+      marginBottom: theme.spacing.sm,
+    },
+    categoryHeader: {
+      width: 120,
+      padding: theme.spacing.sm,
+      justifyContent: 'center',
+    },
+    headerText: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      color: theme.colors.text,
+    },
+    monthsContainer: {
+      flexDirection: 'row',
+    },
+    monthColumn: {
+      width: 80,
+      alignItems: 'center',
+    },
+    monthHeader: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      marginBottom: theme.spacing.xs,
+      textAlign: 'center',
+    },
+    row: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      paddingVertical: theme.spacing.xs,
+    },
+    categoryCell: {
+      width: 120,
+      padding: theme.spacing.sm,
+      justifyContent: 'center',
+    },
+    categoryText: {
+      fontSize: 14,
+      fontWeight: '600',
+      lineHeight: 18,
+    },
+    cell: {
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    historicalCell: {
+      backgroundColor: theme.colors.background,
+      opacity: 0.7,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    currentCell: {
+      backgroundColor: theme.colors.primary + '20',
+      borderColor: theme.colors.primary,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+    },
+    futureCell: {
+      backgroundColor: theme.colors.surface,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    remainingDebtCell: {
+      backgroundColor: theme.colors.error + '10',
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    principalPaidCell: {
+      backgroundColor: theme.colors.success + '10',
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    interestPaidCell: {
+      backgroundColor: theme.colors.warning + '10',
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    debtCell: {
+      backgroundColor: theme.colors.background,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    cellText: {
+      fontSize: 12,
+      fontWeight: '500',
+      textAlign: 'center',
+    },
+  });
 
 export default MobileDebtPayoffTimelineGrid;

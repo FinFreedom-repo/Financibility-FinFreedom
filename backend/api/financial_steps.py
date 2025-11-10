@@ -96,6 +96,7 @@ class FinancialStepsView(APIView):
             'other': 200
         }
         
+        
         steps_data = self.calculate_financial_steps(test_accounts, test_debts, test_budget, 'test_user')
         return steps_data
     

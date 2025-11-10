@@ -923,41 +923,27 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         months
       );
 
-      if (freshPayoffPlan) {
-        const transformedPlan = {
-          total_months: freshPayoffPlan.plan?.length || 0,
-          total_interest_paid:
-            freshPayoffPlan.plan?.reduce(
-              (sum, month) => sum + (month.totalInterest || 0),
-              0
-            ) || 0,
-          total_payments:
-            freshPayoffPlan.plan?.reduce(
-              (sum, month) => sum + (month.totalPaid || 0),
-              0
-            ) || 0,
-          monthly_payments:
-            freshPayoffPlan.plan?.map((month, index) => ({
-              month: index + 1,
-              year: new Date().getFullYear() + Math.floor(index / 12),
-              total_payment: month.totalPaid || 0,
-              debts:
-                month.debts?.map((debt: any) => ({
-                  debt_id: debt.name,
-                  debt_name: debt.name,
-                  payment: debt.paid || 0,
-                  remaining_balance: debt.balance || 0,
-                  interest_paid: debt.interest || 0,
-                })) || [],
-            })) || [],
-        };
-
-        const debtPlannerResponse: DebtPlannerResponse = {
-          success: true,
-          message: 'Debt payoff plan calculated successfully',
-          payoff_plan: transformedPlan,
-        };
-        setPayoffPlan(debtPlannerResponse);
+      if (freshPayoffPlan && freshPayoffPlan.plan) {
+        // Set payoffPlan in the format that MobileDebtPayoffTimelineGrid expects
+        // The grid expects payoffPlan.plan[].debts[] structure
+        setPayoffPlan({
+          plan: freshPayoffPlan.plan.map((month: any) => ({
+            month: month.month || 0,
+            debts: month.debts || [],
+            totalPaid: month.totalPaid || 0,
+            totalInterest: month.totalInterest || 0,
+            remainingDebt: month.remainingDebt || 0,
+          })),
+          total_months: freshPayoffPlan.plan.length,
+          total_interest_paid: freshPayoffPlan.plan.reduce(
+            (sum: number, month: any) => sum + (month.totalInterest || 0),
+            0
+          ),
+          total_payments: freshPayoffPlan.plan.reduce(
+            (sum: number, month: any) => sum + (month.totalPaid || 0),
+            0
+          ),
+        } as any);
 
         setLocalGridData(prevData => {
           const updatedData = updateTotalDebtFromPayoffPlan(
@@ -971,7 +957,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         });
       }
     } catch (error) {
-    Alert.alert('Error', 'Failed to calculate debt payoff plan: ' + error);
+      Alert.alert('Error', 'Failed to calculate debt payoff plan: ' + error);
     } finally {
       setDebtCalculationInProgress(false);
       setPlanLoading(false);
@@ -995,6 +981,19 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       triggerImmediateDebtRecalculation();
     }
   }, [projectionMonths, historicalMonthsShown]);
+
+  // Recalculate when strategy changes
+  useEffect(() => {
+    if (
+      localGridData?.length &&
+      outstandingDebts?.length &&
+      !debtCalculationInProgress &&
+      !isInitializingGrid
+    ) {
+      triggerImmediateDebtRecalculation();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [strategy]);
 
   const handleDebtChange = useCallback(async () => {
     if (debtCalculationInProgress) return;

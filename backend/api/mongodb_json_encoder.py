@@ -7,6 +7,7 @@ from bson import ObjectId
 from datetime import datetime, date
 from decimal import Decimal
 
+
 class MongoDBJSONEncoder(json.JSONEncoder):
     """Custom JSON encoder for MongoDB objects"""
     
