@@ -21,6 +21,7 @@ export interface BudgetData {
   _id?: string;
   income?: number;
   additional_income?: number;
+  additional_income_items?: Array<{ name: string; amount: number }>;
   expenses?: Record<string, number>;
 }
 
@@ -71,7 +72,9 @@ class DebtPlanningService {
       return (response.data as any)?.debts || [];
     } catch (error) {
       console.error('💳 Error fetching debts:', error);
-      throw new Error(`Failed to fetch debts: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to fetch debts: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -86,17 +89,21 @@ class DebtPlanningService {
       return (response.data as any)?.budgets || [];
     } catch (error) {
       console.error('💰 Error fetching budget data:', error);
-      throw new Error(`Failed to fetch budget data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to fetch budget data: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
   /**
    * Calculate debt payoff plan
    */
-  async calculateDebtPlan(request: DebtPlannerRequest): Promise<DebtPlannerResponse> {
+  async calculateDebtPlan(
+    request: DebtPlannerRequest
+  ): Promise<DebtPlannerResponse> {
     try {
       console.log('📊 Calculating debt plan with strategy:', request.strategy);
-      
+
       // Transform debt data to match backend expectations
       const transformedRequest = {
         ...request,
@@ -109,24 +116,32 @@ class DebtPlanningService {
           amount: debt.amount,
           effective_date: debt.effective_date,
           created_at: debt.created_at,
-          updated_at: debt.updated_at
-        }))
+          updated_at: debt.updated_at,
+        })),
       };
-      
+
       console.log('📊 Transformed request:', transformedRequest);
-      const response = await apiClient.post('/api/mongodb/debt-planner/', transformedRequest);
+      const response = await apiClient.post(
+        '/api/mongodb/debt-planner/',
+        transformedRequest
+      );
       console.log('📊 Debt plan response:', response.data);
-      
+
       // Transform backend response to match mobile app expectations
       const backendData = response.data as any;
       console.log('📊 Backend response structure:', backendData);
-      
+
       // Calculate total payments from the plan
-      const totalPayments = backendData.plan?.reduce((sum: number, month: any) => {
-        const monthTotal = month.debts?.reduce((debtSum: number, debt: any) => debtSum + (debt.paid || 0), 0) || 0;
-        return sum + monthTotal;
-      }, 0) || 0;
-      
+      const totalPayments =
+        backendData.plan?.reduce((sum: number, month: any) => {
+          const monthTotal =
+            month.debts?.reduce(
+              (debtSum: number, debt: any) => debtSum + (debt.paid || 0),
+              0
+            ) || 0;
+          return sum + monthTotal;
+        }, 0) || 0;
+
       const transformedResponse: DebtPlannerResponse = {
         success: true,
         message: 'Debt plan calculated successfully',
@@ -134,29 +149,39 @@ class DebtPlanningService {
           total_months: backendData.months || 0,
           total_interest_paid: backendData.total_interest || 0,
           total_payments: totalPayments,
-          monthly_payments: (backendData.plan || []).map((month: any, index: number) => {
-            const monthTotal = month.debts?.reduce((sum: number, debt: any) => sum + (debt.paid || 0), 0) || 0;
-            return {
-              month: month.month || index,
-              year: new Date().getFullYear() + Math.floor((month.month || index) / 12),
-              total_payment: monthTotal,
-              debts: (month.debts || []).map((debt: any) => ({
-                debt_id: debt.name || '',
-                debt_name: debt.name || '',
-                payment: debt.paid || 0,
-                remaining_balance: debt.balance || 0,
-                interest_paid: debt.interest_payment || 0
-              }))
-            };
-          })
-        }
+          monthly_payments: (backendData.plan || []).map(
+            (month: any, index: number) => {
+              const monthTotal =
+                month.debts?.reduce(
+                  (sum: number, debt: any) => sum + (debt.paid || 0),
+                  0
+                ) || 0;
+              return {
+                month: month.month || index,
+                year:
+                  new Date().getFullYear() +
+                  Math.floor((month.month || index) / 12),
+                total_payment: monthTotal,
+                debts: (month.debts || []).map((debt: any) => ({
+                  debt_id: debt.name || '',
+                  debt_name: debt.name || '',
+                  payment: debt.paid || 0,
+                  remaining_balance: debt.balance || 0,
+                  interest_paid: debt.interest_payment || 0,
+                })),
+              };
+            }
+          ),
+        },
       };
-      
+
       console.log('📊 Transformed response:', transformedResponse);
       return transformedResponse;
     } catch (error) {
       console.error('📊 Error calculating debt plan:', error);
-      throw new Error(`Failed to calculate debt plan: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to calculate debt plan: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -166,12 +191,17 @@ class DebtPlanningService {
   async createDebt(debtData: Partial<Debt>): Promise<Debt> {
     try {
       console.log('➕ Creating debt:', debtData);
-      const response = await apiClient.post('/api/mongodb/debts/create/', debtData);
+      const response = await apiClient.post(
+        '/api/mongodb/debts/create/',
+        debtData
+      );
       console.log('➕ Debt created:', response.data);
       return response.data as Debt;
     } catch (error) {
       console.error('➕ Error creating debt:', error);
-      throw new Error(`Failed to create debt: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to create debt: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -181,12 +211,17 @@ class DebtPlanningService {
   async updateDebt(debtId: string, debtData: Partial<Debt>): Promise<Debt> {
     try {
       console.log('✏️ Updating debt:', debtId, debtData);
-      const response = await apiClient.put(`/api/mongodb/debts/${debtId}/update/`, debtData);
+      const response = await apiClient.put(
+        `/api/mongodb/debts/${debtId}/update/`,
+        debtData
+      );
       console.log('✏️ Debt updated:', response.data);
       return response.data as Debt;
     } catch (error) {
       console.error('✏️ Error updating debt:', error);
-      throw new Error(`Failed to update debt: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to update debt: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -196,12 +231,16 @@ class DebtPlanningService {
   async deleteDebt(debtId: string): Promise<boolean> {
     try {
       console.log('🗑️ Deleting debt:', debtId);
-      const response = await apiClient.delete(`/api/mongodb/debts/${debtId}/delete/`);
+      const response = await apiClient.delete(
+        `/api/mongodb/debts/${debtId}/delete/`
+      );
       console.log('🗑️ Debt deleted:', response.data);
       return response.status === 200;
     } catch (error) {
       console.error('🗑️ Error deleting debt:', error);
-      throw new Error(`Failed to delete debt: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to delete debt: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -214,14 +253,14 @@ class DebtPlanningService {
         id: 'snowball',
         name: 'Snowball Method',
         description: 'Pay off smallest debts first to build momentum',
-        icon: 'snow'
+        icon: 'snow',
       },
       {
         id: 'avalanche',
         name: 'Avalanche Method',
         description: 'Pay off highest interest debts first to save money',
-        icon: 'trending-down'
-      }
+        icon: 'trending-down',
+      },
     ];
   }
 
@@ -256,15 +295,15 @@ class DebtPlanningService {
    */
   calculateWeightedAverageRate(debts: Debt[]): number {
     if (debts.length === 0) return 0;
-    
+
     const totalDebt = this.calculateTotalDebt(debts);
     if (totalDebt === 0) return 0;
-    
+
     const weightedSum = debts.reduce((sum, debt) => {
       const weight = (debt.balance || 0) / totalDebt;
       return sum + (debt.interest_rate || 0) * weight;
     }, 0);
-    
+
     return weightedSum;
   }
 }

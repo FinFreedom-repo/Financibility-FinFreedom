@@ -31,6 +31,8 @@ interface ChartProps {
   formatYLabel?: (value: string) => string;
   yAxisLabel?: string;
   xAxisLabel?: string;
+  visibleDatasets?: Set<string>;
+  onLegendPress?: (label: string) => void;
 }
 
 const Chart: React.FC<ChartProps> = ({
@@ -42,6 +44,8 @@ const Chart: React.FC<ChartProps> = ({
   formatYLabel,
   yAxisLabel,
   xAxisLabel,
+  visibleDatasets,
+  onLegendPress,
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
@@ -120,9 +124,17 @@ const Chart: React.FC<ChartProps> = ({
     };
   }, [formatYLabel]);
 
+  // Filter datasets based on visibility
+  const filteredDatasets = useMemo(() => {
+    if (!visibleDatasets) return data.datasets || [];
+    return (data.datasets || []).filter(dataset =>
+      visibleDatasets.has(dataset.label)
+    );
+  }, [data.datasets, visibleDatasets]);
+
   const chartData = {
     labels: data.labels || [],
-    datasets: (data.datasets || []).map(dataset => ({
+    datasets: filteredDatasets.map(dataset => ({
       data: dataset.data || [],
       color: (opacity = 1) => {
         const color = dataset.color || '#000000';
@@ -268,20 +280,39 @@ const Chart: React.FC<ChartProps> = ({
           </Modal>
           {showLegend && data.datasets && data.datasets.length > 0 && (
             <View style={[styles.legend, xAxisLabel && styles.legendWithXAxis]}>
-              {data.datasets.map((dataset, index) => (
-                <View
-                  key={`${dataset.label}-${index}`}
-                  style={styles.legendItem}
-                >
-                  <View
+              {data.datasets.map((dataset, index) => {
+                const isVisible =
+                  !visibleDatasets || visibleDatasets.has(dataset.label);
+                return (
+                  <TouchableOpacity
+                    key={`${dataset.label}-${index}`}
                     style={[
-                      styles.legendColor,
-                      { backgroundColor: dataset.color },
+                      styles.legendItem,
+                      !isVisible && styles.legendItemHidden,
                     ]}
-                  />
-                  <Text style={styles.legendText}>{dataset.label}</Text>
-                </View>
-              ))}
+                    onPress={() => onLegendPress?.(dataset.label)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.legendColor,
+                        {
+                          backgroundColor: dataset.color,
+                          opacity: isVisible ? 1 : 0.3,
+                        },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.legendText,
+                        !isVisible && styles.legendTextHidden,
+                      ]}
+                    >
+                      {dataset.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
         </View>
@@ -367,6 +398,13 @@ const createStyles = (theme: any) =>
       fontSize: 12,
       color: theme.colors.text,
       fontWeight: '500',
+    },
+    legendItemHidden: {
+      opacity: 0.5,
+    },
+    legendTextHidden: {
+      textDecorationLine: 'line-through',
+      opacity: 0.5,
     },
     placeholder: {
       height: 200,

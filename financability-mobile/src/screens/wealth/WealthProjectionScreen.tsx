@@ -18,7 +18,6 @@ import Chart from '../../components/common/Chart';
 import wealthProjectionService, {
   WealthProjectionData,
   WealthProjectionPoint,
-
 } from '../../services/wealthProjectionService';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatCurrencyAbbreviated } from '../../utils/formatting';
@@ -41,6 +40,16 @@ const WealthProjectionScreen: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [showSummary, setShowSummary] = useState(false);
+  const [visibleDatasets, setVisibleDatasets] = useState<Set<string>>(
+    new Set([
+      'Assets',
+      'Debt',
+      'Net Worth (Investment)',
+      'Net Worth (Investment + Inflation)',
+      'Net Worth (Checking)',
+      'Net Worth (Checking + Inflation)',
+    ])
+  );
 
   // Load saved settings on mount
   useEffect(() => {
@@ -63,7 +72,7 @@ const WealthProjectionScreen: React.FC = () => {
           wealthProjectionService.sanitizeData(savedSettings);
         setFormData(sanitizedSettings);
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to load saved settings');
     } finally {
       setLoading(false);
@@ -146,28 +155,23 @@ const WealthProjectionScreen: React.FC = () => {
 
     try {
       setLoading(true);
-      console.log('💰 Calculating wealth projection...');
 
       const response =
         await wealthProjectionService.calculateWealthProjection(formData);
 
       if (response && response.projections) {
-        console.log(
-          '💰 Setting projection data:',
-          response.projections.length,
-          'points'
-        );
         setProjectionData(response.projections);
         setShowChart(true);
         setShowSummary(true);
         setSuccessMessage('Wealth projection calculated successfully!');
-        console.log('💰 Projection calculated successfully');
       } else {
-        console.log('💰 Invalid response format:', response);
         throw new Error('Invalid response format from server');
       }
-    } catch (error) {
-      console.error('💰 Error calculating projection:', error);
+    } catch {
+      Alert.alert(
+        'Error',
+        'Failed to calculate wealth projection. Please try again.'
+      );
       setErrorMessage(
         'Failed to calculate wealth projection. Please try again.'
       );
@@ -186,12 +190,11 @@ const WealthProjectionScreen: React.FC = () => {
           wealthProjectionService.sanitizeData(importedData);
         setFormData(prev => ({ ...prev, ...sanitizedData }));
         setSuccessMessage('Financial data imported successfully!');
-        console.log('💰 Financial data imported:', sanitizedData);
       } else {
         setErrorMessage('No financial data found to import');
       }
-    } catch (error) {
-      console.error('💰 Error importing financial data:', error);
+    } catch {
+      Alert.alert('Error', 'Failed to import financial data');
       setErrorMessage('Failed to import financial data');
     } finally {
       setLoading(false);
@@ -206,8 +209,8 @@ const WealthProjectionScreen: React.FC = () => {
       } else {
         setErrorMessage('Failed to save settings');
       }
-    } catch (error) {
-      console.error('💰 Error saving settings:', error);
+    } catch {
+      Alert.alert('Error', 'Failed to save settings');
       setErrorMessage('Failed to save settings');
     }
   };
@@ -218,16 +221,24 @@ const WealthProjectionScreen: React.FC = () => {
     setRefreshing(false);
   };
 
-  // Chart data preparation
+  const handleLegendPress = (label: string) => {
+    setVisibleDatasets(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(label)) {
+        if (newSet.size > 1) {
+          newSet.delete(label);
+        }
+      } else {
+        newSet.add(label);
+      }
+      return newSet;
+    });
+  };
+
   const chartData = useMemo(() => {
-    console.log(
-      '💰 Preparing chart data, projectionData length:',
-      projectionData?.length
-    );
     if (!projectionData || projectionData.length === 0) return null;
 
     try {
-      // Filter data to match 10-year intervals first
       const startAge = projectionData[0]?.age || 0;
       const endAge = projectionData[projectionData.length - 1]?.age || 0;
 
@@ -236,18 +247,7 @@ const WealthProjectionScreen: React.FC = () => {
         return age % 10 === 0 || age === startAge || age === endAge;
       });
 
-      // Create labels from the filtered data
       const labels = filteredData.map(item => item.age.toString());
-
-      console.log(
-        '💰 Filtered data length:',
-        filteredData.length,
-        'Labels length:',
-        labels.length
-      );
-      console.log('💰 Chart labels prepared:', labels);
-
-      // Calculate Net Worth for each scenario with safety checks
       const netWorthData = filteredData.map(
         item => (item.scenario_1 || 0) - (item.debt_line || 0)
       );
@@ -263,7 +263,6 @@ const WealthProjectionScreen: React.FC = () => {
       const assetsData = filteredData.map(item => item.scenario_1 || 0);
       const debtData = filteredData.map(item => item.debt_line || 0);
 
-      // Validate that all data arrays have the same length as filtered data
       const dataLength = filteredData.length;
       const allDataArrays = [
         netWorthData,
@@ -274,29 +273,12 @@ const WealthProjectionScreen: React.FC = () => {
         debtData,
       ];
 
-      console.log(
-        '💰 Data validation - Labels:',
-        labels.length,
-        'Filtered data:',
-        dataLength,
-        'Arrays:',
-        allDataArrays.map(arr => arr.length)
-      );
-
       const isValidData = allDataArrays.every(
         dataArray => dataArray.length === dataLength
       );
 
       if (!isValidData) {
-        console.error(
-          '💰 Chart data validation failed: data arrays have different lengths'
-        );
-        console.error(
-          '💰 Expected length:',
-          dataLength,
-          'Actual lengths:',
-          allDataArrays.map(arr => arr.length)
-        );
+        Alert.alert('Error', 'Chart data validation failed');
         return null;
       }
 
@@ -306,49 +288,48 @@ const WealthProjectionScreen: React.FC = () => {
           {
             label: 'Assets',
             data: assetsData,
-            color: '#800080', // Purple - matches website
+            color: '#800080',
             fill: false,
           },
           {
             label: 'Debt',
             data: debtData,
-            color: '#FF1493', // Deep Pink - matches website
+            color: '#FF1493',
             fill: false,
           },
           {
             label: 'Net Worth (Investment)',
             data: netWorthData,
-            color: '#2196F3', // Blue
+            color: '#2196F3',
             fill: false,
           },
           {
             label: 'Net Worth (Investment + Inflation)',
             data: netWorthInflAdjData,
-            color: '#FF9800', // Orange
+            color: '#FF9800',
             fill: false,
           },
           {
             label: 'Net Worth (Checking)',
             data: netWorthCheckingData,
-            color: '#4CAF50', // Green
+            color: '#4CAF50',
             fill: false,
           },
           {
             label: 'Net Worth (Checking + Inflation)',
             data: netWorthCheckingInflAdjData,
-            color: '#00BCD4', // Cyan
+            color: '#00BCD4',
             fill: false,
           },
         ],
       };
-    } catch (error) {
-      console.error('Error preparing chart data:', error);
+    } catch {
+      Alert.alert('Error', 'Failed to prepare chart data');
       return null;
     }
-  }, [projectionData, theme.colors]);
+  }, [projectionData]);
 
   const styles = createStyles(theme);
-  console.log('💰 Theme colors:', theme.colors);
 
   if (loading && !refreshing) {
     return <Loading />;
@@ -408,6 +389,8 @@ const WealthProjectionScreen: React.FC = () => {
                 yAxisLabel="Value ($)"
                 xAxisLabel="Age (years)"
                 formatYLabel={formatCurrencyAbbreviated}
+                visibleDatasets={visibleDatasets}
+                onLegendPress={handleLegendPress}
               />
             </View>
           ) : (

@@ -487,28 +487,52 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             (primaryIncomeRow as any)[`month_${monthIdx}`] = budget.income || 0;
           }
 
-          // Additional Income Items
-          if (budget.additional_income) {
-            // Handle additional income as a single value
-            const additionalIncomeRow = {
-              category: 'Additional Income',
-              type: 'additional_income',
-              ...months.reduce(
-                (acc, _, idx) => ({ ...acc, [`month_${idx}`]: 0 }),
-                {}
-              ),
-            };
-            (additionalIncomeRow as any)[`month_${monthIdx}`] =
-              budget.additional_income || 0;
+          // Additional Income Items - Add as separate rows
+          const budgetWithItems = budget as BudgetData & {
+            additional_income_items?: { name: string; amount: number }[];
+          };
+          if (
+            budgetWithItems.additional_income_items &&
+            Array.isArray(budgetWithItems.additional_income_items)
+          ) {
+            budgetWithItems.additional_income_items.forEach(
+              (incomeItem: any) => {
+                const itemName = incomeItem.name || 'Additional Income';
+                let additionalIncomeRow = gridData.find(
+                  row =>
+                    row.category === itemName &&
+                    row.type === 'additional_income'
+                );
 
-            const primaryIncomeIndex = gridData.findIndex(
-              row => row.category === 'Primary Income'
+                if (!additionalIncomeRow) {
+                  // Create new Additional Income row
+                  additionalIncomeRow = {
+                    category: itemName,
+                    type: 'additional_income',
+                    ...months.reduce(
+                      (acc, _, idx) => ({ ...acc, [`month_${idx}`]: 0 }),
+                      {}
+                    ),
+                  };
+                  // Insert after Primary Income
+                  const primaryIncomeIndex = gridData.findIndex(
+                    row => row.category === 'Primary Income'
+                  );
+                  if (primaryIncomeIndex !== -1) {
+                    gridData.splice(
+                      primaryIncomeIndex + 1,
+                      0,
+                      additionalIncomeRow
+                    );
+                  } else {
+                    gridData.push(additionalIncomeRow);
+                  }
+                }
+
+                (additionalIncomeRow as any)[`month_${monthIdx}`] =
+                  incomeItem.amount || 0;
+              }
             );
-            if (primaryIncomeIndex !== -1) {
-              gridData.splice(primaryIncomeIndex + 1, 0, additionalIncomeRow);
-            } else {
-              gridData.push(additionalIncomeRow);
-            }
           }
 
           // Expenses

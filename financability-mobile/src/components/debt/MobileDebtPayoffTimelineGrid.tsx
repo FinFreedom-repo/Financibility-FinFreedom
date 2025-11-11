@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../contexts/ThemeContext';
 import { formatCurrency } from '../../utils/formatting';
 
 const { width } = Dimensions.get('window');
@@ -35,6 +34,28 @@ const MobileDebtPayoffTimelineGrid: React.FC<
   theme,
 }) => {
   const styles = createStyles(theme);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const currentMonthIdx = months.findIndex(m => m.type === 'current');
+
+  useEffect(() => {
+    if (scrollViewRef.current && currentMonthIdx >= 0) {
+      setTimeout(() => {
+        const screenWidth = Dimensions.get('window').width;
+        const monthWidth = 80;
+        const categoryHeaderWidth = 120;
+        const scrollPosition = Math.max(
+          0,
+          currentMonthIdx * monthWidth -
+            (screenWidth - categoryHeaderWidth) / 2 +
+            monthWidth / 2
+        );
+        scrollViewRef.current?.scrollTo({
+          x: scrollPosition,
+          animated: false,
+        });
+      }, 200);
+    }
+  }, [currentMonthIdx, months.length]);
 
   // Generate grid data in the same format as Budget Projection
   const generateGridData = () => {
@@ -166,56 +187,120 @@ const MobileDebtPayoffTimelineGrid: React.FC<
 
   const gridData = generateGridData();
 
-  const getCellStyle = (month: any, category: string, value: number) => {
-    const baseStyle = [styles.cell];
-
-    // Time-based styling
-    if (month.type === 'historical') {
-      baseStyle.push(styles.historicalCell);
-    } else if (month.type === 'current') {
-      baseStyle.push(styles.currentCell);
-    } else if (month.type === 'future') {
-      baseStyle.push(styles.futureCell);
+  const calculateDebtFreeMonth = () => {
+    if (!payoffPlan || !payoffPlan.plan || payoffPlan.plan.length === 0) {
+      return -1;
     }
 
-    // Category-specific styling
-    if (category === 'Remaining Debt') {
-      baseStyle.push(styles.remainingDebtCell);
-    } else if (category === 'Principal Paid Down') {
-      baseStyle.push(styles.principalPaidCell);
+    // Match desktop logic: use remainingDebt directly from plan, or calculate from debts
+    for (let i = 0; i < payoffPlan.plan.length; i++) {
+      const monthPlan = payoffPlan.plan[i];
+      // Use remainingDebt if available (matches desktop), otherwise calculate from debts
+      const remainingDebt =
+        (monthPlan as any)?.remainingDebt !== undefined
+          ? (monthPlan as any).remainingDebt
+          : monthPlan?.debts?.reduce(
+              (sum: number, debt: any) => sum + (debt.balance || 0),
+              0
+            ) || 0;
+
+      if (remainingDebt === 0) {
+        return currentMonthIdx + i;
+      }
+    }
+    return -1;
+  };
+
+  const debtFreeMonthIdx = calculateDebtFreeMonth();
+
+  const getCellStyle = (
+    month: any,
+    category: string,
+    value: number,
+    monthIdx: number
+  ) => {
+    const baseStyle = [styles.cell];
+
+    if (debtFreeMonthIdx === monthIdx && category === 'Remaining Debt') {
+      baseStyle.push(styles.debtFreeCell);
+      return baseStyle;
+    }
+
+    const isHistorical = month.type === 'historical';
+    const isCurrent = month.type === 'current';
+    const isFuture = month.type === 'future';
+
+    if (category === 'Principal Paid Down') {
+      if (isHistorical) {
+        baseStyle.push(styles.principalPaidHistoricalCell);
+      } else if (isCurrent) {
+        baseStyle.push(styles.principalPaidCurrentCell);
+      } else if (isFuture) {
+        baseStyle.push(styles.principalPaidFutureCell);
+      }
     } else if (category === 'Interest Paid') {
-      baseStyle.push(styles.interestPaidCell);
-    } else if (
-      category !== 'Remaining Debt' &&
-      category !== 'Principal Paid Down' &&
-      category !== 'Interest Paid'
-    ) {
-      baseStyle.push(styles.debtCell);
+      if (isHistorical) {
+        baseStyle.push(styles.interestPaidHistoricalCell);
+      } else if (isCurrent) {
+        baseStyle.push(styles.interestPaidCurrentCell);
+      } else if (isFuture) {
+        baseStyle.push(styles.interestPaidFutureCell);
+      }
+    } else if (category === 'Remaining Debt') {
+      if (isHistorical) {
+        baseStyle.push(styles.remainingDebtHistoricalCell);
+      } else if (isCurrent) {
+        baseStyle.push(styles.remainingDebtCurrentCell);
+      } else if (isFuture) {
+        baseStyle.push(styles.remainingDebtFutureCell);
+      }
+    } else {
+      if (isHistorical) {
+        baseStyle.push(styles.debtHistoricalCell);
+      } else if (isCurrent) {
+        baseStyle.push(styles.debtCurrentCell);
+      } else if (isFuture) {
+        baseStyle.push(styles.debtFutureCell);
+      }
     }
 
     return baseStyle;
   };
 
-  const getTextColor = (category: string, value: number) => {
+  const getTextColor = (month: any, category: string, value: number) => {
     if (category === 'Remaining Debt') {
-      return value > 0 ? theme.colors.error : theme.colors.success;
+      return value > 0 ? '#000000' : theme.colors.success;
     }
-    if (category === 'Principal Paid Down') {
-      return theme.colors.success;
+    if (category === 'Principal Paid Down' || category === 'Interest Paid') {
+      return '#FFFFFF';
     }
-    if (category === 'Interest Paid') {
-      return theme.colors.warning;
+    if (month.type === 'historical') {
+      return '#FFFFFF';
     }
-    return theme.colors.text;
+    return '#FFFFFF';
   };
 
   const renderCell = (monthIdx: number, category: string, value: number) => {
     const month = months[monthIdx];
+    const isDebtFree =
+      debtFreeMonthIdx === monthIdx && category === 'Remaining Debt';
 
     return (
-      <View style={getCellStyle(month, category, value)}>
+      <View style={getCellStyle(month, category, value, monthIdx)}>
+        {isDebtFree && (
+          <View style={styles.debtFreeBadge}>
+            <Ionicons
+              name="checkmark-circle"
+              size={16}
+              color={theme.colors.success}
+            />
+          </View>
+        )}
         <Text
-          style={[styles.cellText, { color: getTextColor(category, value) }]}
+          style={[
+            styles.cellText,
+            { color: getTextColor(month, category, value) },
+          ]}
         >
           {formatCurrency(value)}
         </Text>
@@ -249,11 +334,14 @@ const MobileDebtPayoffTimelineGrid: React.FC<
           </Text>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView
+          ref={scrollViewRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+        >
           <View style={styles.monthsContainer}>
             {months.map((month, idx) => (
               <View key={idx} style={styles.monthColumn}>
-                <Text style={styles.monthHeader}>{month.label}</Text>
                 {renderCell(
                   idx,
                   row.category,
@@ -314,6 +402,19 @@ const MobileDebtPayoffTimelineGrid: React.FC<
         <Text style={styles.addDebtButtonText}>Add Debt</Text>
       </TouchableOpacity>
 
+      {/* Debt-Free Month Indicator */}
+      {debtFreeMonthIdx >= 0 && (
+        <View style={styles.debtFreeIndicator}>
+          <Ionicons name="checkmark-circle" size={24} color="white" />
+          <View style={styles.debtFreeTextContainer}>
+            <Text style={styles.debtFreeTitle}>Debt-Free</Text>
+            <Text style={styles.debtFreeDate}>
+              {months[debtFreeMonthIdx]?.label}
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Grid */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.grid}>
@@ -322,11 +423,24 @@ const MobileDebtPayoffTimelineGrid: React.FC<
             <View style={styles.categoryHeader}>
               <Text style={styles.headerText}>Category</Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView
+              ref={scrollViewRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            >
               <View style={styles.monthsContainer}>
                 {months.map((month, idx) => (
                   <View key={idx} style={styles.monthColumn}>
-                    <Text style={styles.monthHeader}>{month.label}</Text>
+                    <View style={styles.monthHeaderContainer}>
+                      <Text style={styles.monthHeader}>{month.label}</Text>
+                      {debtFreeMonthIdx === idx && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={14}
+                          color={theme.colors.success}
+                        />
+                      )}
+                    </View>
                   </View>
                 ))}
               </View>
@@ -425,13 +539,59 @@ const createStyles = (theme: any) =>
     monthColumn: {
       width: 80,
       alignItems: 'center',
+      justifyContent: 'center',
+    },
+    monthHeaderContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      marginBottom: theme.spacing.xs,
     },
     monthHeader: {
       fontSize: 12,
       fontWeight: '600',
       color: theme.colors.textSecondary,
-      marginBottom: theme.spacing.xs,
       textAlign: 'center',
+    },
+    debtFreeIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#1976d2',
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.lg,
+      borderRadius: 12,
+      marginBottom: theme.spacing.md,
+      gap: theme.spacing.sm,
+      shadowColor: '#1976d2',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 10,
+      elevation: 5,
+      borderWidth: 2,
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    debtFreeTextContainer: {
+      alignItems: 'center',
+    },
+    debtFreeTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: '#FFFFFF',
+      lineHeight: 22,
+    },
+    debtFreeDate: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: '#FFFFFF',
+      lineHeight: 20,
+    },
+    debtFreeBadge: {
+      position: 'absolute',
+      top: 2,
+      right: 2,
+      zIndex: 1,
     },
     row: {
       flexDirection: 'row',
@@ -459,9 +619,21 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: 'transparent',
     },
-    historicalCell: {
-      backgroundColor: theme.colors.background,
-      opacity: 0.7,
+    debtFreeCell: {
+      backgroundColor: '#bbf7d0',
+      borderColor: '#16a34a',
+      borderWidth: 3,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      position: 'relative',
+    },
+    principalPaidHistoricalCell: {
+      backgroundColor: 'rgba(25, 118, 210, 0.3)',
+      opacity: 0.6,
       width: 70,
       height: 40,
       justifyContent: 'center',
@@ -471,30 +643,21 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: 'transparent',
     },
-    currentCell: {
-      backgroundColor: theme.colors.primary + '20',
-      borderColor: theme.colors.primary,
+    principalPaidCurrentCell: {
+      backgroundColor: '#1976d2',
+      borderColor: '#374151',
+      borderWidth: 3,
+      borderLeftWidth: 4,
+      borderRightWidth: 4,
       width: 70,
       height: 40,
       justifyContent: 'center',
       alignItems: 'center',
       margin: 2,
       borderRadius: theme.borderRadius.sm,
-      borderWidth: 1,
     },
-    futureCell: {
-      backgroundColor: theme.colors.surface,
-      width: 70,
-      height: 40,
-      justifyContent: 'center',
-      alignItems: 'center',
-      margin: 2,
-      borderRadius: theme.borderRadius.sm,
-      borderWidth: 1,
-      borderColor: 'transparent',
-    },
-    remainingDebtCell: {
-      backgroundColor: theme.colors.error + '10',
+    principalPaidFutureCell: {
+      backgroundColor: 'rgba(25, 118, 210, 0.7)',
       width: 70,
       height: 40,
       justifyContent: 'center',
@@ -504,8 +667,9 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: 'transparent',
     },
-    principalPaidCell: {
-      backgroundColor: theme.colors.success + '10',
+    interestPaidHistoricalCell: {
+      backgroundColor: 'rgba(66, 165, 245, 0.3)',
+      opacity: 0.6,
       width: 70,
       height: 40,
       justifyContent: 'center',
@@ -515,8 +679,21 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: 'transparent',
     },
-    interestPaidCell: {
-      backgroundColor: theme.colors.warning + '10',
+    interestPaidCurrentCell: {
+      backgroundColor: '#42a5f5',
+      borderColor: '#374151',
+      borderWidth: 3,
+      borderLeftWidth: 4,
+      borderRightWidth: 4,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+    },
+    interestPaidFutureCell: {
+      backgroundColor: 'rgba(66, 165, 245, 0.7)',
       width: 70,
       height: 40,
       justifyContent: 'center',
@@ -526,8 +703,69 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: 'transparent',
     },
-    debtCell: {
-      backgroundColor: theme.colors.background,
+    remainingDebtHistoricalCell: {
+      backgroundColor: 'rgba(255, 193, 7, 0.4)',
+      opacity: 0.6,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    remainingDebtCurrentCell: {
+      backgroundColor: 'rgba(255, 193, 7, 0.8)',
+      borderColor: '#374151',
+      borderWidth: 3,
+      borderLeftWidth: 4,
+      borderRightWidth: 4,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+    },
+    remainingDebtFutureCell: {
+      backgroundColor: 'rgba(255, 193, 7, 0.6)',
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    debtHistoricalCell: {
+      backgroundColor: 'rgba(244, 67, 54, 0.3)',
+      opacity: 0.6,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    debtCurrentCell: {
+      backgroundColor: '#f44336',
+      borderColor: '#374151',
+      borderWidth: 3,
+      borderLeftWidth: 4,
+      borderRightWidth: 4,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+    },
+    debtFutureCell: {
+      backgroundColor: 'rgba(244, 67, 54, 0.7)',
       width: 70,
       height: 40,
       justifyContent: 'center',
