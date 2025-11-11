@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,28 +34,40 @@ const MobileDebtPayoffTimelineGrid: React.FC<
   theme,
 }) => {
   const styles = createStyles(theme);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const mainScrollViewRef = useRef<ScrollView>(null);
   const currentMonthIdx = months.findIndex(m => m.type === 'current');
 
+  const calculateScrollPosition = useCallback(() => {
+    if (currentMonthIdx < 0) return 0;
+    const screenWidth = Dimensions.get('window').width;
+    const monthWidth = 80;
+    const categoryHeaderWidth = 120;
+    return Math.max(
+      0,
+      currentMonthIdx * monthWidth -
+        (screenWidth - categoryHeaderWidth) / 2 +
+        monthWidth / 2
+    );
+  }, [currentMonthIdx]);
+
   useEffect(() => {
-    if (scrollViewRef.current && currentMonthIdx >= 0) {
-      setTimeout(() => {
-        const screenWidth = Dimensions.get('window').width;
-        const monthWidth = 80;
-        const categoryHeaderWidth = 120;
-        const scrollPosition = Math.max(
-          0,
-          currentMonthIdx * monthWidth -
-            (screenWidth - categoryHeaderWidth) / 2 +
-            monthWidth / 2
-        );
-        scrollViewRef.current?.scrollTo({
+    if (mainScrollViewRef.current && currentMonthIdx >= 0) {
+      const scrollPosition = calculateScrollPosition();
+      // Use requestAnimationFrame for smoother, immediate scroll
+      requestAnimationFrame(() => {
+        mainScrollViewRef.current?.scrollTo({
           x: scrollPosition,
-          animated: false,
+          animated: true,
         });
-      }, 200);
+      });
     }
-  }, [currentMonthIdx, months.length]);
+  }, [
+    currentMonthIdx,
+    months.length,
+    calculateScrollPosition,
+    payoffPlan,
+    strategy,
+  ]);
 
   // Generate grid data in the same format as Budget Projection
   const generateGridData = () => {
@@ -334,23 +346,17 @@ const MobileDebtPayoffTimelineGrid: React.FC<
           </Text>
         </View>
 
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-        >
-          <View style={styles.monthsContainer}>
-            {months.map((month, idx) => (
-              <View key={idx} style={styles.monthColumn}>
-                {renderCell(
-                  idx,
-                  row.category,
-                  parseFloat(row[`month_${idx}`]) || 0
-                )}
-              </View>
-            ))}
-          </View>
-        </ScrollView>
+        <View style={styles.monthsContainer}>
+          {months.map((month, idx) => (
+            <View key={idx} style={styles.monthColumn}>
+              {renderCell(
+                idx,
+                row.category,
+                parseFloat(row[`month_${idx}`]) || 0
+              )}
+            </View>
+          ))}
+        </View>
       </View>
     );
   };
@@ -416,35 +422,45 @@ const MobileDebtPayoffTimelineGrid: React.FC<
       )}
 
       {/* Grid */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView
+        ref={mainScrollViewRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onContentSizeChange={() => {
+          // Scroll when content size is known (e.g., when strategy changes and grid updates)
+          if (mainScrollViewRef.current && currentMonthIdx >= 0) {
+            const scrollPosition = calculateScrollPosition();
+            requestAnimationFrame(() => {
+              mainScrollViewRef.current?.scrollTo({
+                x: scrollPosition,
+                animated: true,
+              });
+            });
+          }
+        }}
+      >
         <View style={styles.grid}>
           {/* Header row */}
           <View style={styles.headerRow}>
             <View style={styles.categoryHeader}>
               <Text style={styles.headerText}>Category</Text>
             </View>
-            <ScrollView
-              ref={scrollViewRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-            >
-              <View style={styles.monthsContainer}>
-                {months.map((month, idx) => (
-                  <View key={idx} style={styles.monthColumn}>
-                    <View style={styles.monthHeaderContainer}>
-                      <Text style={styles.monthHeader}>{month.label}</Text>
-                      {debtFreeMonthIdx === idx && (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={14}
-                          color={theme.colors.success}
-                        />
-                      )}
-                    </View>
+            <View style={styles.monthsContainer}>
+              {months.map((month, idx) => (
+                <View key={idx} style={styles.monthColumn}>
+                  <View style={styles.monthHeaderContainer}>
+                    <Text style={styles.monthHeader}>{month.label}</Text>
+                    {debtFreeMonthIdx === idx && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={14}
+                        color={theme.colors.success}
+                      />
+                    )}
                   </View>
-                ))}
-              </View>
-            </ScrollView>
+                </View>
+              ))}
+            </View>
           </View>
 
           {/* Data rows */}
