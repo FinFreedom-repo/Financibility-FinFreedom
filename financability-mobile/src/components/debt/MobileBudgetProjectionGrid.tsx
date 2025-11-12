@@ -113,7 +113,7 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
     return true;
   };
 
-  const getCellStyle = (month: any, category: string, value: number) => {
+  const getCellStyle = (month: any, category: string, value: number, rowType?: string) => {
     const baseStyle: any[] = [styles.cell];
 
     const isHistorical = month.type === 'historical';
@@ -132,6 +132,8 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
       }
     } else if (
       category === 'Primary Income' ||
+      rowType === 'income' ||
+      rowType === 'additional_income' ||
       category.includes('Additional Income') ||
       category.startsWith('+ ')
     ) {
@@ -197,7 +199,7 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
     setEditValue('');
   };
 
-  const renderCell = (monthIdx: number, category: string, value: number) => {
+  const renderCell = (monthIdx: number, category: string, value: number, rowType?: string) => {
     const month = months[monthIdx];
     const isEditable = isCellEditable(month, category);
 
@@ -240,7 +242,7 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
 
     return (
       <TouchableOpacity
-        style={getCellStyle(month, category, value)}
+        style={getCellStyle(month, category, value, rowType)}
         onPress={() => handleCellPress(monthIdx, category, value)}
         disabled={!isEditable}
       >
@@ -268,7 +270,7 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
                 color:
                   row.category === 'Net Savings'
                     ? theme.colors.primary
-                    : row.type === 'income'
+                    : row.type === 'income' || row.type === 'additional_income'
                       ? theme.colors.success
                       : theme.colors.text,
                 fontWeight:
@@ -293,7 +295,8 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
               {renderCell(
                 idx,
                 row.category,
-                parseFloat(row[`month_${idx}`]) || 0
+                parseFloat(row[`month_${idx}`]) || 0,
+                row.type
               )}
             </View>
           ))}

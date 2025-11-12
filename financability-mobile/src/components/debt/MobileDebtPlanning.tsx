@@ -33,6 +33,12 @@ interface MobileDebtPlanningProps {
   onNavigate?: (screen: string) => void;
 }
 
+// Helper function to normalize category names for case-insensitive matching
+const normalizeCategoryName = (name: string): string => {
+  // Convert to uppercase for consistency (CV, VA, etc.)
+  return name.toUpperCase();
+};
+
 const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
   const { theme } = useTheme();
 
@@ -498,16 +504,18 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             budgetWithItems.additional_income_items.forEach(
               (incomeItem: any) => {
                 const itemName = incomeItem.name || 'Additional Income';
+                const normalizedName = normalizeCategoryName(itemName);
                 let additionalIncomeRow = gridData.find(
                   row =>
-                    row.category === itemName &&
+                    normalizeCategoryName(row.category) === normalizedName &&
                     row.type === 'additional_income'
                 );
 
                 if (!additionalIncomeRow) {
                   // Create new Additional Income row
+                  // Use normalized name for consistency
                   additionalIncomeRow = {
-                    category: itemName,
+                    category: normalizedName,
                     type: 'additional_income',
                     ...months.reduce(
                       (acc, _, idx) => ({ ...acc, [`month_${idx}`]: 0 }),
@@ -622,11 +630,18 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         const editKey = `${monthIdx}-${category}`;
         setUserEditedCells(prev => {
           const next = new Map(prev);
+          // Use normalized comparison for additional income items
+          const findRow = (row: any) => {
+            if (row.type === 'additional_income') {
+              return normalizeCategoryName(row.category) === normalizeCategoryName(category);
+            }
+            return row.category === category;
+          };
           next.set(editKey, {
             monthIdx,
             category,
             originalValue:
-              localGridData.find(row => row.category === category)?.[
+              localGridData.find(findRow)?.[
                 `month_${monthIdx}`
               ] || 0,
             newValue: parseFloat(newValue) || 0,
@@ -716,7 +731,15 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       return new Promise<Record<string, any>[]>(resolve => {
         setLocalGridData(prev => {
           let updated = prev.map(row => {
-            if (row.category === category) {
+            // Use normalized comparison for additional income items
+            if (row.type === 'additional_income') {
+              if (normalizeCategoryName(row.category) === normalizeCategoryName(category)) {
+                return {
+                  ...row,
+                  [`month_${monthIdx}`]: parseFloat(newValue) || 0,
+                } as any;
+              }
+            } else if (row.category === category) {
               return {
                 ...row,
                 [`month_${monthIdx}`]: parseFloat(newValue) || 0,
@@ -730,10 +753,10 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             category !== 'Primary Income' &&
             category !== 'Net Savings' &&
             category !== 'Remaining Debt' &&
-            !updated.find(row => row.category === category)
+            !updated.find(row => normalizeCategoryName(row.category) === normalizeCategoryName(category))
           ) {
             const additionalIncomeRow = {
-              category: category,
+              category: normalizeCategoryName(category),
               type: 'additional_income',
               ...months.reduce(
                 (acc, _, idx) => ({ ...acc, [`month_${idx}`]: 0 }),
