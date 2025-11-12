@@ -116,7 +116,19 @@ class FinancialStepsView(APIView):
             'message': f'${total_accounts:,.2f} of ${step1_threshold:,.2f} in accounts' if not step1_meets_condition else 'Step 1 completed: Accounts exceed $2,000'
         }
         
+        # LOG DEBTS FOR DEBUGGING
+        logger.info(f"=== STEP 2 DEBT CALCULATION ===")
+        logger.info(f"Number of debts received: {len(debts)}")
+        for i, debt in enumerate(debts):
+            debt_type = getattr(debt, 'debt_type', None) or (debt.get('debt_type') if isinstance(debt, dict) else None)
+            balance = getattr(debt, 'balance', None) or (debt.get('balance') if isinstance(debt, dict) else None)
+            amount = getattr(debt, 'amount', None) or (debt.get('amount') if isinstance(debt, dict) else None)
+            logger.info(f"Debt {i}: type={debt_type}, balance={balance}, amount={amount}, is_mortgage={'mortgage' in str(debt_type).lower() if debt_type else False}")
+        
         total_debt = self.calculate_total_debt(debts)
+        logger.info(f"Total non-mortgage debt calculated: {total_debt}")
+        logger.info(f"=== END STEP 2 DEBT CALCULATION ===")
+        
         step2_meets_condition = total_debt <= 0
         
         # Step 2 can only be completed if Step 1 is completed
@@ -295,11 +307,37 @@ class FinancialStepsView(APIView):
     def calculate_total_debt(self, debts):
         """Calculate total debt excluding mortgage"""
         total_debt = Decimal('0')
-        for debt in debts:
-            debt_type = getattr(debt, 'debt_type', '') or ''
-            if 'mortgage' not in debt_type.lower() and 'home' not in debt_type.lower():
-                balance = getattr(debt, 'balance', 0) or 0
-                total_debt += Decimal(str(balance))
+        logger.info(f"calculate_total_debt: Processing {len(debts)} debts")
+        for i, debt in enumerate(debts):
+            # Get debt_type - handle both object and dict
+            debt_type = ''
+            if isinstance(debt, dict):
+                debt_type = debt.get('debt_type', '') or ''
+            else:
+                debt_type = getattr(debt, 'debt_type', '') or ''
+            logger.info(f"calculate_total_debt: Debt {i} - type='{debt_type}'")
+            
+            is_mortgage = 'mortgage' in debt_type.lower() or 'home' in debt_type.lower()
+            logger.info(f"calculate_total_debt: Debt {i} - is_mortgage={is_mortgage}")
+            
+            if not is_mortgage:
+                # Check both 'amount' and 'balance' fields (like frontend does: debt.amount || debt.balance)
+                balance = 0
+                if isinstance(debt, dict):
+                    balance = debt.get('amount') or debt.get('balance') or 0
+                else:
+                    balance = getattr(debt, 'amount', None) or getattr(debt, 'balance', None) or 0
+                
+                # Convert to Decimal, handling None/0
+                balance_decimal = Decimal(str(balance)) if balance else Decimal('0')
+                logger.info(f"calculate_total_debt: Debt {i} - amount={getattr(debt, 'amount', None) if not isinstance(debt, dict) else debt.get('amount')}, balance={getattr(debt, 'balance', None) if not isinstance(debt, dict) else debt.get('balance')}, using={balance_decimal}")
+                
+                if balance_decimal > 0:
+                    total_debt += balance_decimal
+                    logger.info(f"calculate_total_debt: Debt {i} - Added {balance_decimal} to total")
+            else:
+                logger.info(f"calculate_total_debt: Debt {i} - Skipping (mortgage)")
+        logger.info(f"calculate_total_debt: Final total_debt = {total_debt}")
         return total_debt
     
     def calculate_monthly_expenses(self, budget):
@@ -380,11 +418,12 @@ class FinancialStepsView(APIView):
         
         total_debts = Decimal('0')
         for debt in debts:
+            # Check both 'amount' and 'balance' fields (like frontend does)
             if isinstance(debt, dict):
-                balance = debt.get('balance', 0) or 0
+                balance = debt.get('amount') or debt.get('balance') or 0
             else:
-                balance = getattr(debt, 'balance', 0) or 0
-            total_debts += Decimal(str(balance))
+                balance = getattr(debt, 'amount', None) or getattr(debt, 'balance', None) or 0
+            total_debts += Decimal(str(balance)) if balance else Decimal('0')
         
         return total_accounts - total_debts
     

@@ -170,9 +170,26 @@ const DashboardScreen: React.FC = () => {
         API_CONFIG.ENDPOINTS.DASHBOARD.FINANCIAL_STEPS
       );
 
+      // LOG RAW BACKEND RESPONSE
+      console.log('=== BACKEND RESPONSE (RAW) ===');
+      console.log(JSON.stringify(response.data, null, 2));
+      console.log('=== END BACKEND RESPONSE ===');
+
       if (response.data) {
         // Sanitize the data to ensure no text rendering issues
         const data = response.data as any;
+
+        // LOG STEP COMPLETION STATUS FROM BACKEND
+        console.log('=== STEP COMPLETION STATUS FROM BACKEND ===');
+        console.log('Step 1 completed:', data.steps?.step_1?.completed);
+        console.log('Step 2 completed:', data.steps?.step_2?.completed);
+        console.log('Step 3 completed:', data.steps?.step_3?.completed);
+        console.log('Step 4 completed:', data.steps?.step_4?.completed);
+        console.log('Step 5 completed:', data.steps?.step_5?.completed);
+        console.log('Step 6 completed:', data.steps?.step_6?.completed);
+        console.log('Current step:', data.current_step);
+        console.log('=== END STEP STATUS ===');
+
         const sanitizedData = {
           ...data,
           current_step: Number(data.current_step) || 0,
@@ -200,6 +217,14 @@ const DashboardScreen: React.FC = () => {
               }, {})
             : {},
         };
+
+        // LOG SANITIZED DATA
+        console.log('=== SANITIZED DATA ===');
+        console.log('Step 1 completed:', sanitizedData.steps.step_1?.completed);
+        console.log('Step 2 completed:', sanitizedData.steps.step_2?.completed);
+        console.log('Step 3 completed:', sanitizedData.steps.step_3?.completed);
+        console.log('Step 4 completed:', sanitizedData.steps.step_4?.completed);
+        console.log('=== END SANITIZED DATA ===');
 
         setFinancialSteps(sanitizedData as FinancialSteps);
       } else if (response.error) {
@@ -230,12 +255,18 @@ const DashboardScreen: React.FC = () => {
   const arePreviousStepsCompleted = (stepId: number): boolean => {
     if (!financialSteps || stepId <= 1) return true; // Step 1 has no previous steps
 
+    console.log(`\nChecking previous steps for step ${stepId}:`);
     for (let i = 1; i < stepId; i++) {
       const prevStepData = financialSteps.steps?.[`step_${i}`];
+      console.log(
+        `  Step ${i}: completed = ${prevStepData?.completed}, data exists = ${!!prevStepData}`
+      );
       if (!prevStepData || !prevStepData.completed) {
+        console.log(`  Step ${i} is NOT completed, returning false`);
         return false;
       }
     }
+    console.log(`  All previous steps for step ${stepId} are completed`);
     return true;
   };
 
@@ -246,8 +277,21 @@ const DashboardScreen: React.FC = () => {
     const stepProgress = financialSteps.step_progress;
     const stepData = financialSteps.steps?.[`step_${stepId}`];
 
+    // LOG STEP STATUS EVALUATION
+    console.log(`\n=== EVALUATING STEP ${stepId} ===`);
+    console.log(`Step ${stepId} data:`, stepData);
+    console.log(
+      `Step ${stepId} completed (from backend):`,
+      stepData?.completed
+    );
+    const previousStepsCompleted = arePreviousStepsCompleted(stepId);
+    console.log(`All previous steps completed:`, previousStepsCompleted);
+
     // FIRST: Check if all previous steps are completed - if not, this step cannot be completed
-    if (!arePreviousStepsCompleted(stepId)) {
+    if (!previousStepsCompleted) {
+      console.log(
+        `Step ${stepId}: Previous steps NOT completed, cannot be completed`
+      );
       // Previous steps not completed, so this step cannot be completed
       if (stepId === 2) {
         const hasNonMortgageDebts = debts.some(
@@ -258,16 +302,26 @@ const DashboardScreen: React.FC = () => {
             ) > 0
         );
         if (hasNonMortgageDebts) {
+          console.log(
+            `Step ${stepId}: Returning 'in-progress' (has non-mortgage debts)`
+          );
           return 'in-progress';
         }
       }
       // If we have progress data or it's the current step, show in-progress
       if (stepData && stepData.progress > 0) {
+        console.log(
+          `Step ${stepId}: Returning 'in-progress' (has progress, but prev steps not done)`
+        );
         return 'in-progress';
       }
       if (currentStep === stepId && stepProgress && !stepProgress.completed) {
+        console.log(
+          `Step ${stepId}: Returning 'in-progress' (current step, but prev steps not done)`
+        );
         return 'in-progress';
       }
+      console.log(`Step ${stepId}: Returning 'pending' (prev steps not done)`);
       return 'pending';
     }
 
@@ -288,24 +342,34 @@ const DashboardScreen: React.FC = () => {
 
     // Check if step is completed AND all previous steps are completed
     if (stepData && stepData.completed && arePreviousStepsCompleted(stepId)) {
+      console.log(`Step ${stepId}: Returning 'completed'`);
       return 'completed';
     }
 
     if (currentStep === stepId && stepProgress && !stepProgress.completed) {
+      console.log(`Step ${stepId}: Returning 'in-progress' (current step)`);
       return 'in-progress';
     }
 
     if (stepData && stepData.progress > 0) {
+      console.log(`Step ${stepId}: Returning 'in-progress' (has progress)`);
       return 'in-progress';
     }
 
     if (stepId === 1 && stepData && !stepData.completed) {
+      console.log(
+        `Step ${stepId}: Returning 'in-progress' (step 1 not completed)`
+      );
       return 'in-progress';
     }
 
     if (stepId <= currentStep && stepData && !stepData.completed) {
+      console.log(
+        `Step ${stepId}: Returning 'in-progress' (step <= current and not completed)`
+      );
       return 'in-progress';
     }
+    console.log(`Step ${stepId}: Returning 'pending'`);
     return 'pending';
   };
 
