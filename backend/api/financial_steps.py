@@ -100,15 +100,6 @@ class FinancialStepsView(APIView):
         steps_data = self.calculate_financial_steps(test_accounts, test_debts, test_budget, 'test_user')
         return steps_data
     
-    def are_all_previous_steps_completed(self, step_number, completed_steps):
-        """Check if all previous steps are completed"""
-        if step_number <= 1:
-            return True
-        for i in range(1, step_number):
-            if not completed_steps[i - 1]:
-                return False
-        return True
-
     def calculate_financial_steps(self, accounts, debts, budget, user_id):
         """
         Calculate progress for each financial step
@@ -153,8 +144,7 @@ class FinancialStepsView(APIView):
         step3_meets_condition = net_worth > step3_threshold
         
         # Step 3 can only be completed if Steps 1 and 2 are completed
-        previous_steps_completed = [step1_progress['completed'], step2_progress['completed']]
-        step3_completed = step3_meets_condition and self.are_all_previous_steps_completed(3, previous_steps_completed)
+        step3_completed = step3_meets_condition and step1_progress['completed'] and step2_progress['completed']
         if step3_completed:
             step3_progress = {
                 'completed': True,
@@ -167,7 +157,7 @@ class FinancialStepsView(APIView):
             step3_progress = {
                 'completed': False,
                 'progress': float(min((net_worth / step3_threshold) * 100, 100)) if step3_threshold > 0 else 0,
-                'message': f'Net worth (${net_worth:,.2f}) needs to exceed 6× expenses (${step3_threshold:,.2f})' if self.are_all_previous_steps_completed(3, previous_steps_completed) else 'Complete Steps 1 and 2 first',
+                'message': f'Net worth (${net_worth:,.2f}) needs to exceed 6× expenses (${step3_threshold:,.2f})' if (step1_progress['completed'] and step2_progress['completed']) else 'Complete Steps 1 and 2 first',
                 'current_amount': float(net_worth),
                 'goal_amount': float(step3_threshold)
             }
@@ -180,8 +170,7 @@ class FinancialStepsView(APIView):
         step4_meets_condition = total_savings >= savings_threshold
         
         # Step 4 can only be completed if Steps 1, 2, and 3 are completed
-        previous_steps_completed = [step1_progress['completed'], step2_progress['completed'], step3_progress['completed']]
-        step4_completed = step4_meets_condition and self.are_all_previous_steps_completed(4, previous_steps_completed)
+        step4_completed = step4_meets_condition and step1_progress['completed'] and step2_progress['completed'] and step3_progress['completed']
         if step4_completed:
             step4_progress = {
                 'completed': True,
@@ -194,7 +183,7 @@ class FinancialStepsView(APIView):
             step4_progress = {
                 'completed': False,
                 'progress': float(min((total_savings / savings_threshold) * 100, 100)) if savings_threshold > 0 else 0,
-                'message': f'Savings (${total_savings:,.2f}) need to be at least 15% of income (${savings_threshold:,.2f})' if self.are_all_previous_steps_completed(4, previous_steps_completed) else 'Complete Steps 1, 2, and 3 first',
+                'message': f'Savings (${total_savings:,.2f}) need to be at least 15% of income (${savings_threshold:,.2f})' if (step1_progress['completed'] and step2_progress['completed'] and step3_progress['completed']) else 'Complete Steps 1, 2, and 3 first',
                 'current_amount': float(total_savings),
                 'goal_amount': float(savings_threshold)
             }
@@ -203,8 +192,7 @@ class FinancialStepsView(APIView):
         step5_meets_condition = college_fund_savings > 0
         
         # Step 5 can only be completed if Steps 1-4 are completed
-        previous_steps_completed = [step1_progress['completed'], step2_progress['completed'], step3_progress['completed'], step4_progress['completed']]
-        step5_completed = step5_meets_condition and self.are_all_previous_steps_completed(5, previous_steps_completed)
+        step5_completed = step5_meets_condition and step1_progress['completed'] and step2_progress['completed'] and step3_progress['completed'] and step4_progress['completed']
         if step5_completed:
             step5_progress = {
                 'completed': True,
@@ -215,15 +203,14 @@ class FinancialStepsView(APIView):
             step5_progress = {
                 'completed': False,
                 'progress': 0,
-                'message': 'No college fund savings detected' if self.are_all_previous_steps_completed(5, previous_steps_completed) else 'Complete Steps 1-4 first'
+                'message': 'No college fund savings detected' if (step1_progress['completed'] and step2_progress['completed'] and step3_progress['completed'] and step4_progress['completed']) else 'Complete Steps 1-4 first'
             }
         
         mortgage_balance = self.calculate_mortgage_balance(debts)
         step6_meets_condition = mortgage_balance <= 0
         
         # Step 6 can only be completed if Steps 1-5 are completed
-        previous_steps_completed = [step1_progress['completed'], step2_progress['completed'], step3_progress['completed'], step4_progress['completed'], step5_progress['completed']]
-        step6_completed = step6_meets_condition and self.are_all_previous_steps_completed(6, previous_steps_completed)
+        step6_completed = step6_meets_condition and step1_progress['completed'] and step2_progress['completed'] and step3_progress['completed'] and step4_progress['completed'] and step5_progress['completed']
         if step6_completed:
             step6_progress = {
                 'completed': True,
@@ -236,7 +223,7 @@ class FinancialStepsView(APIView):
             step6_progress = {
                 'completed': False,
                 'progress': 0,
-                'message': f'${mortgage_balance:,.2f} mortgage remaining' if self.are_all_previous_steps_completed(6, previous_steps_completed) else 'Complete Steps 1-5 first',
+                'message': f'${mortgage_balance:,.2f} mortgage remaining' if (step1_progress['completed'] and step2_progress['completed'] and step3_progress['completed'] and step4_progress['completed'] and step5_progress['completed']) else 'Complete Steps 1-5 first',
                 'current_amount': float(mortgage_balance),
                 'goal_amount': 0
             }
