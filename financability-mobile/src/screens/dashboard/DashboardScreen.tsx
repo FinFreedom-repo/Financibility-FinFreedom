@@ -226,6 +226,19 @@ const DashboardScreen: React.FC = () => {
     }
   };
 
+  // Helper function to check if all previous steps are completed
+  const arePreviousStepsCompleted = (stepId: number): boolean => {
+    if (!financialSteps || stepId <= 1) return true; // Step 1 has no previous steps
+
+    for (let i = 1; i < stepId; i++) {
+      const prevStepData = financialSteps.steps?.[`step_${i}`];
+      if (!prevStepData || !prevStepData.completed) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   const getStepStatus = (stepId: number) => {
     if (!financialSteps) return 'pending';
 
@@ -247,7 +260,8 @@ const DashboardScreen: React.FC = () => {
       }
     }
 
-    if (stepData && stepData.completed) {
+    // Check if step is completed AND all previous steps are completed
+    if (stepData && stepData.completed && arePreviousStepsCompleted(stepId)) {
       return 'completed';
     }
 
