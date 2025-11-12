@@ -144,7 +144,11 @@ class FinancialStepsView(APIView):
         step3_meets_condition = net_worth > step3_threshold
         
         # Step 3 can only be completed if Steps 1 and 2 are completed
-        step3_completed = step3_meets_condition and step1_progress['completed'] and step2_progress['completed']
+        # FORCE step 3 to be incomplete if step 1 or 2 are incomplete
+        if not step1_progress['completed'] or not step2_progress['completed']:
+            step3_completed = False
+        else:
+            step3_completed = step3_meets_condition
         if step3_completed:
             step3_progress = {
                 'completed': True,
@@ -170,7 +174,11 @@ class FinancialStepsView(APIView):
         step4_meets_condition = total_savings >= savings_threshold
         
         # Step 4 can only be completed if Steps 1, 2, and 3 are completed
-        step4_completed = step4_meets_condition and step1_progress['completed'] and step2_progress['completed'] and step3_progress['completed']
+        # FORCE step 4 to be incomplete if any previous step is incomplete
+        if not step1_progress['completed'] or not step2_progress['completed'] or not step3_progress['completed']:
+            step4_completed = False
+        else:
+            step4_completed = step4_meets_condition
         if step4_completed:
             step4_progress = {
                 'completed': True,
@@ -192,7 +200,11 @@ class FinancialStepsView(APIView):
         step5_meets_condition = college_fund_savings > 0
         
         # Step 5 can only be completed if Steps 1-4 are completed
-        step5_completed = step5_meets_condition and step1_progress['completed'] and step2_progress['completed'] and step3_progress['completed'] and step4_progress['completed']
+        # FORCE step 5 to be incomplete if any previous step is incomplete
+        if not step1_progress['completed'] or not step2_progress['completed'] or not step3_progress['completed'] or not step4_progress['completed']:
+            step5_completed = False
+        else:
+            step5_completed = step5_meets_condition
         if step5_completed:
             step5_progress = {
                 'completed': True,
@@ -210,7 +222,11 @@ class FinancialStepsView(APIView):
         step6_meets_condition = mortgage_balance <= 0
         
         # Step 6 can only be completed if Steps 1-5 are completed
-        step6_completed = step6_meets_condition and step1_progress['completed'] and step2_progress['completed'] and step3_progress['completed'] and step4_progress['completed'] and step5_progress['completed']
+        # FORCE step 6 to be incomplete if any previous step is incomplete
+        if not step1_progress['completed'] or not step2_progress['completed'] or not step3_progress['completed'] or not step4_progress['completed'] or not step5_progress['completed']:
+            step6_completed = False
+        else:
+            step6_completed = step6_meets_condition
         if step6_completed:
             step6_progress = {
                 'completed': True,

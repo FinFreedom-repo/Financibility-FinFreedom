@@ -246,6 +246,32 @@ const DashboardScreen: React.FC = () => {
     const stepProgress = financialSteps.step_progress;
     const stepData = financialSteps.steps?.[`step_${stepId}`];
 
+    // FIRST: Check if all previous steps are completed - if not, this step cannot be completed
+    if (!arePreviousStepsCompleted(stepId)) {
+      // Previous steps not completed, so this step cannot be completed
+      if (stepId === 2) {
+        const hasNonMortgageDebts = debts.some(
+          debt =>
+            debt.debt_type !== 'mortgage' &&
+            parseFloat(
+              debt.balance?.toString() || debt.amount?.toString() || '0'
+            ) > 0
+        );
+        if (hasNonMortgageDebts) {
+          return 'in-progress';
+        }
+      }
+      // If we have progress data or it's the current step, show in-progress
+      if (stepData && stepData.progress > 0) {
+        return 'in-progress';
+      }
+      if (currentStep === stepId && stepProgress && !stepProgress.completed) {
+        return 'in-progress';
+      }
+      return 'pending';
+    }
+
+    // All previous steps are completed, now check this step
     if (stepId === 2) {
       const hasNonMortgageDebts = debts.some(
         debt =>
