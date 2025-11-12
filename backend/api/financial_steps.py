@@ -33,11 +33,13 @@ class FinancialStepsView(APIView):
             
             # Get user's financial data
             budget_service = BudgetService()
-            from .mongodb_services import MongoDBService
-            mongo_service = MongoDBService()
+            # Use the same service as debt planning page for consistency
+            from .mongodb_service import DebtService, AccountService
+            debt_service = DebtService()
+            account_service = AccountService()
             
-            accounts = mongo_service.get_user_accounts(user_id)
-            debts = mongo_service.get_user_debts(user_id)
+            accounts = account_service.get_user_accounts(user_id)
+            debts = debt_service.get_user_debts(user_id)  # Returns List[Dict] like debt planning page
             budgets = budget_service.get_user_budgets(user_id)
             
             logger.info(f"Debts data for user {user_id}: {debts}")
@@ -103,6 +105,17 @@ class FinancialStepsView(APIView):
     def calculate_financial_steps(self, accounts, debts, budget, user_id):
         """
         Calculate progress for each financial step
+        
+        Step Requirements:
+        - Step 1: Total accounts (not net worth) > $2,000
+        - Step 2: No debt (other than mortgage)
+        - Step 3: Net worth > 6x monthly expenses
+        - Step 4: Savings > 15% of monthly income
+        - Step 5: Money going to children's education (from budget savings_items)
+        - Step 6: Mortgage is paid off
+        
+        Steps must be completed sequentially - a step cannot be completed
+        unless all previous steps are completed.
         """
         total_accounts = self.calculate_total_accounts(accounts)
         step1_threshold = Decimal('2000.00')
@@ -322,19 +335,57 @@ class FinancialStepsView(APIView):
             
             if not is_mortgage:
                 # Check both 'amount' and 'balance' fields (like frontend does: debt.amount || debt.balance)
-                balance = 0
+                balance_value = None
                 if isinstance(debt, dict):
-                    balance = debt.get('amount') or debt.get('balance') or 0
+                    # For dict (from DebtService), check amount first, then balance
+                    # MongoDB might return these as Decimal, float, int, or None
+                    # Frontend does: debt.amount || debt.balance
+                    amount_val = debt.get('amount')
+                    balance_val = debt.get('balance')
+                    
+                    # Try amount first (even if 0, as 0 means debt is paid off)
+                    if amount_val is not None:
+                        try:
+                            balance_value = float(amount_val)
+                        except (ValueError, TypeError):
+                            balance_value = None
+                    
+                    # Fall back to balance only if amount is None (not if it's 0)
+                    if balance_value is None and balance_val is not None:
+                        try:
+                            balance_value = float(balance_val)
+                        except (ValueError, TypeError):
+                            balance_value = None
                 else:
-                    balance = getattr(debt, 'amount', None) or getattr(debt, 'balance', None) or 0
+                    # For mongoengine Document objects, getattr might return DecimalField
+                    amount_val = getattr(debt, 'amount', None)
+                    balance_val = getattr(debt, 'balance', None)
+                    # Convert to float/Decimal if needed - check if value exists and is not None
+                    if amount_val is not None:
+                        try:
+                            balance_value = float(amount_val)
+                        except (ValueError, TypeError):
+                            balance_value = None
+                    if balance_value is None and balance_val is not None:
+                        try:
+                            balance_value = float(balance_val)
+                        except (ValueError, TypeError):
+                            balance_value = None
                 
-                # Convert to Decimal, handling None/0
-                balance_decimal = Decimal(str(balance)) if balance else Decimal('0')
-                logger.info(f"calculate_total_debt: Debt {i} - amount={getattr(debt, 'amount', None) if not isinstance(debt, dict) else debt.get('amount')}, balance={getattr(debt, 'balance', None) if not isinstance(debt, dict) else debt.get('balance')}, using={balance_decimal}")
+                # Convert to Decimal - if None, treat as 0 (debt is paid off or doesn't exist)
+                if balance_value is None:
+                    balance_decimal = Decimal('0')
+                else:
+                    balance_decimal = Decimal(str(balance_value))
                 
+                logger.info(f"calculate_total_debt: Debt {i} - raw_amount={getattr(debt, 'amount', None) if not isinstance(debt, dict) else debt.get('amount')}, raw_balance={getattr(debt, 'balance', None) if not isinstance(debt, dict) else debt.get('balance')}, balance_value={balance_value}, using={balance_decimal}")
+                
+                # Only add to total if debt amount > 0
                 if balance_decimal > 0:
                     total_debt += balance_decimal
                     logger.info(f"calculate_total_debt: Debt {i} - Added {balance_decimal} to total")
+                else:
+                    logger.info(f"calculate_total_debt: Debt {i} - Skipping (balance is 0 or None)")
             else:
                 logger.info(f"calculate_total_debt: Debt {i} - Skipping (mortgage)")
         logger.info(f"calculate_total_debt: Final total_debt = {total_debt}")
@@ -527,10 +578,28 @@ class FinancialStepsView(APIView):
     def calculate_mortgage_balance(self, debts):
         """Calculate mortgage balance"""
         for debt in debts:
-            debt_type = getattr(debt, 'debt_type', '') or ''
+            debt_type = ''
+            if isinstance(debt, dict):
+                debt_type = debt.get('debt_type', '') or ''
+            else:
+                debt_type = getattr(debt, 'debt_type', '') or ''
+            
             if 'mortgage' in debt_type.lower() or 'home' in debt_type.lower():
-                balance = getattr(debt, 'balance', 0) or 0
-                return Decimal(str(balance))
+                # Check both 'amount' and 'balance' fields
+                balance_value = None
+                if isinstance(debt, dict):
+                    balance_value = debt.get('amount') or debt.get('balance')
+                else:
+                    amount_val = getattr(debt, 'amount', None)
+                    balance_val = getattr(debt, 'balance', None)
+                    if amount_val is not None:
+                        balance_value = float(amount_val) if amount_val else None
+                    elif balance_val is not None:
+                        balance_value = float(balance_val) if balance_val else None
+                
+                if balance_value is None or balance_value == 0:
+                    return Decimal('0')
+                return Decimal(str(balance_value))
         return Decimal('0')
     
     def calculate_step_progress(self, current, goal):
