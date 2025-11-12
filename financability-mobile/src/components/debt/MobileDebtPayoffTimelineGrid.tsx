@@ -231,7 +231,7 @@ const MobileDebtPayoffTimelineGrid: React.FC<
     value: number,
     monthIdx: number
   ) => {
-    const baseStyle = [styles.cell];
+    const baseStyle: any[] = [styles.cell];
 
     const isHistorical = month.type === 'historical';
     const isCurrent = month.type === 'current';
