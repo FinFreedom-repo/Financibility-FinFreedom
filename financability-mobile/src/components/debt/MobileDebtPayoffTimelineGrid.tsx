@@ -233,11 +233,6 @@ const MobileDebtPayoffTimelineGrid: React.FC<
   ) => {
     const baseStyle = [styles.cell];
 
-    if (debtFreeMonthIdx === monthIdx && category === 'Remaining Debt') {
-      baseStyle.push(styles.debtFreeCell);
-      return baseStyle;
-    }
-
     const isHistorical = month.type === 'historical';
     const isCurrent = month.type === 'current';
     const isFuture = month.type === 'future';
@@ -274,6 +269,11 @@ const MobileDebtPayoffTimelineGrid: React.FC<
       } else if (isFuture) {
         baseStyle.push(styles.debtFutureCell);
       }
+    }
+
+    // Add prominent border for debt-free month (keep same colors as other columns)
+    if (debtFreeMonthIdx === monthIdx && category === 'Remaining Debt') {
+      baseStyle.push(styles.debtFreeBorder);
     }
 
     return baseStyle;
@@ -635,16 +635,11 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: 'transparent',
     },
-    debtFreeCell: {
-      backgroundColor: '#bbf7d0',
-      borderColor: '#16a34a',
-      borderWidth: 3,
-      width: 70,
-      height: 40,
-      justifyContent: 'center',
-      alignItems: 'center',
-      margin: 2,
-      borderRadius: theme.borderRadius.sm,
+    debtFreeBorder: {
+      borderColor: '#374151',
+      borderWidth: 5,
+      borderLeftWidth: 6,
+      borderRightWidth: 6,
       position: 'relative',
     },
     principalPaidHistoricalCell: {

@@ -120,7 +120,12 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
     const isCurrent = month.type === 'current';
     const isFuture = month.type === 'future';
 
-    if (category === 'Remaining Debt' || category === 'Net Savings') {
+    if (category === 'Remaining Debt') {
+      baseStyle.push(styles.remainingDebtCell);
+      if (isCurrent) {
+        baseStyle.push(styles.calculatedCurrentBorder);
+      }
+    } else if (category === 'Net Savings') {
       baseStyle.push(styles.calculatedCell);
       if (isCurrent) {
         baseStyle.push(styles.calculatedCurrentBorder);
@@ -439,11 +444,24 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: 'transparent',
     },
+    remainingDebtCell: {
+      backgroundColor: '#e67e22',
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
     calculatedCurrentBorder: {
-      borderColor: '#374151',
+      borderColor: '#4a5568',
       borderWidth: 3,
       borderLeftWidth: 4,
       borderRightWidth: 4,
+      borderTopWidth: 3,
+      borderBottomWidth: 3,
     },
     incomeCell: {
       backgroundColor: '#4caf50',
@@ -457,10 +475,12 @@ const createStyles = (theme: any) =>
       borderColor: 'transparent',
     },
     incomeCurrentBorder: {
-      borderColor: '#374151',
+      borderColor: '#4a5568',
       borderWidth: 3,
       borderLeftWidth: 4,
       borderRightWidth: 4,
+      borderTopWidth: 3,
+      borderBottomWidth: 3,
     },
     expenseHistoricalCell: {
       backgroundColor: '#0027dbcf',
@@ -474,11 +494,13 @@ const createStyles = (theme: any) =>
       borderColor: 'transparent',
     },
     expenseCurrentCell: {
-      backgroundColor: '#4caf50',
-      borderColor: '#374151',
+      backgroundColor: '#f44336',
+      borderColor: '#4a5568',
       borderWidth: 3,
       borderLeftWidth: 4,
       borderRightWidth: 4,
+      borderTopWidth: 3,
+      borderBottomWidth: 3,
       width: 70,
       height: 40,
       justifyContent: 'center',
