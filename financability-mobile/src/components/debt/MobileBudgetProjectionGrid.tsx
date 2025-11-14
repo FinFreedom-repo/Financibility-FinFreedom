@@ -113,7 +113,12 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
     return true;
   };
 
-  const getCellStyle = (month: any, category: string, value: number, rowType?: string) => {
+  const getCellStyle = (
+    month: any,
+    category: string,
+    value: number,
+    rowType?: string
+  ) => {
     const baseStyle: any[] = [styles.cell];
 
     const isHistorical = month.type === 'historical';
@@ -121,14 +126,22 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
     const isFuture = month.type === 'future';
 
     if (category === 'Remaining Debt') {
-      baseStyle.push(styles.remainingDebtCell);
-      if (isCurrent) {
-        baseStyle.push(styles.calculatedCurrentBorder);
+      if (isHistorical) {
+        baseStyle.push(styles.remainingDebtHistoricalCell);
+      } else {
+        baseStyle.push(styles.remainingDebtCell);
+        if (isCurrent) {
+          baseStyle.push(styles.calculatedCurrentBorder);
+        }
       }
     } else if (category === 'Net Savings') {
-      baseStyle.push(styles.calculatedCell);
-      if (isCurrent) {
-        baseStyle.push(styles.calculatedCurrentBorder);
+      if (isHistorical) {
+        baseStyle.push(styles.calculatedHistoricalCell);
+      } else {
+        baseStyle.push(styles.calculatedCell);
+        if (isCurrent) {
+          baseStyle.push(styles.calculatedCurrentBorder);
+        }
       }
     } else if (
       category === 'Primary Income' ||
@@ -137,9 +150,13 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
       category.includes('Additional Income') ||
       category.startsWith('+ ')
     ) {
-      baseStyle.push(styles.incomeCell);
-      if (isCurrent) {
-        baseStyle.push(styles.incomeCurrentBorder);
+      if (isHistorical) {
+        baseStyle.push(styles.incomeHistoricalCell);
+      } else {
+        baseStyle.push(styles.incomeCell);
+        if (isCurrent) {
+          baseStyle.push(styles.incomeCurrentBorder);
+        }
       }
     } else {
       if (isHistorical) {
@@ -199,7 +216,12 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
     setEditValue('');
   };
 
-  const renderCell = (monthIdx: number, category: string, value: number, rowType?: string) => {
+  const renderCell = (
+    monthIdx: number,
+    category: string,
+    value: number,
+    rowType?: string
+  ) => {
     const month = months[monthIdx];
     const isEditable = isCellEditable(month, category);
 
@@ -447,6 +469,18 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: 'transparent',
     },
+    calculatedHistoricalCell: {
+      backgroundColor: 'rgba(33, 150, 243, 0.3)',
+      opacity: 0.5,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
     remainingDebtCell: {
       backgroundColor: '#e67e22',
       width: 70,
@@ -458,13 +492,30 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: 'transparent',
     },
+    remainingDebtHistoricalCell: {
+      backgroundColor: 'rgba(230, 126, 34, 0.3)',
+      opacity: 0.5,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
     calculatedCurrentBorder: {
-      borderColor: '#4a5568',
+      borderColor: '#FFFFFF',
       borderWidth: 3,
       borderLeftWidth: 4,
       borderRightWidth: 4,
       borderTopWidth: 3,
       borderBottomWidth: 3,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 3,
     },
     incomeCell: {
       backgroundColor: '#4caf50',
@@ -477,16 +528,34 @@ const createStyles = (theme: any) =>
       borderWidth: 1,
       borderColor: 'transparent',
     },
+    incomeHistoricalCell: {
+      backgroundColor: 'rgba(76, 175, 80, 0.3)',
+      opacity: 0.5,
+      width: 70,
+      height: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 2,
+      borderRadius: theme.borderRadius.sm,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
     incomeCurrentBorder: {
-      borderColor: '#4a5568',
+      borderColor: '#FFFFFF',
       borderWidth: 3,
       borderLeftWidth: 4,
       borderRightWidth: 4,
       borderTopWidth: 3,
       borderBottomWidth: 3,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 3,
     },
     expenseHistoricalCell: {
-      backgroundColor: '#0027dbcf',
+      backgroundColor: 'rgba(244, 67, 54, 0.3)',
+      opacity: 0.5,
       width: 70,
       height: 40,
       justifyContent: 'center',
@@ -498,7 +567,7 @@ const createStyles = (theme: any) =>
     },
     expenseCurrentCell: {
       backgroundColor: '#f44336',
-      borderColor: '#4a5568',
+      borderColor: '#FFFFFF',
       borderWidth: 3,
       borderLeftWidth: 4,
       borderRightWidth: 4,
@@ -510,6 +579,11 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       margin: 2,
       borderRadius: theme.borderRadius.sm,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 3,
     },
     expenseFutureCell: {
       backgroundColor: '#f44336',
