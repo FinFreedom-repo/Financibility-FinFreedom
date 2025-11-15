@@ -76,6 +76,7 @@ export const calculateDebtPayoffPlanFrontend = (
       debtPayments.set(debt.name, 0);
     });
 
+    
     if (availableForDebt > 0 && debtBalances.some(d => d.balance > 0)) {
       // Sort debts by strategy (Snowball: lowest to highest balance, Avalanche: highest to lowest interest rate)
       // IMPORTANT: Sort by CURRENT balance after interest has been added

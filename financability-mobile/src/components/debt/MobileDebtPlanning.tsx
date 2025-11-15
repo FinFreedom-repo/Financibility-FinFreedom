@@ -10,6 +10,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../contexts/ThemeContext';
 import debtPlanningService, {
   Debt,
@@ -140,10 +141,34 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     }
   }, [historicalMonthsShown, projectionMonths]);
 
+  const loadInitialData = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      // Load debts
+      const debtsData = await debtPlanningService.getDebts();
+      setOutstandingDebts(debtsData || []);
+
+      // Initialize grid data
+      await initializeGridData();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load initial data: ' + error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Load initial data
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, [loadInitialData]);
+
+  // Refetch when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      loadInitialData();
+    }, [loadInitialData])
+  );
 
   // Rebuild grid data when backend budgets change
   useEffect(() => {
@@ -194,23 +219,6 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       handleDebtChange();
     }
   }, [backendBudgets]);
-
-  const loadInitialData = async () => {
-    try {
-      setLoading(true);
-
-      // Load debts
-      const debtsData = await debtPlanningService.getDebts();
-      setOutstandingDebts(debtsData || []);
-
-      // Initialize grid data
-      await initializeGridData();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load initial data: ' + error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const initializeGridData = async () => {
     try {
@@ -551,9 +559,29 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         }
       });
 
-      // For any month without DB data, inherit values from the current month
+      const currentMonthBudget = budgets.find(
+        b =>
+          b.month === months[currentMonthIdx]?.month &&
+          b.year === months[currentMonthIdx]?.year
+      );
+      const currentMonthAdditionalIncomeNames = new Set<string>();
+      if (currentMonthBudget?.additional_income_items) {
+        currentMonthBudget.additional_income_items.forEach((item: any) =>
+          currentMonthAdditionalIncomeNames.add(
+            item.name || 'Additional Income'
+          )
+        );
+      }
+
+      const filteredGridData = gridData.filter(row => {
+        if (row.type === 'additional_income') {
+          return currentMonthAdditionalIncomeNames.has(row.category);
+        }
+        return true;
+      });
+
       if (currentMonthIdx !== -1) {
-        gridData.forEach(row => {
+        filteredGridData.forEach(row => {
           const currentValue = (row as any)[`month_${currentMonthIdx}`] || 0;
           for (let idx = 0; idx < months.length; idx++) {
             if (months[idx].type === 'historical') {
@@ -570,8 +598,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         });
       }
 
-      // Calculate net savings
-      const calculatedData = recalculateNetSavings(gridData);
+      const calculatedData = recalculateNetSavings(filteredGridData);
 
       // Set initial debt amounts
       const totalDebt = outstandingDebts.reduce(
