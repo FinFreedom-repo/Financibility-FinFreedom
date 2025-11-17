@@ -1,5 +1,12 @@
-import React from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  Modal,
+  TouchableOpacity,
+} from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -21,6 +28,11 @@ interface ChartProps {
   height?: number;
   showLegend?: boolean;
   showGrid?: boolean;
+  formatYLabel?: (value: string) => string;
+  yAxisLabel?: string;
+  xAxisLabel?: string;
+  visibleDatasets?: Set<string>;
+  onLegendPress?: (label: string) => void;
 }
 
 const Chart: React.FC<ChartProps> = ({
@@ -29,60 +41,142 @@ const Chart: React.FC<ChartProps> = ({
   height = 200,
   showLegend = true,
   showGrid = true,
+  formatYLabel,
+  yAxisLabel,
+  xAxisLabel,
+  visibleDatasets,
+  onLegendPress,
 }) => {
   const { theme } = useTheme();
   const styles = createStyles(theme);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertData, setAlertData] = useState<{
+    title: string;
+    content: string[];
+  } | null>(null);
 
-  // Convert our data format to react-native-chart-kit format
-  const chartConfig = {
-    backgroundColor: theme.colors.surface,
-    backgroundGradientFrom: theme.colors.surface,
-    backgroundGradientTo: theme.colors.surface,
-    decimalPlaces: 0,
-    color: (opacity = 1) => theme.colors.primary + Math.floor(opacity * 255).toString(16).padStart(2, '0'),
-    labelColor: (opacity = 1) => theme.colors.text + Math.floor(opacity * 255).toString(16).padStart(2, '0'),
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: '4',
-      strokeWidth: '2',
-      stroke: theme.colors.primary,
-    },
-    propsForBackgroundLines: {
-      strokeDasharray: '5,5',
-      stroke: theme.colors.textSecondary + '30',
-    },
-  };
+  const chartConfig: any = useMemo(
+    () => ({
+      backgroundColor: theme.colors.surface,
+      backgroundGradientFrom: theme.colors.surface,
+      backgroundGradientTo: theme.colors.surface,
+      decimalPlaces: 0,
+      color: (opacity = 1) =>
+        theme.colors.primary +
+        Math.floor(opacity * 255)
+          .toString(16)
+          .padStart(2, '0'),
+      labelColor: (opacity = 1) =>
+        theme.colors.text +
+        Math.floor(opacity * 255)
+          .toString(16)
+          .padStart(2, '0'),
+      style: {
+        borderRadius: 16,
+      },
+      propsForDots: {
+        r: '4',
+        strokeWidth: '2',
+        stroke: theme.colors.primary,
+      },
+      propsForBackgroundLines: {
+        strokeDasharray: '5,5',
+        stroke: theme.colors.textSecondary + '30',
+      },
+      formatYLabel: formatYLabel
+        ? (value: string | number) => {
+            const strValue =
+              typeof value === 'number' ? value.toString() : String(value);
+            return formatYLabel(strValue);
+          }
+        : (value: string | number) => {
+            const num =
+              typeof value === 'number' ? value : parseFloat(String(value));
+            if (isNaN(num)) return String(value);
+            if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+            if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+            return `$${num.toFixed(0)}`;
+          },
+    }),
+    [
+      theme.colors.surface,
+      theme.colors.primary,
+      theme.colors.text,
+      theme.colors.textSecondary,
+      formatYLabel,
+    ]
+  );
 
-  // Prepare data for react-native-chart-kit with safety checks
+  const defaultFormatYLabel = useMemo(() => {
+    if (formatYLabel) {
+      return (value: string | number) => {
+        const strValue =
+          typeof value === 'number' ? value.toString() : String(value);
+        return formatYLabel(strValue);
+      };
+    }
+    return (value: string | number) => {
+      const num = typeof value === 'number' ? value : parseFloat(String(value));
+      if (isNaN(num)) return String(value);
+      if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+      if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+      return `$${num.toFixed(0)}`;
+    };
+  }, [formatYLabel]);
+
+  // Filter datasets based on visibility
+  const filteredDatasets = useMemo(() => {
+    if (!visibleDatasets) return data.datasets || [];
+    return (data.datasets || []).filter(dataset =>
+      visibleDatasets.has(dataset.label)
+    );
+  }, [data.datasets, visibleDatasets]);
+
   const chartData = {
     labels: data.labels || [],
-    datasets: (data.datasets || []).map(dataset => ({
+    datasets: filteredDatasets.map(dataset => ({
       data: dataset.data || [],
       color: (opacity = 1) => {
         const color = dataset.color || '#000000';
-        return color + Math.floor(opacity * 255).toString(16).padStart(2, '0');
+        return (
+          color +
+          Math.floor(opacity * 255)
+            .toString(16)
+            .padStart(2, '0')
+        );
       },
       strokeWidth: 2,
     })),
   };
 
+  const formatYValue = (value: number | string) => {
+    if (formatYLabel) {
+      return formatYLabel(value.toString());
+    }
+    const num =
+      typeof value === 'number' ? value : parseFloat(value.toString());
+    if (isNaN(num)) return value.toString();
+    if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `$${(num / 1000).toFixed(1)}K`;
+    return `$${num.toFixed(0)}`;
+  };
+
   if (type === 'line') {
-    // Validate data before rendering
     if (!chartData || !chartData.labels || chartData.labels.length === 0) {
       return (
         <View style={[styles.container, styles.placeholder]}>
-          <Text style={styles.placeholderText}>No data available for chart</Text>
+          <Text style={styles.placeholderText}>
+            No data available for chart
+          </Text>
         </View>
       );
     }
 
-    // Ensure all datasets have data and valid numbers
-    const validDatasets = chartData.datasets.filter(dataset => 
-      dataset.data && 
-      dataset.data.length > 0 && 
-      dataset.data.every(value => typeof value === 'number' && !isNaN(value))
+    const validDatasets = chartData.datasets.filter(
+      dataset =>
+        dataset.data &&
+        dataset.data.length > 0 &&
+        dataset.data.every(value => typeof value === 'number' && !isNaN(value))
     );
 
     if (validDatasets.length === 0) {
@@ -93,43 +187,137 @@ const Chart: React.FC<ChartProps> = ({
       );
     }
 
-    // Ensure height is a valid number
-    const chartHeight = typeof height === 'number' && !isNaN(height) ? height : 200;
+    const chartHeight =
+      typeof height === 'number' && !isNaN(height) ? height : 200;
+
+    const handleDataPointClick = (clickData: any) => {
+      const label = chartData.labels[clickData.index] || '';
+      const datasets: { label: string; value: number; color: string }[] = [];
+
+      data.datasets.forEach((dataset, idx: number) => {
+        const value = chartData.datasets[idx]?.data?.[clickData.index];
+        if (value !== undefined && value !== null && !isNaN(value)) {
+          datasets.push({
+            label: dataset.label,
+            value: value,
+            color: dataset.color,
+          });
+        }
+      });
+
+      if (datasets.length > 0) {
+        const pointData = datasets.map(
+          ds => `${ds.label}: ${formatYValue(ds.value)}`
+        );
+        setAlertData({
+          title: `Age ${label}`,
+          content: pointData,
+        });
+        setAlertVisible(true);
+      }
+    };
 
     try {
-      console.log('💰 Rendering LineChart with height:', chartHeight, 'data points:', chartData.labels.length);
       return (
         <View style={styles.container}>
-          <LineChart
-            data={chartData}
-            width={screenWidth - 40}
-            height={chartHeight}
-            chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-            withDots={true}
-            withShadow={false}
-            withScrollableDot={false}
-          />
-          {showLegend && (
-            <View style={styles.legend}>
-              {data.datasets.map((dataset, index) => (
-                <View key={index} style={styles.legendItem}>
-                  <View 
-                    style={[
-                      styles.legendColor, 
-                      { backgroundColor: dataset.color }
-                    ]} 
-                  />
-                  <Text style={styles.legendText}>{dataset.label}</Text>
+          {yAxisLabel && (
+            <View style={styles.yAxisLabelContainer}>
+              <Text style={styles.yAxisLabel}>{yAxisLabel}</Text>
+            </View>
+          )}
+          <View style={styles.chartWrapper}>
+            <LineChart
+              data={chartData}
+              width={screenWidth - 40}
+              height={chartHeight}
+              chartConfig={chartConfig}
+              bezier
+              style={styles.chart}
+              withDots={true}
+              withShadow={false}
+              segments={5}
+              formatYLabel={defaultFormatYLabel}
+              onDataPointClick={handleDataPointClick}
+            />
+            {xAxisLabel && (
+              <View style={styles.xAxisLabelContainer}>
+                <Text style={styles.xAxisLabel}>{xAxisLabel}</Text>
+              </View>
+            )}
+          </View>
+          <Modal
+            visible={alertVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setAlertVisible(false)}
+          >
+            <TouchableOpacity
+              style={styles.alertOverlay}
+              activeOpacity={1}
+              onPress={() => setAlertVisible(false)}
+            >
+              <TouchableOpacity
+                style={styles.alertContainer}
+                activeOpacity={1}
+                onPress={e => e.stopPropagation()}
+              >
+                <Text style={styles.alertTitle}>{alertData?.title || ''}</Text>
+                <View style={styles.alertContent}>
+                  {alertData?.content.map((line, index) => (
+                    <Text key={index} style={styles.alertText}>
+                      {line}
+                    </Text>
+                  ))}
                 </View>
-              ))}
+                <TouchableOpacity
+                  style={styles.alertButton}
+                  onPress={() => setAlertVisible(false)}
+                >
+                  <Text style={styles.alertButtonText}>OK</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Modal>
+          {showLegend && data.datasets && data.datasets.length > 0 && (
+            <View style={[styles.legend, xAxisLabel && styles.legendWithXAxis]}>
+              {data.datasets.map((dataset, index) => {
+                const isVisible =
+                  !visibleDatasets || visibleDatasets.has(dataset.label);
+                return (
+                  <TouchableOpacity
+                    key={`${dataset.label}-${index}`}
+                    style={[
+                      styles.legendItem,
+                      !isVisible && styles.legendItemHidden,
+                    ]}
+                    onPress={() => onLegendPress?.(dataset.label)}
+                    activeOpacity={0.7}
+                  >
+                    <View
+                      style={[
+                        styles.legendColor,
+                        {
+                          backgroundColor: dataset.color,
+                          opacity: isVisible ? 1 : 0.3,
+                        },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.legendText,
+                        !isVisible && styles.legendTextHidden,
+                      ]}
+                    >
+                      {dataset.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
         </View>
       );
-    } catch (error) {
-      console.error('Chart rendering error:', error);
+    } catch {
       return (
         <View style={[styles.container, styles.placeholder]}>
           <Text style={styles.placeholderText}>Error rendering chart</Text>
@@ -138,7 +326,6 @@ const Chart: React.FC<ChartProps> = ({
     }
   }
 
-  // For other chart types, return a placeholder
   return (
     <View style={[styles.container, styles.placeholder]}>
       <Text style={styles.placeholderText}>
@@ -148,50 +335,141 @@ const Chart: React.FC<ChartProps> = ({
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    alignItems: 'center',
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
-  legend: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: theme.spacing.md,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: theme.spacing.sm,
-    marginVertical: theme.spacing.xs,
-  },
-  legendColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: theme.spacing.xs,
-  },
-  legendText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-  },
-  placeholder: {
-    height: 200,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    margin: theme.spacing.md,
-  },
-  placeholderText: {
-    fontSize: 16,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      alignItems: 'center',
+    },
+    yAxisLabelContainer: {
+      width: '100%',
+      paddingLeft: 20,
+      marginBottom: 8,
+    },
+    yAxisLabel: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
+    },
+    chartWrapper: {
+      position: 'relative',
+      width: screenWidth - 40,
+    },
+    chart: {
+      marginTop: 8,
+      marginBottom: 0,
+      borderRadius: 16,
+    },
+    xAxisLabelContainer: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      paddingRight: 20,
+    },
+    xAxisLabel: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
+    },
+    legend: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: theme.spacing.md,
+      paddingHorizontal: theme.spacing.sm,
+    },
+    legendWithXAxis: {
+      marginTop: theme.spacing.lg + 16,
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: theme.spacing.xs,
+      marginVertical: theme.spacing.xs,
+      minWidth: 100,
+    },
+    legendColor: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      marginRight: theme.spacing.xs,
+    },
+    legendText: {
+      fontSize: 12,
+      color: theme.colors.text,
+      fontWeight: '500',
+    },
+    legendItemHidden: {
+      opacity: 0.5,
+    },
+    legendTextHidden: {
+      textDecorationLine: 'line-through',
+      opacity: 0.5,
+    },
+    placeholder: {
+      height: 200,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      margin: theme.spacing.md,
+    },
+    placeholderText: {
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    alertOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: theme.spacing.lg,
+    },
+    alertContainer: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: theme.borderRadius.lg || 16,
+      padding: theme.spacing.lg,
+      width: '100%',
+      maxWidth: 400,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    },
+    alertTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: theme.colors.text,
+      marginBottom: theme.spacing.md,
+      textAlign: 'left',
+    },
+    alertContent: {
+      marginBottom: theme.spacing.lg,
+    },
+    alertText: {
+      fontSize: 14,
+      color: theme.colors.text,
+      marginBottom: theme.spacing.xs,
+      lineHeight: 20,
+    },
+    alertButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.lg,
+      borderRadius: theme.borderRadius.sm || 8,
+      alignItems: 'center',
+      height: 40,
+    },
+    alertButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+  });
 
 export default Chart;
-

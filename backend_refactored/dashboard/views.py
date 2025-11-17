@@ -6,6 +6,7 @@ Aggregated financial data dashboard
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
+from decimal import Decimal
 import logging
 
 from authentication.authentication import MongoDBJWTAuthentication, get_user_from_token
@@ -15,6 +16,7 @@ from debts.services import DebtService
 from budgets.services import BudgetService
 from transactions.services import TransactionService
 from common.encoders import serialize_documents
+from .financial_steps import FinancialStepsView, financial_steps_calculate_test
 
 logger = logging.getLogger(__name__)
 
@@ -66,3 +68,20 @@ def get_dashboard(request):
         return Response({
             'error': 'Internal server error'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@authentication_classes([MongoDBJWTAuthentication])
+@permission_classes([MongoDBIsAuthenticated])
+def calculate_financial_steps(request):
+    """Calculate financial steps progress"""
+    view = FinancialStepsView()
+    return view.get(request)
+
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([])
+def calculate_financial_steps_test(request):
+    """Test endpoint for financial steps calculation"""
+    return financial_steps_calculate_test(request)

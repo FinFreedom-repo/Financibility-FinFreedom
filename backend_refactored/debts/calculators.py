@@ -93,25 +93,50 @@ def calculate_debt_payoff_plan(debts: List[Dict], strategy: str, monthly_budget_
         # Calculate net savings for this month
         net_savings = 0
         if monthly_budget_data and len(monthly_budget_data) > 0:
+            # Find the budget data for this specific month
+            # The frontend sends month numbers starting from 1, so we need to convert to 0-based index
+            month_budget = None
             if month <= len(monthly_budget_data):
+                # Use the month index (0-based) to get the corresponding budget data
                 month_budget = monthly_budget_data[month - 1]
+                logger.info(f"Debt Payoff Month {month} using budget data index {month - 1}")
             else:
+                # If we've exceeded the available budget data, use the last available month
                 month_budget = monthly_budget_data[-1]
+                logger.info(f"Debt Payoff Month {month} using last available budget data (index {len(monthly_budget_data) - 1})")
             
             if month_budget:
                 try:
                     net_savings = float(month_budget.get('net_savings', 0))
-                except (ValueError, TypeError):
+                    logger.info(f"Debt Payoff Month {month} net savings: ${net_savings:.2f} (found budget data)")
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Invalid net_savings value for month {month}: {month_budget.get('net_savings')}. Using 0. Error: {e}")
                     net_savings = 0
+            else:
+                # Use the last available month's data as fallback
+                if monthly_budget_data:
+                    last_month_budget = monthly_budget_data[-1]
+                    try:
+                        net_savings = float(last_month_budget.get('net_savings', 0))
+                        logger.info(f"Debt Payoff Month {month} using last available net savings: ${net_savings:.2f} (fallback)")
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"Invalid net_savings value in fallback: {last_month_budget.get('net_savings')}. Using 0. Error: {e}")
+                        net_savings = 0
+                else:
+                    net_savings = 0
+                    logger.info(f"Debt Payoff Month {month} no budget data available, net savings: $0.00")
+        else:
+            net_savings = 0
+            logger.info(f"Debt Payoff Month {month} no budget data available, net savings: $0.00")
         
-        # Calculate monthly interest for all debts
+        # Calculate monthly interest for all debts and add it to balances
         month_interest = 0
         debt_interest = {}
         for d in debts:
             if d['balance'] <= 0:
                 debt_interest[d['name']] = 0
                 continue
-            
+            initial_balance = d['balance']
             monthly_rate = d['rate'] / 12
             interest = d['balance'] * monthly_rate
             debt_interest[d['name']] = interest
@@ -119,6 +144,7 @@ def calculate_debt_payoff_plan(debts: List[Dict], strategy: str, monthly_budget_
             total_interest += interest
             d['total_interest'] += interest
             d['balance'] += interest
+            logger.info(f"{d['name']} - Initial balance: ${initial_balance:.2f}, Monthly interest: ${interest:.2f}, New balance: ${d['balance']:.2f}")
         
         # Allocate payments based on strategy
         available_to_pay = max(0, net_savings)
@@ -171,11 +197,16 @@ def calculate_debt_payoff_plan(debts: List[Dict], strategy: str, monthly_budget_
         monthly_interest_payments.append(month_interest)
         plan.append(month_plan)
     
-    # Final summary
+    # Check if we hit the maximum months limit
     hit_max_months = month >= max_months
     remaining_debts = [d for d in debts if d['balance'] > 0.01]
     
-    logger.info(f"Calculation complete: {month} months, Total interest: ${total_interest:.2f}")
+    logger.info(f"\nFinal Summary:")
+    logger.info(f"Total months calculated: {month}")
+    logger.info(f"Hit max months: {hit_max_months}")
+    logger.info(f"Remaining debts: {len(remaining_debts)}")
+    for d in debts:
+        logger.info(f"{d['name']}: Final balance ${d['balance']:.2f}, Total paid ${d['total_paid']:.2f}")
     
     return {
         'plan': plan,

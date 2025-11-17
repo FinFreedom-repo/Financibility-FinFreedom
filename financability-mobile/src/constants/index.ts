@@ -6,7 +6,7 @@ const getBaseURL = () => {
   // Always use the configured API base URL from app.json
   return (
     Constants.expoConfig?.extra?.apiBaseUrl ||
-    'https://financibility-finfreedom-backend.onrender.com'
+    'https://finfreedom-backend-staging.onrender.com'
   );
 };
 
@@ -35,12 +35,15 @@ export const API_CONFIG = {
       CREATE: '/api/mongodb/accounts/create/',
       UPDATE: (id: string) => `/api/mongodb/accounts/${id}/update/`,
       DELETE: (id: string) => `/api/mongodb/accounts/${id}/delete/`,
+      WITH_DEBTS: '/api/mongodb/accounts/with-debts/',
     },
     DEBTS: {
       LIST: '/api/mongodb/debts/',
       CREATE: '/api/mongodb/debts/create/',
       UPDATE: (id: string) => `/api/mongodb/debts/${id}/update/`,
       DELETE: (id: string) => `/api/mongodb/debts/${id}/delete/`,
+      PLANNER: '/api/mongodb/debt-planner/',
+      PLANNER_TEST: '/api/mongodb/debt-planner-test/',
     },
     BUDGET: {
       LIST: '/api/mongodb/budgets/',

@@ -1,15 +1,22 @@
+"""
+Financial Steps Calculation
+Baby Steps financial planning progress tracking
+"""
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from .mongodb_service import BudgetService
-from .mongodb_services import MongoFinancialStep, MongoAccount, MongoDebt, MongoBudget
-from .mongodb_authentication import get_user_from_token
 from decimal import Decimal
 import logging
-from datetime import datetime
+
+from authentication.authentication import get_user_from_token
+from accounts.services import AccountService
+from debts.services import DebtService
+from budgets.services import BudgetService
 
 logger = logging.getLogger(__name__)
+
 
 class FinancialStepsView(APIView):
     """
@@ -33,8 +40,6 @@ class FinancialStepsView(APIView):
             
             # Get user's financial data
             budget_service = BudgetService()
-            # Use the same service as debt planning page for consistency
-            from .mongodb_service import DebtService, AccountService
             debt_service = DebtService()
             account_service = AccountService()
             
@@ -61,7 +66,7 @@ class FinancialStepsView(APIView):
             
             logger.info(f"Budget data for user {user_id}: {budget}")
             if budget:
-                logger.info(f"Budget savings_items: {getattr(budget, 'savings_items', [])}")
+                logger.info(f"Budget savings_items: {budget.get('savings_items', [])}")
             
             # Calculate financial steps progress
             steps_data = self.calculate_financial_steps(accounts, debts, budget, user_id)
@@ -98,7 +103,6 @@ class FinancialStepsView(APIView):
             'other': 200
         }
         
-        
         steps_data = self.calculate_financial_steps(test_accounts, test_debts, test_budget, 'test_user')
         return steps_data
     
@@ -133,9 +137,9 @@ class FinancialStepsView(APIView):
         logger.info(f"=== STEP 2 DEBT CALCULATION ===")
         logger.info(f"Number of debts received: {len(debts)}")
         for i, debt in enumerate(debts):
-            debt_type = getattr(debt, 'debt_type', None) or (debt.get('debt_type') if isinstance(debt, dict) else None)
-            balance = getattr(debt, 'balance', None) or (debt.get('balance') if isinstance(debt, dict) else None)
-            amount = getattr(debt, 'amount', None) or (debt.get('amount') if isinstance(debt, dict) else None)
+            debt_type = debt.get('debt_type') if isinstance(debt, dict) else None
+            balance = debt.get('balance') if isinstance(debt, dict) else None
+            amount = debt.get('amount') if isinstance(debt, dict) else None
             logger.info(f"Debt {i}: type={debt_type}, balance={balance}, amount={amount}, is_mortgage={'mortgage' in str(debt_type).lower() if debt_type else False}")
         
         total_debt = self.calculate_total_debt(debts)
@@ -169,7 +173,6 @@ class FinancialStepsView(APIView):
         step3_meets_condition = net_worth > step3_threshold
         
         # Step 3 can only be completed if Steps 1 and 2 are completed
-        # FORCE step 3 to be incomplete if step 1 or 2 are incomplete
         if not step1_progress['completed'] or not step2_progress['completed']:
             step3_completed = False
         else:
@@ -199,7 +202,6 @@ class FinancialStepsView(APIView):
         step4_meets_condition = total_savings >= savings_threshold
         
         # Step 4 can only be completed if Steps 1, 2, and 3 are completed
-        # FORCE step 4 to be incomplete if any previous step is incomplete
         if not step1_progress['completed'] or not step2_progress['completed'] or not step3_progress['completed']:
             step4_completed = False
         else:
@@ -225,7 +227,6 @@ class FinancialStepsView(APIView):
         step5_meets_condition = college_fund_savings > 0
         
         # Step 5 can only be completed if Steps 1-4 are completed
-        # FORCE step 5 to be incomplete if any previous step is incomplete
         if not step1_progress['completed'] or not step2_progress['completed'] or not step3_progress['completed'] or not step4_progress['completed']:
             step5_completed = False
         else:
@@ -247,7 +248,6 @@ class FinancialStepsView(APIView):
         step6_meets_condition = mortgage_balance <= 0
         
         # Step 6 can only be completed if Steps 1-5 are completed
-        # FORCE step 6 to be incomplete if any previous step is incomplete
         if not step1_progress['completed'] or not step2_progress['completed'] or not step3_progress['completed'] or not step4_progress['completed'] or not step5_progress['completed']:
             step6_completed = False
         else:
@@ -294,40 +294,13 @@ class FinancialStepsView(APIView):
             }
         }
     
-    def calculate_emergency_fund(self, budget):
-        """Calculate current emergency fund from budget savings items"""
-        emergency_fund = Decimal('0')
-        if budget:
-            # Handle both dictionary and object formats
-            if isinstance(budget, dict):
-                savings_items = budget.get('savings_items', []) or []
-            else:
-                savings_items = getattr(budget, 'savings_items', []) or []
-            for item in savings_items:
-                if isinstance(item, dict):
-                    # Handle dictionary format
-                    name = item.get('name', '').lower()
-                    amount = item.get('amount', 0) or 0
-                else:
-                    # Handle object format
-                    name = getattr(item, 'name', '').lower()
-                    amount = getattr(item, 'amount', 0) or 0
-                
-                if 'emergency' in name or 'emergency fund' in name:
-                    emergency_fund += Decimal(str(amount))
-        return emergency_fund
-    
     def calculate_total_debt(self, debts):
         """Calculate total debt excluding mortgage"""
         total_debt = Decimal('0')
         logger.info(f"calculate_total_debt: Processing {len(debts)} debts")
         for i, debt in enumerate(debts):
-            # Get debt_type - handle both object and dict
-            debt_type = ''
-            if isinstance(debt, dict):
-                debt_type = debt.get('debt_type', '') or ''
-            else:
-                debt_type = getattr(debt, 'debt_type', '') or ''
+            # Get debt_type - handle dict format
+            debt_type = debt.get('debt_type', '') or '' if isinstance(debt, dict) else ''
             logger.info(f"calculate_total_debt: Debt {i} - type='{debt_type}'")
             
             is_mortgage = 'mortgage' in debt_type.lower() or 'home' in debt_type.lower()
@@ -337,9 +310,6 @@ class FinancialStepsView(APIView):
                 # Check both 'amount' and 'balance' fields (like frontend does: debt.amount || debt.balance)
                 balance_value = None
                 if isinstance(debt, dict):
-                    # For dict (from DebtService), check amount first, then balance
-                    # MongoDB might return these as Decimal, float, int, or None
-                    # Frontend does: debt.amount || debt.balance
                     amount_val = debt.get('amount')
                     balance_val = debt.get('balance')
                     
@@ -356,21 +326,6 @@ class FinancialStepsView(APIView):
                             balance_value = float(balance_val)
                         except (ValueError, TypeError):
                             balance_value = None
-                else:
-                    # For mongoengine Document objects, getattr might return DecimalField
-                    amount_val = getattr(debt, 'amount', None)
-                    balance_val = getattr(debt, 'balance', None)
-                    # Convert to float/Decimal if needed - check if value exists and is not None
-                    if amount_val is not None:
-                        try:
-                            balance_value = float(amount_val)
-                        except (ValueError, TypeError):
-                            balance_value = None
-                    if balance_value is None and balance_val is not None:
-                        try:
-                            balance_value = float(balance_val)
-                        except (ValueError, TypeError):
-                            balance_value = None
                 
                 # Convert to Decimal - if None, treat as 0 (debt is paid off or doesn't exist)
                 if balance_value is None:
@@ -378,7 +333,7 @@ class FinancialStepsView(APIView):
                 else:
                     balance_decimal = Decimal(str(balance_value))
                 
-                logger.info(f"calculate_total_debt: Debt {i} - raw_amount={getattr(debt, 'amount', None) if not isinstance(debt, dict) else debt.get('amount')}, raw_balance={getattr(debt, 'balance', None) if not isinstance(debt, dict) else debt.get('balance')}, balance_value={balance_value}, using={balance_decimal}")
+                logger.info(f"calculate_total_debt: Debt {i} - raw_amount={debt.get('amount')}, raw_balance={debt.get('balance')}, balance_value={balance_value}, using={balance_decimal}")
                 
                 # Only add to total if debt amount > 0
                 if balance_decimal > 0:
@@ -404,10 +359,7 @@ class FinancialStepsView(APIView):
         
         total_expenses = Decimal('0')
         for field in expense_fields:
-            if isinstance(budget, dict):
-                value = budget.get(field, 0) or 0
-            else:
-                value = getattr(budget, field, 0) or 0
+            value = budget.get(field, 0) or 0 if isinstance(budget, dict) else 0
             total_expenses += Decimal(str(value))
         
         # Add additional expenses if any
@@ -436,24 +388,11 @@ class FinancialStepsView(APIView):
         total_income = income + additional_income
         return Decimal(str(total_income)) if total_income > 0 else Decimal('5000')
     
-    def calculate_retirement_contributions(self, accounts):
-        """Calculate current retirement contributions"""
-        retirement_total = Decimal('0')
-        for account in accounts:
-            account_type = getattr(account, 'account_type', '') or ''
-            if 'retirement' in account_type.lower() or '401k' in account_type.lower() or 'ira' in account_type.lower():
-                balance = getattr(account, 'balance', 0) or 0
-                retirement_total += Decimal(str(balance))
-        return retirement_total
-    
     def calculate_total_accounts(self, accounts):
         """Calculate total account balances (accounts only, not net worth)"""
         total = Decimal('0')
         for account in accounts:
-            if isinstance(account, dict):
-                balance = account.get('balance', 0) or 0
-            else:
-                balance = getattr(account, 'balance', 0) or 0
+            balance = account.get('balance', 0) or 0 if isinstance(account, dict) else 0
             total += Decimal(str(balance))
         return total
     
@@ -461,10 +400,7 @@ class FinancialStepsView(APIView):
         """Calculate net worth (accounts - all debts including mortgage)"""
         total_accounts = Decimal('0')
         for account in accounts:
-            if isinstance(account, dict):
-                balance = account.get('balance', 0) or 0
-            else:
-                balance = getattr(account, 'balance', 0) or 0
+            balance = account.get('balance', 0) or 0 if isinstance(account, dict) else 0
             total_accounts += Decimal(str(balance))
         
         total_debts = Decimal('0')
@@ -502,10 +438,7 @@ class FinancialStepsView(APIView):
         
         total_expenses = Decimal('0')
         for field in expense_fields:
-            if isinstance(budget, dict):
-                value = budget.get(field, 0) or 0
-            else:
-                value = getattr(budget, field, 0) or 0
+            value = budget.get(field, 0) or 0 if isinstance(budget, dict) else 0
             total_expenses += Decimal(str(value))
         
         # Add additional expenses if any
@@ -525,7 +458,6 @@ class FinancialStepsView(APIView):
             return Decimal('0')
         
         additional_savings = Decimal('0')
-        # Handle both dictionary and object formats
         if isinstance(budget, dict):
             savings_items = budget.get('savings_items', []) or []
         else:
@@ -533,11 +465,9 @@ class FinancialStepsView(APIView):
             
         for item in savings_items:
             if isinstance(item, dict):
-                # Handle dictionary format
                 name = item.get('name', '').lower()
                 amount = item.get('amount', 0) or 0
             else:
-                # Handle object format
                 name = getattr(item, 'name', '').lower()
                 amount = getattr(item, 'amount', 0) or 0
             
@@ -553,7 +483,6 @@ class FinancialStepsView(APIView):
             return Decimal('0')
         
         college_fund_savings = Decimal('0')
-        # Handle both dictionary and object formats
         if isinstance(budget, dict):
             savings_items = budget.get('savings_items', []) or []
         else:
@@ -561,11 +490,9 @@ class FinancialStepsView(APIView):
             
         for item in savings_items:
             if isinstance(item, dict):
-                # Handle dictionary format
                 name = item.get('name', '').lower()
                 amount = item.get('amount', 0) or 0
             else:
-                # Handle object format
                 name = getattr(item, 'name', '').lower()
                 amount = getattr(item, 'amount', 0) or 0
             
@@ -578,11 +505,7 @@ class FinancialStepsView(APIView):
     def calculate_mortgage_balance(self, debts):
         """Calculate mortgage balance"""
         for debt in debts:
-            debt_type = ''
-            if isinstance(debt, dict):
-                debt_type = debt.get('debt_type', '') or ''
-            else:
-                debt_type = getattr(debt, 'debt_type', '') or ''
+            debt_type = debt.get('debt_type', '') or '' if isinstance(debt, dict) else ''
             
             if 'mortgage' in debt_type.lower() or 'home' in debt_type.lower():
                 # Check both 'amount' and 'balance' fields
@@ -601,90 +524,6 @@ class FinancialStepsView(APIView):
                     return Decimal('0')
                 return Decimal(str(balance_value))
         return Decimal('0')
-    
-    def calculate_step_progress(self, current, goal):
-        """Calculate progress for a step"""
-        if goal <= 0:
-            return {
-                'completed': True,
-                'progress': 100,
-                'message': 'Goal already achieved'
-            }
-        
-        progress_percent = min((current / goal) * 100, 100)
-        completed = progress_percent >= 100
-        
-        return {
-            'completed': completed,
-            'progress': float(progress_percent),
-            'current_amount': float(current),
-            'goal_amount': float(goal),
-            'message': f'${current:,.2f} of ${goal:,.2f}'
-        }
-    
-    def calculate_debt_progress(self, debts):
-        """Calculate debt payoff progress"""
-        non_mortgage_debts = []
-        for debt in debts:
-            # Handle both dictionary and object formats
-            if isinstance(debt, dict):
-                debt_type = debt.get('debt_type', '') or ''
-                balance = debt.get('balance', 0) or 0
-            else:
-                debt_type = getattr(debt, 'debt_type', '') or ''
-                balance = getattr(debt, 'balance', 0) or 0
-            
-            if 'mortgage' not in debt_type.lower() and 'home' not in debt_type.lower():
-                non_mortgage_debts.append(debt)
-        
-        if not non_mortgage_debts:
-            return {
-                'completed': True,
-                'progress': 100,
-                'message': 'No non-mortgage debt found'
-            }
-        
-        total_debt = Decimal('0')
-        for debt in non_mortgage_debts:
-            # Handle both dictionary and object formats
-            if isinstance(debt, dict):
-                balance = debt.get('balance', 0) or 0
-            else:
-                balance = getattr(debt, 'balance', 0) or 0
-            total_debt += Decimal(str(balance))
-        
-        if total_debt <= 0:
-            return {
-                'completed': True,
-                'progress': 100,
-                'message': 'All debt paid off!'
-            }
-        
-        # For debt, we show progress as amount remaining
-        return {
-            'completed': False,
-            'progress': 0,  # Will be calculated based on payments made
-            'current_debt': float(total_debt),
-            'max_total_debt': float(total_debt),
-            'message': f'${total_debt:,.2f} in debt remaining'
-        }
-    
-    def calculate_mortgage_progress(self, mortgage_balance):
-        """Calculate mortgage payoff progress"""
-        if mortgage_balance <= 0:
-            return {
-                'completed': True,
-                'progress': 100,
-                'message': 'No mortgage debt'
-            }
-        
-        return {
-            'completed': False,
-            'progress': 0,  # Will be calculated based on payments made
-            'current_amount': float(mortgage_balance),
-            'goal_amount': 0,  # Goal is to pay off completely
-            'message': f'${mortgage_balance:,.2f} mortgage remaining'
-        }
     
     def determine_current_step(self, step_progresses):
         """Determine which step the user is currently on (sequential steps)"""
@@ -747,3 +586,4 @@ def financial_steps_calculate_test(request):
             {'error': 'Failed to calculate test financial steps'},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+

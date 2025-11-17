@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,11 @@ import {
   Alert,
   ActivityIndicator,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useNotifications } from '../../contexts/NotificationContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -24,8 +22,7 @@ import {
 } from '../../components/notifications';
 import { API_CONFIG } from '../../constants';
 import apiClient from '../../services/api';
-
-const { width, height } = Dimensions.get('window');
+import accountsDebtsService from '../../services/accountsDebtsService';
 
 interface FinancialSteps {
   current_step: number;
@@ -35,7 +32,6 @@ interface FinancialSteps {
 
 const DashboardScreen: React.FC = () => {
   const { theme } = useTheme();
-  const { user } = useAuth();
   const { refreshNotifications } = useNotifications();
   const navigation = useNavigation();
   const [financialSteps, setFinancialSteps] = useState<FinancialSteps | null>(
@@ -44,6 +40,7 @@ const DashboardScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [debts, setDebts] = useState<any[]>([]);
 
   // Baby Steps data matching website
   const babySteps = [
@@ -133,18 +130,36 @@ const DashboardScreen: React.FC = () => {
 
   useEffect(() => {
     fetchFinancialSteps();
+    fetchDebts();
   }, []);
+
+  // Refetch when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchFinancialSteps();
+      fetchDebts();
+      refreshNotifications();
+    }, [refreshNotifications])
+  );
 
   // Handle feature navigation
   const handleFeaturePress = (screen: string) => {
     try {
       (navigation as any).navigate(screen);
-    } catch (error) {
-      console.error('Navigation error:', error);
+    } catch {
       Alert.alert(
         'Navigation Error',
         'Unable to navigate to the selected feature.'
       );
+    }
+  };
+
+  const fetchDebts = async () => {
+    try {
+      const debtsData = await accountsDebtsService.getDebts();
+      setDebts(debtsData || []);
+    } catch {
+      setDebts([]);
     }
   };
 
@@ -155,9 +170,26 @@ const DashboardScreen: React.FC = () => {
         API_CONFIG.ENDPOINTS.DASHBOARD.FINANCIAL_STEPS
       );
 
+      // LOG RAW BACKEND RESPONSE
+      console.log('=== BACKEND RESPONSE (RAW) ===');
+      console.log(JSON.stringify(response.data, null, 2));
+      console.log('=== END BACKEND RESPONSE ===');
+
       if (response.data) {
         // Sanitize the data to ensure no text rendering issues
         const data = response.data as any;
+
+        // LOG STEP COMPLETION STATUS FROM BACKEND
+        console.log('=== STEP COMPLETION STATUS FROM BACKEND ===');
+        console.log('Step 1 completed:', data.steps?.step_1?.completed);
+        console.log('Step 2 completed:', data.steps?.step_2?.completed);
+        console.log('Step 3 completed:', data.steps?.step_3?.completed);
+        console.log('Step 4 completed:', data.steps?.step_4?.completed);
+        console.log('Step 5 completed:', data.steps?.step_5?.completed);
+        console.log('Step 6 completed:', data.steps?.step_6?.completed);
+        console.log('Current step:', data.current_step);
+        console.log('=== END STEP STATUS ===');
+
         const sanitizedData = {
           ...data,
           current_step: Number(data.current_step) || 0,
@@ -186,11 +218,19 @@ const DashboardScreen: React.FC = () => {
             : {},
         };
 
+        // LOG SANITIZED DATA
+        console.log('=== SANITIZED DATA ===');
+        console.log('Step 1 completed:', sanitizedData.steps.step_1?.completed);
+        console.log('Step 2 completed:', sanitizedData.steps.step_2?.completed);
+        console.log('Step 3 completed:', sanitizedData.steps.step_3?.completed);
+        console.log('Step 4 completed:', sanitizedData.steps.step_4?.completed);
+        console.log('=== END SANITIZED DATA ===');
+
         setFinancialSteps(sanitizedData as FinancialSteps);
       } else if (response.error) {
         Alert.alert('Error', response.error);
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to load financial data');
     } finally {
       setLoading(false);
@@ -200,13 +240,34 @@ const DashboardScreen: React.FC = () => {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([fetchFinancialSteps(), refreshNotifications()]);
-    } catch (error) {
-      console.error('Error refreshing dashboard:', error);
-      // Don't show error to user, just continue
+      await Promise.all([
+        fetchFinancialSteps(),
+        fetchDebts(),
+        refreshNotifications(),
+      ]);
+    } catch {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  // Helper function to check if all previous steps are completed
+  const arePreviousStepsCompleted = (stepId: number): boolean => {
+    if (!financialSteps || stepId <= 1) return true; // Step 1 has no previous steps
+
+    console.log(`\nChecking previous steps for step ${stepId}:`);
+    for (let i = 1; i < stepId; i++) {
+      const prevStepData = financialSteps.steps?.[`step_${i}`];
+      console.log(
+        `  Step ${i}: completed = ${prevStepData?.completed}, data exists = ${!!prevStepData}`
+      );
+      if (!prevStepData || !prevStepData.completed) {
+        console.log(`  Step ${i} is NOT completed, returning false`);
+        return false;
+      }
+    }
+    console.log(`  All previous steps for step ${stepId} are completed`);
+    return true;
   };
 
   const getStepStatus = (stepId: number) => {
@@ -216,31 +277,99 @@ const DashboardScreen: React.FC = () => {
     const stepProgress = financialSteps.step_progress;
     const stepData = financialSteps.steps?.[`step_${stepId}`];
 
-    // Check if step is inactive
-    if (
-      stepData &&
-      stepData.message &&
-      stepData.message.toLowerCase().includes('inactive')
-    ) {
-      return 'inactive';
+    // LOG STEP STATUS EVALUATION
+    console.log(`\n=== EVALUATING STEP ${stepId} ===`);
+    console.log(`Step ${stepId} data:`, stepData);
+    console.log(
+      `Step ${stepId} completed (from backend):`,
+      stepData?.completed
+    );
+    const previousStepsCompleted = arePreviousStepsCompleted(stepId);
+    console.log(`All previous steps completed:`, previousStepsCompleted);
+
+    // FIRST: Check if all previous steps are completed - if not, this step cannot be completed
+    if (!previousStepsCompleted) {
+      console.log(
+        `Step ${stepId}: Previous steps NOT completed, cannot be completed`
+      );
+      // Previous steps not completed, so this step cannot be completed
+      if (stepId === 2) {
+        const hasNonMortgageDebts = debts.some(
+          debt =>
+            debt.debt_type !== 'mortgage' &&
+            parseFloat(
+              debt.balance?.toString() || debt.amount?.toString() || '0'
+            ) > 0
+        );
+        if (hasNonMortgageDebts) {
+          console.log(
+            `Step ${stepId}: Returning 'in-progress' (has non-mortgage debts)`
+          );
+          return 'in-progress';
+        }
+      }
+      // If we have progress data or it's the current step, show in-progress
+      if (stepData && stepData.progress > 0) {
+        console.log(
+          `Step ${stepId}: Returning 'in-progress' (has progress, but prev steps not done)`
+        );
+        return 'in-progress';
+      }
+      if (currentStep === stepId && stepProgress && !stepProgress.completed) {
+        console.log(
+          `Step ${stepId}: Returning 'in-progress' (current step, but prev steps not done)`
+        );
+        return 'in-progress';
+      }
+      console.log(`Step ${stepId}: Returning 'pending' (prev steps not done)`);
+      return 'pending';
     }
 
-    // If this step is completed
-    if (stepData && stepData.completed) {
+    // All previous steps are completed, now check this step
+    if (stepId === 2) {
+      const hasNonMortgageDebts = debts.some(
+        debt =>
+          debt.debt_type !== 'mortgage' &&
+          parseFloat(
+            debt.balance?.toString() || debt.amount?.toString() || '0'
+          ) > 0
+      );
+
+      if (hasNonMortgageDebts) {
+        return 'in-progress';
+      }
+    }
+
+    // Check if step is completed AND all previous steps are completed
+    if (stepData && stepData.completed && arePreviousStepsCompleted(stepId)) {
+      console.log(`Step ${stepId}: Returning 'completed'`);
       return 'completed';
     }
 
-    // If this is the current step and it's in progress
     if (currentStep === stepId && stepProgress && !stepProgress.completed) {
+      console.log(`Step ${stepId}: Returning 'in-progress' (current step)`);
       return 'in-progress';
     }
 
-    // If this step has progress data but isn't completed
     if (stepData && stepData.progress > 0) {
+      console.log(`Step ${stepId}: Returning 'in-progress' (has progress)`);
       return 'in-progress';
     }
 
-    // Future step or no data
+    if (stepId === 1 && stepData && !stepData.completed) {
+      console.log(
+        `Step ${stepId}: Returning 'in-progress' (step 1 not completed)`
+      );
+      return 'in-progress';
+    }
+
+    if (stepId <= currentStep && stepData && !stepData.completed) {
+      console.log(
+        `Step ${stepId}: Returning 'in-progress' (step <= current and not completed)`
+      );
+      return 'in-progress';
+    }
+    console.log(`Step ${stepId}: Returning 'pending'`);
     return 'pending';
   };
 
@@ -252,7 +381,6 @@ const DashboardScreen: React.FC = () => {
       const progress = financialSteps.step_progress;
       if (!progress || progress.completed) return null;
 
-      // Safe value extraction with type checking
       const safeProgress = Number(progress.progress) || 0;
       const safeCurrent = Number(
         progress.current_amount ||
@@ -276,7 +404,7 @@ const DashboardScreen: React.FC = () => {
         amount_paid_off: safeAmountPaidOff,
         message: safeMessage,
       };
-    } catch (error) {
+    } catch {
       return null;
     }
   };
@@ -288,8 +416,6 @@ const DashboardScreen: React.FC = () => {
         return <Ionicons name="checkmark-circle" size={20} color="#2e7d32" />;
       case 'in-progress':
         return <Ionicons name="refresh" size={20} color="#ed6c02" />;
-      case 'inactive':
-        return <Ionicons name="radio-button-off" size={20} color="#9e9e9e" />;
       default:
         return (
           <Ionicons
@@ -314,12 +440,10 @@ const DashboardScreen: React.FC = () => {
       const progressPercent = Math.round(Number(progress.progress) || 0);
       const progressWidth = (progressPercent + '%') as any;
 
-      // Safe message handling - avoid template literals
       const progressMessage = progress.message
         ? String(progress.message)
         : progressPercent + '% complete';
 
-      // Safe color extraction
       const stepColor = babySteps[stepId - 1]?.color || '#666';
 
       return (
@@ -337,22 +461,10 @@ const DashboardScreen: React.FC = () => {
           </View>
           <View style={styles.progressTextContainer}>
             <Text style={styles.progressText}>{progressMessage}</Text>
-            {stepId !== 2 &&
-              Boolean(progress.current) &&
-              Boolean(progress.goal) &&
-              Number(progress.current) > 0 &&
-              Number(progress.goal) > 0 && (
-                <Text style={styles.progressText}>
-                  {'$' +
-                    Number(progress.current).toLocaleString() +
-                    ' / $' +
-                    Number(progress.goal).toLocaleString()}
-                </Text>
-              )}
           </View>
         </View>
       );
-    } catch (error) {
+    } catch {
       return null;
     }
   };
@@ -508,7 +620,6 @@ const DashboardScreen: React.FC = () => {
           <View style={styles.stepsList}>
             {babySteps.map(step => {
               const status = getStepStatus(step.id);
-              const stepData = financialSteps?.steps?.[`step_${step.id}`];
 
               return (
                 <View key={step.id} style={styles.stepItem}>
@@ -520,10 +631,7 @@ const DashboardScreen: React.FC = () => {
                         backgroundColor:
                           status === 'completed'
                             ? step.color + '10'
-                            : status === 'inactive'
-                              ? theme.colors.surface
-                              : 'transparent',
-                        opacity: status === 'inactive' ? 0.6 : 1,
+                            : 'transparent',
                       },
                     ]}
                   >
@@ -564,20 +672,6 @@ const DashboardScreen: React.FC = () => {
                           {step.description}
                         </Text>
 
-                        {status === 'inactive' &&
-                          Boolean(stepData?.message) && (
-                            <View style={styles.inactiveAlert}>
-                              <Ionicons
-                                name="information-circle"
-                                size={16}
-                                color={theme.colors.primary}
-                              />
-                              <Text style={styles.inactiveText}>
-                                {String(stepData.message || '')}
-                              </Text>
-                            </View>
-                          )}
-
                         {renderStepProgress(step.id)}
                       </View>
                     </View>
@@ -593,10 +687,7 @@ const DashboardScreen: React.FC = () => {
       <NotificationModal
         visible={showNotificationModal}
         onClose={() => setShowNotificationModal(false)}
-        onNotificationPress={notification => {
-          // Handle notification press - could navigate to specific screens
-          console.log('Notification pressed:', notification);
-        }}
+        onNotificationPress={notification => {}}
       />
     </ScrollView>
   );
@@ -827,20 +918,6 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
       lineHeight: 20,
     },
-    inactiveAlert: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: theme.spacing.sm,
-      padding: theme.spacing.sm,
-      backgroundColor: theme.colors.primary + '10',
-      borderRadius: 8,
-    },
-    inactiveText: {
-      fontSize: 12,
-      color: theme.colors.primary,
-      marginLeft: theme.spacing.xs,
-      flex: 1,
-    },
     progressContainer: {
       marginTop: theme.spacing.sm,
     },
@@ -855,7 +932,7 @@ const createStyles = (theme: any) =>
       borderRadius: 4,
     },
     progressTextContainer: {
-      flexDirection: 'row',
+      flexDirection: 'column',
       justifyContent: 'space-between',
       marginTop: theme.spacing.xs,
     },
