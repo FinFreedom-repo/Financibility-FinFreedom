@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   TextInput,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency } from '../../utils/formatting';
@@ -199,8 +200,9 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
   ) => {
     if (!isCellEditable(months[monthIdx], category)) return;
 
+    const valueString = currentValue === 0 ? '' : currentValue.toString();
+    setEditValue(valueString);
     setEditingCell({ monthIdx, category });
-    setEditValue(currentValue.toString());
   };
 
   const handleCellSubmit = () => {
@@ -233,12 +235,22 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
       return (
         <View style={styles.editContainer}>
           <TextInput
-            style={styles.editInput}
+            style={[
+              styles.editInput,
+              { color: '#FFFFFF', backgroundColor: 'transparent' },
+            ]}
             value={editValue}
             onChangeText={setEditValue}
             keyboardType="numeric"
-            autoFocus
-            selectTextOnFocus
+            autoFocus={true}
+            selectTextOnFocus={false}
+            placeholder="0"
+            placeholderTextColor="#FFFFFF80"
+            textContentType="none"
+            selectionColor="#FFFFFF"
+            underlineColorAndroid="transparent"
+            defaultValue={editValue}
+            allowFontScaling={false}
           />
           <View style={styles.editButtons}>
             <TouchableOpacity
@@ -607,17 +619,29 @@ const createStyles = (theme: any) =>
     editContainer: {
       width: 70,
       height: 40,
-      backgroundColor: theme.colors.primary + '20',
+      backgroundColor: '#333333',
       borderRadius: theme.borderRadius.sm,
       borderWidth: 2,
       borderColor: theme.colors.primary,
-      padding: 2,
+      padding: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     editInput: {
-      flex: 1,
+      width: '100%',
+      height: '100%',
       fontSize: 12,
       textAlign: 'center',
-      color: theme.colors.text,
+      textAlignVertical: 'center',
+      fontWeight: '600',
+      color: '#FFFFFF',
+      backgroundColor: '#333333',
+      paddingTop: 18,
+      paddingBottom: 0,
+      paddingHorizontal: 0,
+      margin: 0,
+      includeFontPadding: false,
+      borderWidth: 0,
     },
     editButtons: {
       flexDirection: 'row',
