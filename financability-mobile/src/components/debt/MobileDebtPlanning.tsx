@@ -656,7 +656,12 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
               localGridData.find(row => row.category === category)?.[
                 `month_${monthIdx}`
               ] || 0,
-            newValue: parseFloat(newValue) || 0,
+            newValue: (() => {
+              const trimmed = newValue.trim();
+              if (trimmed === '' || trimmed === '-') return 0;
+              const num = parseFloat(trimmed);
+              return isNaN(num) ? 0 : num;
+            })(),
             timestamp: Date.now(),
             isUserEdit: true,
           });
@@ -683,13 +688,21 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
           months
         );
 
+        // Parse value properly handling negatives
+        const parsedValue = (() => {
+          const trimmed = newValue.trim();
+          if (trimmed === '' || trimmed === '-') return 0;
+          const num = parseFloat(trimmed);
+          return isNaN(num) ? 0 : num;
+        })();
+
         // Persist the edited cell itself
         if (months[monthIdx].type === 'current') {
           await saveMonthChangesDirectly(
             months[monthIdx].month,
             months[monthIdx].year,
             category,
-            parseFloat(newValue) || 0
+            parsedValue
           );
         } else if (months[monthIdx].type === 'future') {
           // Save projected month edit so it persists and is protected from later refreshes
@@ -697,7 +710,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             months[monthIdx].month,
             months[monthIdx].year,
             category,
-            parseFloat(newValue) || 0
+            parsedValue
           );
         }
 
@@ -714,6 +727,15 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             months,
             updatedGridData
           );
+        }
+
+        // Reload budget data to get the saved changes
+        try {
+          const budgets = await debtPlanningService.getBudgetData();
+          setBackendBudgets(budgets);
+        } catch (error) {
+          console.error('Error reloading budgets after save:', error);
+          // Continue even if reload fails
         }
 
         // Trigger immediate debt payoff recalculation
@@ -744,9 +766,15 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         setLocalGridData(prev => {
           let updated = prev.map(row => {
             if (row.category === category) {
+              const parsedValue = (() => {
+                const trimmed = newValue.trim();
+                if (trimmed === '' || trimmed === '-') return 0;
+                const num = parseFloat(trimmed);
+                return isNaN(num) ? 0 : num;
+              })();
               return {
                 ...row,
-                [`month_${monthIdx}`]: parseFloat(newValue) || 0,
+                [`month_${monthIdx}`]: parsedValue,
               } as any;
             }
             return row;
@@ -767,8 +795,13 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
                 {}
               ),
             };
-            (additionalIncomeRow as any)[`month_${monthIdx}`] =
-              parseFloat(newValue) || 0;
+            const parsedValue = (() => {
+              const trimmed = newValue.trim();
+              if (trimmed === '' || trimmed === '-') return 0;
+              const num = parseFloat(trimmed);
+              return isNaN(num) ? 0 : num;
+            })();
+            (additionalIncomeRow as any)[`month_${monthIdx}`] = parsedValue;
 
             // Insert after Primary Income
             const primaryIncomeIndex = updated.findIndex(
@@ -821,7 +854,12 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       months: any[],
       updatedGridData: Record<string, any>[]
     ) => {
-      const currentVal = parseFloat(newValue) || 0;
+      const currentVal = (() => {
+        const trimmed = newValue.trim();
+        if (trimmed === '' || trimmed === '-') return 0;
+        const num = parseFloat(trimmed);
+        return isNaN(num) ? 0 : num;
+      })();
 
       setIsPropagatingChanges(true);
       setPropagationProgress(0);
@@ -932,8 +970,193 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     value: number
   ) => {
     try {
+      // Import budgetService dynamically to avoid circular dependencies
+      const budgetServiceModule = await import('../../services/budgetService');
+      const budgetService = budgetServiceModule.default;
+
+      // Get existing budget for this month/year or create new one
+      const budgets = await budgetService.getBudgets();
+      const existingBudget = budgets.find(
+        b => b.month === month && b.year === year
+      );
+
+      // Map category names to budget structure
+      const categoryMap: Record<
+        string,
+        | 'housing'
+        | 'transportation'
+        | 'food'
+        | 'healthcare'
+        | 'entertainment'
+        | 'shopping'
+        | 'travel'
+        | 'education'
+        | 'utilities'
+        | 'childcare'
+        | 'debt_payments'
+        | 'others'
+        | 'income'
+        | 'additional_income'
+      > = {
+        'Primary Income': 'income',
+        Housing: 'housing',
+        Transportation: 'transportation',
+        Food: 'food',
+        Healthcare: 'healthcare',
+        Entertainment: 'entertainment',
+        Shopping: 'shopping',
+        Travel: 'travel',
+        Education: 'education',
+        Utilities: 'utilities',
+        Childcare: 'childcare',
+        Miscellaneous: 'others',
+        'Required Debt Payments': 'debt_payments',
+        Savings: 'savings',
+      };
+
+      const budgetField = categoryMap[category];
+
+      if (!budgetField) {
+        // Handle additional income items
+        if (
+          category.startsWith('+ ') ||
+          category.includes('Additional Income')
+        ) {
+          const incomeItemName =
+            category
+              .replace('+ ', '')
+              .replace('Additional Income', '')
+              .trim() || 'Additional Income';
+
+          if (existingBudget) {
+            const updatedAdditionalIncomeItems = [
+              ...(existingBudget.additional_income_items || []),
+              { name: incomeItemName, amount: value },
+            ];
+
+            await budgetService.updateBudget(existingBudget._id!, {
+              ...existingBudget,
+              additional_income_items: updatedAdditionalIncomeItems,
+            });
+          } else {
+            await budgetService.saveMonthBudget({
+              month,
+              year,
+              income: 0,
+              additional_income: 0,
+              additional_income_items: [
+                { name: incomeItemName, amount: value },
+              ],
+              expenses: {
+                housing: 0,
+                transportation: 0,
+                food: 0,
+                healthcare: 0,
+                entertainment: 0,
+                shopping: 0,
+                travel: 0,
+                education: 0,
+                utilities: 0,
+                childcare: 0,
+                debt_payments: 0,
+                others: 0,
+              },
+              additional_items: [],
+              savings_items: [],
+              manually_edited_categories: [category],
+            });
+          }
+          return;
+        }
+        console.log('Unknown category:', category);
+        return;
+      }
+
+      // Handle income
+      if (budgetField === 'income') {
+        if (existingBudget) {
+          await budgetService.updateBudget(existingBudget._id!, {
+            ...existingBudget,
+            income: value,
+          });
+        } else {
+          await budgetService.saveMonthBudget({
+            month,
+            year,
+            income: value,
+            additional_income: 0,
+            additional_income_items: [],
+            expenses: {
+              housing: 0,
+              transportation: 0,
+              food: 0,
+              healthcare: 0,
+              entertainment: 0,
+              shopping: 0,
+              travel: 0,
+              education: 0,
+              utilities: 0,
+              childcare: 0,
+              debt_payments: 0,
+              others: 0,
+            },
+            additional_items: [],
+            savings_items: [],
+            manually_edited_categories: [category],
+          });
+        }
+        return;
+      }
+
+      // Handle expenses
+      if (existingBudget) {
+        const updatedExpenses = {
+          ...existingBudget.expenses,
+          [budgetField]: value,
+        };
+
+        await budgetService.updateBudget(existingBudget._id!, {
+          ...existingBudget,
+          expenses: updatedExpenses,
+          manually_edited_categories: [
+            ...(existingBudget.manually_edited_categories || []),
+            ...(existingBudget.manually_edited_categories?.includes(category)
+              ? []
+              : [category]),
+          ],
+        });
+      } else {
+        const expenses: any = {
+          housing: 0,
+          transportation: 0,
+          food: 0,
+          healthcare: 0,
+          entertainment: 0,
+          shopping: 0,
+          travel: 0,
+          education: 0,
+          utilities: 0,
+          childcare: 0,
+          debt_payments: 0,
+          others: 0,
+        };
+        expenses[budgetField] = value;
+
+        await budgetService.saveMonthBudget({
+          month,
+          year,
+          income: 0,
+          additional_income: 0,
+          additional_income_items: [],
+          expenses,
+          additional_items: [],
+          savings_items: [],
+          manually_edited_categories: [category],
+        });
+      }
     } catch (error) {
-      throw error;
+      console.error('Error saving month changes:', error);
+      // Don't throw - allow the UI to continue working even if save fails
     }
   };
 
