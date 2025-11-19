@@ -21,10 +21,16 @@ logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@csrf_exempt
 def login(request):
     """MongoDB-based login endpoint"""
     try:
-        data = json.loads(request.body)
+        # Use request.data for DRF, fallback to json.loads for raw body
+        if hasattr(request, 'data'):
+            data = request.data
+        else:
+            data = json.loads(request.body)
+        
         username = data.get('username')
         password = data.get('password')
         

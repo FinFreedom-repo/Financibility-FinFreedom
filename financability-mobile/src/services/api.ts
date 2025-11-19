@@ -295,10 +295,27 @@ class ApiClient {
       // Server responded with error status
       const { status, data } = error.response;
 
+      // Log full error details for debugging
+      console.log('❌ Error response details:', {
+        status,
+        data,
+        headers: error.response.headers,
+      });
+
       // Handle specific authentication errors
       if (status === 401) {
         return {
           error: 'Incorrect username or password',
+          status,
+        };
+      }
+
+      // For 400 errors, show the actual error message from backend
+      if (status === 400) {
+        const errorMessage = data?.error || data?.detail || data?.message || 'Bad request';
+        console.log('❌ 400 Bad Request error:', errorMessage);
+        return {
+          error: errorMessage,
           status,
         };
       }
