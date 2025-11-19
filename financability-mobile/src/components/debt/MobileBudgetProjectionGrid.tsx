@@ -14,6 +14,7 @@ import {
   TextInput,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency } from '../../utils/formatting';
@@ -48,6 +49,10 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
     category: string;
   } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [savingCell, setSavingCell] = useState<{
+    monthIdx: number;
+    category: string;
+  } | null>(null);
   const mainScrollViewRef = useRef<ScrollView>(null);
   const currentMonthIdx = months.findIndex(m => m.type === 'current');
 
@@ -205,11 +210,30 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
     setEditingCell({ monthIdx, category });
   };
 
-  const handleCellSubmit = () => {
+  const handleCellSubmit = async () => {
     if (editingCell) {
-      onCellValueChanged(editingCell.monthIdx, editingCell.category, editValue);
+      const cellToSave = { ...editingCell };
+      const valueToSave = editValue;
+
+      // Clear editing state immediately and show loading
       setEditingCell(null);
       setEditValue('');
+      setSavingCell(cellToSave);
+
+      try {
+        await onCellValueChanged(
+          cellToSave.monthIdx,
+          cellToSave.category,
+          valueToSave
+        );
+        // Save completed - clear loading
+        setSavingCell(null);
+      } catch (error) {
+        // Error is already handled in onCellValueChanged
+        // Clear loading and allow user to try again
+        setSavingCell(null);
+        console.error('Error saving cell:', error);
+      }
     }
   };
 
@@ -227,6 +251,25 @@ const MobileBudgetProjectionGrid: React.FC<MobileBudgetProjectionGridProps> = ({
     const month = months[monthIdx];
     const isEditable = isCellEditable(month, category);
 
+    // Show loading indicator if this cell is being saved
+    if (
+      savingCell &&
+      savingCell.monthIdx === monthIdx &&
+      savingCell.category === category
+    ) {
+      return (
+        <View
+          style={[
+            getCellStyle(month, category, value, rowType),
+            styles.loadingCell,
+          ]}
+        >
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        </View>
+      );
+    }
+
+    // Show edit input if this cell is being edited
     if (
       editingCell &&
       editingCell.monthIdx === monthIdx &&
@@ -615,6 +658,11 @@ const createStyles = (theme: any) =>
     },
     editableCellText: {
       fontWeight: 'bold',
+    },
+    loadingCell: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      opacity: 0.8,
     },
     editContainer: {
       width: 70,
