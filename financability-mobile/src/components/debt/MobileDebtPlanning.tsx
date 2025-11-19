@@ -27,6 +27,7 @@ import { formatCurrency } from '../../utils/formatting';
 import MobileBudgetProjectionGrid from './MobileBudgetProjectionGrid';
 import MobileDebtPayoffTimelineGrid from './MobileDebtPayoffTimelineGrid';
 import MobileDebtManagementModal from './MobileDebtManagementModal';
+import budgetService from '../../services/budgetService';
 
 const { width } = Dimensions.get('window');
 
@@ -79,6 +80,8 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
 
   const [, setGridForceUpdate] = useState(0);
   const gridUpdateCounter = useRef(0);
+  const isUserEditingRef = useRef(false);
+  const isLoadingRef = useRef(false);
 
   const styles = createStyles(theme);
 
@@ -142,7 +145,11 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
   }, [historicalMonthsShown, projectionMonths]);
 
   const loadInitialData = useCallback(async () => {
+    // Prevent multiple simultaneous loads
+    if (isLoadingRef.current) return;
+
     try {
+      isLoadingRef.current = true;
       setLoading(true);
 
       // Load debts
@@ -155,6 +162,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       Alert.alert('Error', 'Failed to load initial data: ' + error);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   }, []);
 
@@ -163,16 +171,42 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     loadInitialData();
   }, [loadInitialData]);
 
-  // Refetch when screen gains focus
+  // Refetch when screen gains focus - reload on navigation, but not during active editing
   useFocusEffect(
     useCallback(() => {
-      loadInitialData();
+      // Only reload if:
+      // 1. Not currently loading
+      // 2. User is not actively editing
+      // 3. Not initializing
+      if (
+        !isLoadingRef.current &&
+        !isUserEditingRef.current &&
+        !isInitializingGrid
+      ) {
+        loadInitialData();
+      }
+
+      // Cleanup: reset editing ref when screen loses focus
+      return () => {
+        isUserEditingRef.current = false;
+      };
     }, [loadInitialData])
   );
 
   // Rebuild grid data when backend budgets change
+  // But ONLY on initial load or when explicitly reloading - NOT after every edit
+  // This prevents the terrible UX of reloading the whole page when editing one cell
   useEffect(() => {
-    if (backendBudgets && backendBudgets.length > 0 && !isInitializingGrid) {
+    if (
+      backendBudgets &&
+      backendBudgets.length > 0 &&
+      !isInitializingGrid &&
+      !gridUpdating &&
+      !isUserEditingRef.current &&
+      localGridData.length === 0 // Only rebuild if we have no local data yet
+    ) {
+      // Only rebuild on initial load when we have no local grid data
+      // After that, local state updates handle all changes
       const gridData = transformBackendBudgetsToGrid(backendBudgets);
       setLocalGridData(gridData);
 
@@ -206,6 +240,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     backendBudgets,
     generateMonths,
     isInitializingGrid,
+    // Don't include gridUpdating - we use isUserEditingRef instead
   ]);
 
   // Auto-recalculate debt payoff when backend budgets change
@@ -585,15 +620,22 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
           const currentValue = (row as any)[`month_${currentMonthIdx}`] || 0;
           for (let idx = 0; idx < months.length; idx++) {
             if (months[idx].type === 'historical') {
+              // For historical months, always use current month's value
               (row as any)[`month_${idx}`] = currentValue;
               continue;
             }
+            // For future months: only fill with current value if:
+            // 1. This month has NO database entry (not in dbMonthIndices)
+            // 2. AND the current value is 0 (meaning no data was loaded from backend)
+            // This preserves any values that were loaded from the database above
             if (
               !dbMonthIndices.has(idx) &&
               (row as any)[`month_${idx}`] === 0
             ) {
               (row as any)[`month_${idx}`] = currentValue;
             }
+            // If dbMonthIndices.has(idx) is true, the value was already set from backend data above
+            // and should NOT be overwritten
           }
         });
       }
@@ -633,126 +675,70 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
   const onCellValueChanged = useCallback(
     async (monthIdx: number, category: string, newValue: string) => {
       const months = generateMonths();
-      if (!months[monthIdx] || months[monthIdx].type === 'historical') return;
+      if (!months[monthIdx]) return;
+
+      // Don't allow editing calculated fields
+      if (category === 'Net Savings' || category === 'Remaining Debt') {
+        return;
+      }
 
       if (isInitializingGrid) {
         return;
       }
 
-      setIsUpdatingCell(true);
-      setGridUpdating(true);
-      setPropagationProgress(0);
-      setIsPropagatingChanges(true);
+      // Parse the value
+      const parsedValue = (() => {
+        const trimmed = newValue.trim();
+        if (trimmed === '' || trimmed === '-') return 0;
+        const num = parseFloat(trimmed);
+        return isNaN(num) ? 0 : num;
+      })();
 
-      try {
-        // Record user edit for change tracking
-        const editKey = `${monthIdx}-${category}`;
-        setUserEditedCells(prev => {
-          const next = new Map(prev);
-          next.set(editKey, {
-            monthIdx,
-            category,
-            originalValue:
-              localGridData.find(row => row.category === category)?.[
-                `month_${monthIdx}`
-              ] || 0,
-            newValue: (() => {
-              const trimmed = newValue.trim();
-              if (trimmed === '' || trimmed === '-') return 0;
-              const num = parseFloat(trimmed);
-              return isNaN(num) ? 0 : num;
-            })(),
-            timestamp: Date.now(),
-            isUserEdit: true,
-          });
-          return next;
+      // OPTIMISTIC UPDATE: Update local state immediately (no waiting, no reload)
+      setLocalGridData(prev => {
+        const updated = prev.map(row => {
+          if (row.category === category) {
+            return {
+              ...row,
+              [`month_${monthIdx}`]: parsedValue,
+            } as any;
+          }
+          return row;
         });
+        // Recalculate net savings after the update
+        // The debt calculation useEffect will automatically trigger when localGridData changes
+        return recalculateNetSavings(updated);
+      });
 
-        // Mark projected month cells as locked when user edits them
-        if (months[monthIdx].type === 'future') {
-          setLockedCells(prev => {
-            const next = { ...prev };
-            const lockedForMonth = next[monthIdx] || [];
-            if (!lockedForMonth.includes(category)) {
-              next[monthIdx] = [...lockedForMonth, category];
-            }
-            return next;
-          });
-        }
-
-        // Update grid data and trigger real-time recalculation
-        const updatedGridData = await handleRealTimeGridUpdate(
-          monthIdx,
-          category,
-          newValue,
-          months
-        );
-
-        // Parse value properly handling negatives
-        const parsedValue = (() => {
-          const trimmed = newValue.trim();
-          if (trimmed === '' || trimmed === '-') return 0;
-          const num = parseFloat(trimmed);
-          return isNaN(num) ? 0 : num;
-        })();
-
-        // Persist the edited cell itself
-        if (months[monthIdx].type === 'current') {
-          await saveMonthChangesDirectly(
-            months[monthIdx].month,
-            months[monthIdx].year,
-            category,
-            parsedValue
+      // Save to backend in the background (don't block UI, don't reload)
+      const month = months[monthIdx];
+      saveMonthChangesDirectly(month.month, month.year, category, parsedValue)
+        .then(() => {
+          // Success - optimistic update already shown, nothing to do
+        })
+        .catch(error => {
+          // Save failed - show error and offer to reload
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          Alert.alert(
+            'Save Failed',
+            `Failed to save ${category}: ${errorMessage}\n\nWould you like to reload the data?`,
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+              {
+                text: 'Reload',
+                onPress: () => {
+                  loadInitialData();
+                },
+              },
+            ]
           );
-        } else if (months[monthIdx].type === 'future') {
-          // Save projected month edit so it persists and is protected from later refreshes
-          await saveMonthChangesDirectly(
-            months[monthIdx].month,
-            months[monthIdx].year,
-            category,
-            parsedValue
-          );
-        }
-
-        // If current month was edited, propagate to future months
-        if (
-          months[monthIdx].type === 'current' &&
-          category !== 'Remaining Debt' &&
-          category !== 'Net Savings'
-        ) {
-          await propagateCurrentMonthChanges(
-            monthIdx,
-            category,
-            newValue,
-            months,
-            updatedGridData
-          );
-        }
-
-        // Reload budget data to get the saved changes
-        try {
-          const budgets = await debtPlanningService.getBudgetData();
-          setBackendBudgets(budgets);
-        } catch (error) {
-          console.error('Error reloading budgets after save:', error);
-          // Continue even if reload fails
-        }
-
-        // Trigger immediate debt payoff recalculation
-        await triggerImmediateDebtRecalculation();
-
-        // Update propagation progress
-        setPropagationProgress(100);
-      } catch (error) {
-        Alert.alert('Error', 'Failed to update cell: ' + error);
-      } finally {
-        setIsUpdatingCell(false);
-        setGridUpdating(false);
-        setIsPropagatingChanges(false);
-        setPropagationProgress(0);
-      }
+        });
     },
-    [isInitializingGrid, localGridData, generateMonths]
+    [isInitializingGrid, generateMonths, recalculateNetSavings, loadInitialData]
   );
 
   const handleRealTimeGridUpdate = useCallback(
@@ -970,9 +956,10 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     value: number
   ) => {
     try {
-      // Import budgetService dynamically to avoid circular dependencies
-      const budgetServiceModule = await import('../../services/budgetService');
-      const budgetService = budgetServiceModule.default;
+      console.log(
+        `💾 saveMonthChangesDirectly called: ${category} = ${value} for ${month}/${year}`
+      );
+      // Use static import - budgetService is imported at the top of the file
 
       // Get existing budget for this month/year or create new one
       const budgets = await budgetService.getBudgets();
@@ -1011,10 +998,17 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         Childcare: 'childcare',
         Miscellaneous: 'others',
         'Required Debt Payments': 'debt_payments',
-        Savings: 'savings',
+        // Savings is handled separately below - not in this map
       };
 
       const budgetField = categoryMap[category];
+
+      // Handle Savings separately - it's stored as savings_items array, not a direct field
+      if (category === 'Savings') {
+        // For now, Savings is calculated, not directly editable in debt planning
+        // If we need to support editing Savings, we'd need to handle savings_items array
+        return;
+      }
 
       if (!budgetField) {
         // Handle additional income items
@@ -1075,11 +1069,21 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       // Handle income
       if (budgetField === 'income') {
         if (existingBudget) {
-          await budgetService.updateBudget(existingBudget._id!, {
-            ...existingBudget,
-            income: value,
-          });
+          console.log(
+            `💾 Updating existing budget ${existingBudget._id} with income=${value}`
+          );
+          const updated = await budgetService.updateBudget(
+            existingBudget._id!,
+            {
+              ...existingBudget,
+              income: value,
+            }
+          );
+          console.log(`✅ Budget updated successfully:`, updated);
         } else {
+          console.log(
+            `💾 Creating new budget for ${month}/${year} with income=${value}`
+          );
           await budgetService.saveMonthBudget({
             month,
             year,
@@ -1115,7 +1119,10 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
           [budgetField]: value,
         };
 
-        await budgetService.updateBudget(existingBudget._id!, {
+        console.log(
+          `💾 Updating existing budget ${existingBudget._id} with ${budgetField}=${value}`
+        );
+        const updated = await budgetService.updateBudget(existingBudget._id!, {
           ...existingBudget,
           expenses: updatedExpenses,
           manually_edited_categories: [
@@ -1125,7 +1132,11 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
               : [category]),
           ],
         });
+        console.log(`✅ Budget updated successfully:`, updated);
       } else {
+        console.log(
+          `💾 Creating new budget for ${month}/${year} with ${budgetField}=${value}`
+        );
         const expenses: any = {
           housing: 0,
           transportation: 0,
@@ -1156,7 +1167,10 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       }
     } catch (error) {
       console.error('Error saving month changes:', error);
-      // Don't throw - allow the UI to continue working even if save fails
+      // Re-throw the error so the caller knows the save failed
+      throw new Error(
+        `Failed to save ${category} for ${month}/${year}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   };
 
