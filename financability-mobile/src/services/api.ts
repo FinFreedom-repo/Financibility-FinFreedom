@@ -33,7 +33,7 @@ class ApiClient {
         // Retry on network errors or 5xx server errors
         return (
           axiosRetry.isNetworkOrIdempotentRequestError(error) ||
-          (error.response?.status ?? 0) >= 500
+          !!(error.response && error.response.status >= 500)
         );
       },
     });
@@ -101,17 +101,10 @@ class ApiClient {
         }
         const originalRequest = error.config;
 
-        // Skip token refresh for authentication endpoints (login, register, refresh)
-        // A 401 on these endpoints means invalid credentials, not an expired token
-        const isAuthEndpoint =
-          originalRequest?.url?.includes('/auth/mongodb/login/') ||
-          originalRequest?.url?.includes('/auth/mongodb/register/') ||
-          originalRequest?.url?.includes('/auth/mongodb/refresh/');
-
+        // Handle 401 (Unauthorized) and 403 (Forbidden) - both indicate auth issues
         if (
-          error.response?.status === 401 &&
-          !originalRequest._retry &&
-          !isAuthEndpoint
+          (error.response?.status === 401 || error.response?.status === 403) &&
+          !originalRequest._retry
         ) {
           if (this.isRefreshing) {
             // If already refreshing, queue the request
@@ -295,27 +288,10 @@ class ApiClient {
       // Server responded with error status
       const { status, data } = error.response;
 
-      // Log full error details for debugging
-      console.log('❌ Error response details:', {
-        status,
-        data,
-        headers: error.response.headers,
-      });
-
       // Handle specific authentication errors
       if (status === 401) {
         return {
           error: 'Incorrect username or password',
-          status,
-        };
-      }
-
-      // For 400 errors, show the actual error message from backend
-      if (status === 400) {
-        const errorMessage = data?.error || data?.detail || data?.message || 'Bad request';
-        console.log('❌ 400 Bad Request error:', errorMessage);
-        return {
-          error: errorMessage,
           status,
         };
       }
