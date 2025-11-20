@@ -319,11 +319,16 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     } finally {
       setIsInitializingGrid(false);
 
-      // Trigger initial debt payoff calculation
+      // Trigger initial debt payoff calculation after grid is initialized
+      // The useEffect watching localGridData will also trigger, but we want to ensure
+      // it runs after initialization is complete
       if (outstandingDebts.length > 0) {
-        setTimeout(() => {
-          triggerImmediateDebtRecalculation();
-        }, 1000);
+        // Use requestAnimationFrame to ensure state updates are flushed
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            triggerImmediateDebtRecalculation();
+          }, 500);
+        });
       }
     }
   };
@@ -642,20 +647,8 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
 
       const calculatedData = recalculateNetSavings(filteredGridData);
 
-      // Set initial debt amounts
-      const totalDebt = outstandingDebts.reduce(
-        (sum, debt) => sum + (parseFloat(debt.balance.toString()) || 0),
-        0
-      );
-      const debtRow = calculatedData.find(
-        row => row.category === 'Remaining Debt'
-      );
-      if (debtRow) {
-        months.forEach((_, idx) => {
-          (debtRow as any)[`month_${idx}`] = totalDebt;
-        });
-      }
-
+      // Don't set remaining debt here - let the debt payoff calculation handle it
+      // This ensures it's always calculated from the current budget data
       return calculatedData;
     },
     [generateMonths, outstandingDebts, recalculateNetSavings]
@@ -1112,7 +1105,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         return;
       }
 
-      // Handle expenses
+      // Handle expensesc
       if (existingBudget) {
         const updatedExpenses = {
           ...existingBudget.expenses,
@@ -1282,6 +1275,80 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strategy]);
+
+  // Recalculate debt payoff when localGridData changes (e.g., when income/savings are edited)
+  // This ensures debt payoff updates immediately when budget values change
+  const previousNetSavingsRef = useRef<string>('');
+  const debtRecalculationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Clear any pending recalculation
+    if (debtRecalculationTimeoutRef.current) {
+      clearTimeout(debtRecalculationTimeoutRef.current);
+      debtRecalculationTimeoutRef.current = null;
+    }
+
+    if (
+      localGridData?.length &&
+      outstandingDebts?.length &&
+      !debtCalculationInProgress &&
+      !isInitializingGrid &&
+      !isUserEditingRef.current &&
+      !isLoadingRef.current
+    ) {
+      // Find Net Savings row to detect changes
+      const netSavingsRow = localGridData.find(
+        row => row.category === 'Net Savings'
+      );
+
+      if (netSavingsRow) {
+        // Create a string representation of Net Savings values to detect changes
+        const months = generateMonths();
+        const currentMonthIdx = months.findIndex(m => m.type === 'current');
+        const netSavingsString = months
+          .slice(currentMonthIdx)
+          .map((_, idx) => {
+            const monthIdx = currentMonthIdx + idx;
+            const value = netSavingsRow[`month_${monthIdx}`] || 0;
+            return Math.round(value * 100) / 100; // Round to 2 decimals to avoid floating point issues
+          })
+          .join(',');
+
+        // Only trigger if Net Savings actually changed
+        if (netSavingsString !== previousNetSavingsRef.current) {
+          // Skip if this is the initial load (empty string means first run)
+          const isInitialLoad = previousNetSavingsRef.current === '';
+          previousNetSavingsRef.current = netSavingsString;
+
+          if (isInitialLoad) {
+            // This is the initial load, let the other useEffect handle it
+            return;
+          }
+
+          // Debounce to avoid too many recalculations during rapid edits
+          debtRecalculationTimeoutRef.current = setTimeout(() => {
+            if (
+              !debtCalculationInProgress &&
+              !isInitializingGrid &&
+              !isUserEditingRef.current &&
+              !isLoadingRef.current
+            ) {
+              triggerImmediateDebtRecalculation();
+            }
+            debtRecalculationTimeoutRef.current = null;
+          }, 300); // 300ms debounce
+        }
+      }
+    }
+
+    return () => {
+      if (debtRecalculationTimeoutRef.current) {
+        clearTimeout(debtRecalculationTimeoutRef.current);
+        debtRecalculationTimeoutRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localGridData, outstandingDebts?.length]);
 
   const handleDebtChange = useCallback(async () => {
     if (debtCalculationInProgress) return;

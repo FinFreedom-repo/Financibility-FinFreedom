@@ -19,20 +19,22 @@ class ApiClient {
       timeout: API_CONFIG.TIMEOUT,
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
     });
 
     // Configure retry logic for better network reliability
     axiosRetry(this.client, {
       retries: 3,
-      retryDelay: (retryCount) => {
+      retryDelay: retryCount => {
         return retryCount * 1000; // 1s, 2s, 3s delays
       },
-      retryCondition: (error) => {
+      retryCondition: error => {
         // Retry on network errors or 5xx server errors
-        return axiosRetry.isNetworkOrIdempotentRequestError(error) || 
-               (error.response && error.response.status >= 500);
+        return (
+          axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+          (error.response && error.response.status >= 500)
+        );
       },
     });
 
@@ -42,26 +44,26 @@ class ApiClient {
   private setupInterceptors() {
     // Request interceptor to add auth token
     this.client.interceptors.request.use(
-      async (config) => {
+      async config => {
         console.log('🌐', config.method?.toUpperCase(), config.url);
         console.log('📤 Request config:', {
           baseURL: config.baseURL,
           url: config.url,
           method: config.method,
-          headers: config.headers
+          headers: config.headers,
         });
-        
+
         // Add connection quality headers for better routing
         config.headers['X-Requested-With'] = 'XMLHttpRequest';
         config.headers['Cache-Control'] = 'no-cache';
-        
+
         const { accessToken } = await secureStorage.getTokens();
         if (accessToken) {
           config.headers.Authorization = `Bearer ${accessToken}`;
         }
         return config;
       },
-      (error) => {
+      error => {
         console.log('❌ Request interceptor error:', error);
         return Promise.reject(error);
       }
@@ -69,42 +71,52 @@ class ApiClient {
 
     // Response interceptor to handle token refresh
     this.client.interceptors.response.use(
-      (response) => {
+      response => {
         console.log('✅ Response received:', {
           status: response.status,
           statusText: response.statusText,
           url: response.config.url,
-          data: response.data
+          data: response.data,
         });
         return response;
       },
-      async (error) => {
+      async error => {
         console.log('❌ Response error:', {
           message: error.message,
           code: error.code,
           status: error.response?.status,
           statusText: error.response?.statusText,
           url: error.config?.url,
-          baseURL: error.config?.baseURL
+          baseURL: error.config?.baseURL,
         });
 
         // Enhanced error handling for network issues
-        if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+        if (
+          error.code === 'ERR_NETWORK' ||
+          error.code === 'ECONNABORTED' ||
+          error.code === 'ETIMEDOUT'
+        ) {
           console.log('🌐 Network error detected, will retry automatically');
           // Don't modify the error, let axios-retry handle it
         }
         const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Handle 401 (Unauthorized) and 403 (Forbidden) - both indicate auth issues
+        if (
+          (error.response?.status === 401 || error.response?.status === 403) &&
+          !originalRequest._retry
+        ) {
           if (this.isRefreshing) {
             // If already refreshing, queue the request
             return new Promise((resolve, reject) => {
               this.failedQueue.push({ resolve, reject });
-            }).then(() => {
-              return this.client(originalRequest);
-            }).catch((err) => {
-              return Promise.reject(err);
-            });
+            })
+              .then(() => {
+                return this.client(originalRequest);
+              })
+              .catch(err => {
+                return Promise.reject(err);
+              });
           }
 
           originalRequest._retry = true;
@@ -152,7 +164,9 @@ class ApiClient {
     this.failedQueue = [];
   }
 
-  private async refreshToken(refreshToken: string): Promise<AxiosResponse<AuthResponse>> {
+  private async refreshToken(
+    refreshToken: string
+  ): Promise<AxiosResponse<AuthResponse>> {
     return this.client.post(API_CONFIG.ENDPOINTS.AUTH.REFRESH, {
       refresh: refreshToken,
     });
@@ -163,7 +177,10 @@ class ApiClient {
   }
 
   // Public methods
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async get<T>(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
     try {
       console.log(`🌐 GET ${url}`);
       const response = await this.client.get<T>(url, config);
@@ -173,12 +190,18 @@ class ApiClient {
         status: response.status,
       };
     } catch (error: any) {
-      console.log(`❌ GET ${url} - Error: ${error.response?.status || 'Network Error'}`);
+      console.log(
+        `❌ GET ${url} - Error: ${error.response?.status || 'Network Error'}`
+      );
       return this.handleError(error);
     }
   }
 
-  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async post<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
     try {
       console.log(`🌐 POST ${url}`);
       console.log(`📤 POST Data:`, data);
@@ -189,12 +212,18 @@ class ApiClient {
         status: response.status,
       };
     } catch (error: any) {
-      console.log(`❌ POST ${url} - Error: ${error.response?.status || 'Network Error'}`);
+      console.log(
+        `❌ POST ${url} - Error: ${error.response?.status || 'Network Error'}`
+      );
       return this.handleError(error);
     }
   }
 
-  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async put<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
     try {
       console.log(`🌐 PUT ${url}`);
       console.log(`📤 PUT Data:`, data);
@@ -205,12 +234,18 @@ class ApiClient {
         status: response.status,
       };
     } catch (error: any) {
-      console.log(`❌ PUT ${url} - Error: ${error.response?.status || 'Network Error'}`);
+      console.log(
+        `❌ PUT ${url} - Error: ${error.response?.status || 'Network Error'}`
+      );
       return this.handleError(error);
     }
   }
 
-  async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async patch<T>(
+    url: string,
+    data?: any,
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
     try {
       console.log(`🌐 PATCH ${url}`);
       console.log(`📤 PATCH Data:`, data);
@@ -221,12 +256,17 @@ class ApiClient {
         status: response.status,
       };
     } catch (error: any) {
-      console.log(`❌ PATCH ${url} - Error: ${error.response?.status || 'Network Error'}`);
+      console.log(
+        `❌ PATCH ${url} - Error: ${error.response?.status || 'Network Error'}`
+      );
       return this.handleError(error);
     }
   }
 
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async delete<T>(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<ApiResponse<T>> {
     try {
       console.log(`🌐 DELETE ${url}`);
       const response = await this.client.delete<T>(url, config);
@@ -236,7 +276,9 @@ class ApiClient {
         status: response.status,
       };
     } catch (error: any) {
-      console.log(`❌ DELETE ${url} - Error: ${error.response?.status || 'Network Error'}`);
+      console.log(
+        `❌ DELETE ${url} - Error: ${error.response?.status || 'Network Error'}`
+      );
       return this.handleError(error);
     }
   }
@@ -245,7 +287,7 @@ class ApiClient {
     if (error.response) {
       // Server responded with error status
       const { status, data } = error.response;
-      
+
       // Handle specific authentication errors
       if (status === 401) {
         return {
@@ -253,15 +295,19 @@ class ApiClient {
           status,
         };
       }
-      
+
       return {
-        error: data?.error || data?.detail || data?.message || ERROR_MESSAGES.SERVER_ERROR,
+        error:
+          data?.error ||
+          data?.detail ||
+          data?.message ||
+          ERROR_MESSAGES.SERVER_ERROR,
         status,
       };
     } else if (error.request) {
       // Network error
       let networkError = ERROR_MESSAGES.NETWORK;
-      
+
       if (error.code === 'ECONNREFUSED') {
         networkError = 'Network error. Please check your connection.';
       } else if (error.code === 'ENOTFOUND') {
@@ -269,9 +315,10 @@ class ApiClient {
       } else if (error.code === 'ETIMEDOUT') {
         networkError = 'Connection timeout. Please try again.';
       } else if (error.code === 'ECONNABORTED') {
-        networkError = 'Request timeout. Please check your internet connection and try again.';
+        networkError =
+          'Request timeout. Please check your internet connection and try again.';
       }
-      
+
       return {
         error: networkError,
         status: 0,
@@ -286,12 +333,25 @@ class ApiClient {
   }
 
   // Auth methods
-  async login(credentials: { username: string; password: string }): Promise<ApiResponse<AuthResponse>> {
-    return this.post<AuthResponse>(API_CONFIG.ENDPOINTS.AUTH.LOGIN, credentials);
+  async login(credentials: {
+    username: string;
+    password: string;
+  }): Promise<ApiResponse<AuthResponse>> {
+    return this.post<AuthResponse>(
+      API_CONFIG.ENDPOINTS.AUTH.LOGIN,
+      credentials
+    );
   }
 
-  async register(credentials: { username: string; email: string; password: string }): Promise<ApiResponse<AuthResponse>> {
-    return this.post<AuthResponse>(API_CONFIG.ENDPOINTS.AUTH.REGISTER, credentials);
+  async register(credentials: {
+    username: string;
+    email: string;
+    password: string;
+  }): Promise<ApiResponse<AuthResponse>> {
+    return this.post<AuthResponse>(
+      API_CONFIG.ENDPOINTS.AUTH.REGISTER,
+      credentials
+    );
   }
 
   async logout(): Promise<void> {
@@ -311,4 +371,3 @@ class ApiClient {
 // Export singleton instance
 export const apiClient = new ApiClient();
 export default apiClient;
-
