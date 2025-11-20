@@ -33,7 +33,7 @@ class ApiClient {
         // Retry on network errors or 5xx server errors
         return (
           axiosRetry.isNetworkOrIdempotentRequestError(error) ||
-          (error.response && error.response.status >= 500)
+          !!(error.response && error.response.status >= 500)
         );
       },
     });
@@ -306,7 +306,7 @@ class ApiClient {
       };
     } else if (error.request) {
       // Network error
-      let networkError = ERROR_MESSAGES.NETWORK;
+      let networkError: string = ERROR_MESSAGES.NETWORK;
 
       if (error.code === 'ECONNREFUSED') {
         networkError = 'Network error. Please check your connection.';
