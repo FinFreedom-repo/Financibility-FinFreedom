@@ -24,10 +24,12 @@ class ExpenseAnalyzerService {
   /**
    * Upload expense file (CSV, Excel, TXT) for analysis
    */
-  async uploadFile(file: File | any): Promise<ApiResponse<ExpenseAnalyzerResponse>> {
+  async uploadFile(
+    file: File | any
+  ): Promise<ApiResponse<ExpenseAnalyzerResponse>> {
     try {
       const formData = new FormData();
-      
+
       // Handle React Native file object
       if (file.uri) {
         // React Native file from document picker
@@ -35,14 +37,15 @@ class ExpenseAnalyzerService {
         let mimeType = file.mimeType || 'application/octet-stream';
         const fileName = file.name || 'expenses.csv';
         const fileExt = fileName.toLowerCase().split('.').pop();
-        
+
         if (!file.mimeType) {
           switch (fileExt) {
             case 'csv':
               mimeType = 'text/csv';
               break;
             case 'xlsx':
-              mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+              mimeType =
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
               break;
             case 'xls':
               mimeType = 'application/vnd.ms-excel';
@@ -52,7 +55,7 @@ class ExpenseAnalyzerService {
               break;
           }
         }
-        
+
         // expo-document-picker already provides the correct URI format
         // For React Native FormData, use the URI as-is
         formData.append('file', {
@@ -77,7 +80,7 @@ class ExpenseAnalyzerService {
         '/api/expense-analyzer/upload/',
         formData,
         {
-          transformRequest: [(data) => data], // Prevent axios from transforming FormData
+          transformRequest: [data => data], // Prevent axios from transforming FormData
         }
       );
 
@@ -86,7 +89,10 @@ class ExpenseAnalyzerService {
     } catch (error: any) {
       console.error('Error uploading file:', error);
       return {
-        error: error.response?.data?.error || error.message || 'Failed to upload file',
+        error:
+          error.response?.data?.error ||
+          error.message ||
+          'Failed to upload file',
         status: error.response?.status || 0,
       };
     }
@@ -112,7 +118,10 @@ class ExpenseAnalyzerService {
     } catch (error: any) {
       console.error('Error sending chat message:', error);
       return {
-        error: error.response?.data?.error || error.message || 'Failed to send message',
+        error:
+          error.response?.data?.error ||
+          error.message ||
+          'Failed to send message',
         status: error.response?.status || 0,
       };
     }
@@ -146,7 +155,7 @@ class ExpenseAnalyzerService {
   } {
     const labels = Object.keys(analysis);
     const values = Object.values(analysis);
-    
+
     // Generate colors for each category
     const colors = this.generateColors(labels.length);
 
@@ -158,9 +167,21 @@ class ExpenseAnalyzerService {
    */
   private generateColors(count: number): string[] {
     const baseColors = [
-      '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-      '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
-      '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#F7DC6F',
+      '#FF6B6B',
+      '#4ECDC4',
+      '#45B7D1',
+      '#96CEB4',
+      '#FFEAA7',
+      '#DDA0DD',
+      '#98D8C8',
+      '#F7DC6F',
+      '#BB8FCE',
+      '#85C1E9',
+      '#F8C471',
+      '#82E0AA',
+      '#F1948A',
+      '#85C1E9',
+      '#F7DC6F',
     ];
 
     const colors: string[] = [];
@@ -172,4 +193,3 @@ class ExpenseAnalyzerService {
 }
 
 export default new ExpenseAnalyzerService();
-

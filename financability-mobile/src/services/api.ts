@@ -46,15 +46,20 @@ class ApiClient {
       async config => {
         // Check for FormData FIRST, before any other processing
         // Check if data is FormData (works in both web and React Native)
-        const isFormData = 
-          config.data instanceof FormData || 
-          (config.data && typeof config.data === 'object' && config.data._parts) ||
-          (config.data && typeof config.data === 'object' && config.data.append && typeof config.data.append === 'function');
-        
+        const isFormData =
+          config.data instanceof FormData ||
+          (config.data &&
+            typeof config.data === 'object' &&
+            config.data._parts) ||
+          (config.data &&
+            typeof config.data === 'object' &&
+            config.data.append &&
+            typeof config.data.append === 'function');
+
         if (isFormData) {
           // CRITICAL: Prevent axios from transforming FormData
           // This must be set before any headers are modified
-          config.transformRequest = [(data) => data];
+          config.transformRequest = [data => data];
           // Remove Content-Type so axios can set it with boundary
           delete config.headers['Content-Type'];
         }
