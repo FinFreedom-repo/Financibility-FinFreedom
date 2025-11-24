@@ -20,12 +20,16 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 # MongoDB-based authentication - no Django JWT needed
+from api.expense_analyzer import ExpenseAnalyzerView, ExpenseChatView
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/api/mongodb/', permanent=False)),
     path('admin/', admin.site.urls),
     # MongoDB-based endpoints (primary)
     path('api/mongodb/', include('api.mongodb_urls')),
+    # Expense Analyzer endpoints (same as web version)
+    path('api/expense-analyzer/upload/', ExpenseAnalyzerView.as_view(), name='expense_analyzer_upload'),
+    path('api/expense-analyzer/chat/', ExpenseChatView.as_view(), name='expense_analyzer_chat'),
     # path('api/grok/analyze-excel/', GrokExcelView.as_view(), name='grok-analyze-excel'),  # Removed - not needed for MongoDB
     # path('api/', include('budget.urls')),  # Removed - budget handled by MongoDB
 ]
