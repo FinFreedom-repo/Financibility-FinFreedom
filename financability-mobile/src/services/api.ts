@@ -18,7 +18,6 @@ class ApiClient {
       baseURL: API_CONFIG.BASE_URL,
       timeout: API_CONFIG.TIMEOUT,
       headers: {
-        'Content-Type': 'application/json',
         Accept: 'application/json',
       },
     });
@@ -45,17 +44,38 @@ class ApiClient {
     // Request interceptor to add auth token
     this.client.interceptors.request.use(
       async config => {
+        // Check for FormData FIRST, before any other processing
+        // Check if data is FormData (works in both web and React Native)
+        const isFormData = 
+          config.data instanceof FormData || 
+          (config.data && typeof config.data === 'object' && config.data._parts) ||
+          (config.data && typeof config.data === 'object' && config.data.append && typeof config.data.append === 'function');
+        
+        if (isFormData) {
+          // CRITICAL: Prevent axios from transforming FormData
+          // This must be set before any headers are modified
+          config.transformRequest = [(data) => data];
+          // Remove Content-Type so axios can set it with boundary
+          delete config.headers['Content-Type'];
+        }
+
         console.log('🌐', config.method?.toUpperCase(), config.url);
         console.log('📤 Request config:', {
           baseURL: config.baseURL,
           url: config.url,
           method: config.method,
           headers: config.headers,
+          isFormData,
         });
 
         // Add connection quality headers for better routing
         config.headers['X-Requested-With'] = 'XMLHttpRequest';
         config.headers['Cache-Control'] = 'no-cache';
+
+        // For non-FormData requests, set JSON content type
+        if (!isFormData && !config.headers['Content-Type']) {
+          config.headers['Content-Type'] = 'application/json';
+        }
 
         const { accessToken } = await secureStorage.getTokens();
         if (accessToken) {

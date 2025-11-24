@@ -20,6 +20,8 @@ import ProfileInformationScreen from '../screens/profile/ProfileInformationScree
 import PaymentPlansScreen from '../screens/payment/PaymentPlansScreen';
 import WealthProjectionScreen from '../screens/wealth/WealthProjectionScreen';
 import DebtPlanningScreen from '../screens/debt/DebtPlanningScreen';
+import ExpenseAnalyzerScreen from '../screens/analytics/ExpenseAnalyzerScreen';
+import AnalyticsScreen from '../screens/analytics/AnalyticsScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen'; /*  */
 import ProfileScreen from '../screens/settings/ProfileScreen';
 import LoadingScreen from '../components/common/LoadingScreen';
@@ -48,6 +50,9 @@ const TabNavigator: React.FC = () => {
               break;
             case 'Budget':
               iconName = focused ? 'pie-chart' : 'pie-chart-outline';
+              break;
+            case 'Analytics':
+              iconName = focused ? 'analytics' : 'analytics-outline';
               break;
             case 'WealthProjection':
               iconName = focused ? 'trending-up' : 'trending-up-outline';
@@ -98,6 +103,11 @@ const TabNavigator: React.FC = () => {
         name="Budget"
         component={MonthlyBudgetScreen}
         options={{ title: 'Monthly Budget' }}
+      />
+      <Tab.Screen
+        name="Analytics"
+        component={AnalyticsScreen}
+        options={{ title: 'Analytics' }}
       />
       <Tab.Screen
         name="WealthProjection"
@@ -232,6 +242,14 @@ const AppNavigator: React.FC = () => {
               options={{
                 title: 'Payment Plans',
                 headerBackTitle: 'Settings',
+              }}
+            />
+            <Stack.Screen
+              name="ExpenseAnalyzer"
+              component={ExpenseAnalyzerScreen}
+              options={{
+                title: 'Expense Analyzer',
+                headerBackTitle: 'Analytics',
               }}
             />
           </>

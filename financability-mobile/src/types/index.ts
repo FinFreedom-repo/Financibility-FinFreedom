@@ -116,6 +116,7 @@ export type RootStackParamList = {
   Accounts: undefined;
   Budget: undefined;
   Analytics: undefined;
+  ExpenseAnalyzer: undefined;
   Settings: undefined;
   Profile: undefined;
   ProfileSettings: undefined;
@@ -127,6 +128,7 @@ export type TabParamList = {
   Dashboard: undefined;
   Accounts: undefined;
   Budget: undefined;
+  Analytics: undefined;
   WealthProjection: undefined;
   DebtPlanning: undefined;
   Settings: undefined;
