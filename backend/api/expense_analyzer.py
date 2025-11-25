@@ -1,9 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, JSONParser
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.decorators import authentication_classes, permission_classes
 import logging
 import pandas as pd
 import os
@@ -12,6 +10,7 @@ from openai import OpenAI
 import io
 import json
 from .mongodb_authentication import MongoDBJWTAuthentication, MongoDBUser
+from .mongodb_api_views import MongoDBIsAuthenticated
 from .mongodb_service import BudgetService
 from bson import ObjectId
 
@@ -20,7 +19,8 @@ load_dotenv()
 
 class ExpenseAnalyzerView(APIView):
     parser_classes = (MultiPartParser,)
-    permission_classes = [IsAuthenticated]
+    authentication_classes = [MongoDBJWTAuthentication]
+    permission_classes = [MongoDBIsAuthenticated]
 
     def post(self, request):
         print("\n=== ExpenseAnalyzerView.post() called ===")
@@ -202,7 +202,8 @@ class ExpenseAnalyzerView(APIView):
 
 class ExpenseChatView(APIView):
     parser_classes = (JSONParser,)
-    permission_classes = [IsAuthenticated]
+    authentication_classes = [MongoDBJWTAuthentication]
+    permission_classes = [MongoDBIsAuthenticated]
 
     def post(self, request):
         try:
