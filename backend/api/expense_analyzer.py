@@ -9,33 +9,35 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import io
 import json
-from .mongodb_authentication import MongoDBJWTAuthentication, MongoDBUser
-from .mongodb_api_views import MongoDBIsAuthenticated
+from .mongodb_authentication import get_user_from_token, MongoDBUser
 from .mongodb_service import BudgetService
 from bson import ObjectId
-
+    
 logger = logging.getLogger(__name__)
 load_dotenv()
 
 class ExpenseAnalyzerView(APIView):
     parser_classes = (MultiPartParser,)
-    authentication_classes = [MongoDBJWTAuthentication]
-    permission_classes = [MongoDBIsAuthenticated]
 
     def post(self, request):
         print("\n=== ExpenseAnalyzerView.post() called ===")
         print(f"Request method: {request.method}")
         print(f"Request content type: {request.content_type}")
         print(f"Request headers: {dict(request.headers)}")
-        print(f"Request user: {request.user}")
-        print(f"Request auth: {request.auth}")
         print(f"Request FILES: {request.FILES}")
         print(f"Request data: {request.data}")
         
         logger.info("=== Starting Expense Analysis ===")
         logger.info(f"Request headers: {request.headers}")
-        logger.info(f"Request user: {request.user}")
-        logger.info(f"Request auth: {request.auth}")
+        
+        # Get user from token
+        user = get_user_from_token(request)
+        if not user:
+            logger.warning("Authentication failed - no user found")
+            return Response(
+                {'error': 'Authentication required'}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
         
         try:
             # Get the file from the request
@@ -102,17 +104,7 @@ class ExpenseAnalyzerView(APIView):
                 )
 
             # Get categories for the user from MongoDB
-            user_id = None
-            if isinstance(request.user, MongoDBUser):
-                user_id = request.user.id
-            elif hasattr(request.user, 'id'):
-                user_id = str(request.user.id)
-            else:
-                # Fallback: try to get user_id from token
-                from .mongodb_authentication import get_user_from_token
-                user = get_user_from_token(request)
-                if user:
-                    user_id = user.id
+            user_id = str(user.id) if user and hasattr(user, 'id') else None
             
             fixed_categories = [
                 'housing', 'debt_payments', 'transportation', 'utilities', 'food', 'healthcare',
@@ -202,10 +194,16 @@ class ExpenseAnalyzerView(APIView):
 
 class ExpenseChatView(APIView):
     parser_classes = (JSONParser,)
-    authentication_classes = [MongoDBJWTAuthentication]
-    permission_classes = [MongoDBIsAuthenticated]
 
     def post(self, request):
+        # Get user from token
+        user = get_user_from_token(request)
+        if not user:
+            return Response(
+                {'error': 'Authentication required'}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
         try:
             message = request.data.get('message')
             analysis = request.data.get('analysis')
