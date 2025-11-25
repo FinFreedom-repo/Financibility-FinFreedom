@@ -30,6 +30,17 @@ class ExpenseAnalyzerView(APIView):
         logger.info("=== Starting Expense Analysis ===")
         logger.info(f"Request headers: {request.headers}")
         
+        # Check API key first - fail fast if not configured
+        api_key = os.getenv("GROK_API_KEY")
+        if not api_key:
+            error_msg = "GROK_API_KEY not configured in environment variables"
+            print(error_msg)
+            logger.error(error_msg)
+            return Response(
+                {'error': 'AI service not configured. Please contact support.'}, 
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        
         # Get user from token
         user = get_user_from_token(request)
         if not user:
@@ -132,15 +143,7 @@ class ExpenseAnalyzerView(APIView):
             category_list_str = ', '.join(all_categories)
 
             # Initialize the OpenAI client with xAI's API endpoint
-            api_key = os.getenv("GROK_API_KEY")
-            if not api_key:
-                print("GROK_API_KEY not found in environment variables")
-                logger.error("GROK_API_KEY not found in environment variables")
-                return Response(
-                    {'error': 'API key not configured'}, 
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-            
+            # API key already checked at the start of the method
             print("Initializing OpenAI client...")
             logger.info("Initializing OpenAI client...")
             client = OpenAI(
@@ -196,6 +199,16 @@ class ExpenseChatView(APIView):
     parser_classes = (JSONParser,)
 
     def post(self, request):
+        # Check API key first - fail fast if not configured
+        api_key = os.getenv("GROK_API_KEY")
+        if not api_key:
+            error_msg = "GROK_API_KEY not configured in environment variables"
+            logger.error(error_msg)
+            return Response(
+                {'error': 'AI service not configured. Please contact support.'}, 
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        
         # Get user from token
         user = get_user_from_token(request)
         if not user:
@@ -215,12 +228,7 @@ class ExpenseChatView(APIView):
                 )
 
             # Initialize the OpenAI client
-            api_key = os.getenv("GROK_API_KEY")
-            if not api_key:
-                return Response(
-                    {'error': 'API key not configured'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            # API key already checked at the start of the method
 
             client = OpenAI(
                 api_key=api_key,
