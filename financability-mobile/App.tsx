@@ -4,24 +4,28 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { NotificationProvider } from './src/contexts/NotificationContext';
+import { OnboardingProvider } from './src/contexts/OnboardingContext';
 import AppNavigator from './src/navigation/AppNavigator';
-import { testNetworkConnectivity, testApiClient } from './src/utils/networkTest';
+import {
+  testNetworkConnectivity,
+  testApiClient,
+} from './src/utils/networkTest';
 
 export default function App() {
   useEffect(() => {
     // Run network tests on app startup
     const runNetworkTests = async () => {
       console.log('🚀 App started, running network tests...');
-      
+
       // Test 1: Basic fetch
       const fetchResult = await testNetworkConnectivity();
       console.log('📡 Fetch test result:', fetchResult);
-      
+
       // Test 2: API client
       const apiResult = await testApiClient();
       console.log('🔧 API client test result:', apiResult);
     };
-    
+
     runNetworkTests();
   }, []);
 
@@ -29,10 +33,12 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <NotificationProvider>
-            <StatusBar style="auto" />
-            <AppNavigator />
-          </NotificationProvider>
+          <OnboardingProvider>
+            <NotificationProvider>
+              <StatusBar style="auto" />
+              <AppNavigator />
+            </NotificationProvider>
+          </OnboardingProvider>
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>

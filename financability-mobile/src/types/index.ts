@@ -112,6 +112,7 @@ export type RootStackParamList = {
   Main: undefined;
   Login: undefined;
   Register: undefined;
+  Onboarding: undefined;
   Dashboard: undefined;
   Accounts: undefined;
   Budget: undefined;

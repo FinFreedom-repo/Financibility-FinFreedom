@@ -6,6 +6,7 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useOnboarding } from '../contexts/OnboardingContext';
 import { RootStackParamList, TabParamList } from '../types';
 
 // Import screens (we'll create these next)
@@ -24,6 +25,7 @@ import ExpenseAnalyzerScreen from '../screens/analytics/ExpenseAnalyzerScreen';
 import AnalyticsScreen from '../screens/analytics/AnalyticsScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen'; /*  */
 import ProfileScreen from '../screens/settings/ProfileScreen';
+import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import LoadingScreen from '../components/common/LoadingScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -162,10 +164,12 @@ const DrawerNavigator: React.FC = () => {
 
 // Main App Navigator
 const AppNavigator: React.FC = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isOnboardingComplete, isLoading: onboardingLoading } =
+    useOnboarding();
   const { theme } = useTheme();
 
-  if (loading) {
+  if (authLoading || onboardingLoading) {
     return <LoadingScreen message="Initializing..." />;
   }
 
@@ -215,43 +219,53 @@ const AppNavigator: React.FC = () => {
       >
         {isAuthenticated ? (
           <>
-            <Stack.Screen
-              name="Main"
-              component={DrawerNavigator}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ProfileSettings"
-              component={ProfileSettingsScreen}
-              options={{
-                title: 'Profile Settings',
-                headerBackTitle: 'Settings',
-              }}
-            />
-            <Stack.Screen
-              name="ProfileInformation"
-              component={ProfileInformationScreen}
-              options={{
-                title: 'Profile Information',
-                headerBackTitle: 'Settings',
-              }}
-            />
-            <Stack.Screen
-              name="PaymentPlans"
-              component={PaymentPlansScreen}
-              options={{
-                title: 'Payment Plans',
-                headerBackTitle: 'Settings',
-              }}
-            />
-            <Stack.Screen
-              name="ExpenseAnalyzer"
-              component={ExpenseAnalyzerScreen}
-              options={{
-                title: 'Expense Analyzer',
-                headerBackTitle: 'Analytics',
-              }}
-            />
+            {!isOnboardingComplete ? (
+              <Stack.Screen
+                name="Onboarding"
+                component={OnboardingScreen}
+                options={{ headerShown: false }}
+              />
+            ) : (
+              <>
+                <Stack.Screen
+                  name="Main"
+                  component={DrawerNavigator}
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="ProfileSettings"
+                  component={ProfileSettingsScreen}
+                  options={{
+                    title: 'Profile Settings',
+                    headerBackTitle: 'Settings',
+                  }}
+                />
+                <Stack.Screen
+                  name="ProfileInformation"
+                  component={ProfileInformationScreen}
+                  options={{
+                    title: 'Profile Information',
+                    headerBackTitle: 'Settings',
+                  }}
+                />
+                <Stack.Screen
+                  name="PaymentPlans"
+                  component={PaymentPlansScreen}
+                  options={{
+                    title: 'Payment Plans',
+                    headerBackTitle: 'Settings',
+                  }}
+                />
+                <Stack.Screen
+                  name="ExpenseAnalyzer"
+                  component={ExpenseAnalyzerScreen}
+                  options={{
+                    title: 'Expense Analyzer',
+                    headerBackTitle: 'Analytics',
+                  }}
+                />
+              </>
+            )}
           </>
         ) : (
           <>
