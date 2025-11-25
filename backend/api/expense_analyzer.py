@@ -3,6 +3,7 @@ from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.decorators import authentication_classes, permission_classes
 import logging
 import pandas as pd
 import os
@@ -10,7 +11,9 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import io
 import json
-from budget.models import Budget
+from .mongodb_authentication import MongoDBJWTAuthentication, MongoDBUser
+from .mongodb_service import BudgetService
+from bson import ObjectId
 
 logger = logging.getLogger(__name__)
 load_dotenv()
@@ -98,15 +101,41 @@ class ExpenseAnalyzerView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Get categories for the user
-            budget = Budget.objects.filter(user=request.user).order_by('-updated_at').first()
+            # Get categories for the user from MongoDB
+            user_id = None
+            if isinstance(request.user, MongoDBUser):
+                user_id = request.user.id
+            elif hasattr(request.user, 'id'):
+                user_id = str(request.user.id)
+            else:
+                # Fallback: try to get user_id from token
+                from .mongodb_authentication import get_user_from_token
+                user = get_user_from_token(request)
+                if user:
+                    user_id = user.id
+            
             fixed_categories = [
                 'housing', 'debt_payments', 'transportation', 'utilities', 'food', 'healthcare',
                 'entertainment', 'shopping', 'travel', 'education', 'childcare', 'other'
             ]
             additional_categories = []
-            if budget and budget.additional_items:
-                additional_categories = [item['name'] for item in budget.additional_items if 'name' in item]
+            
+            if user_id:
+                try:
+                    budget_service = BudgetService()
+                    budgets = budget_service.get_user_budgets(user_id)
+                    # Get the most recent budget by updated_at
+                    budget = None
+                    if budgets:
+                        # Sort by updated_at descending and get the first one
+                        budgets_sorted = sorted(budgets, key=lambda x: x.get('updated_at', ''), reverse=True)
+                        budget = budgets_sorted[0] if budgets_sorted else None
+                    if budget and budget.get('additional_items'):
+                        additional_categories = [item.get('name') for item in budget.get('additional_items', []) if item.get('name')]
+                except Exception as e:
+                    logger.warning(f"Error getting budget from MongoDB: {str(e)}")
+                    # Continue with fixed categories only
+            
             all_categories = fixed_categories + additional_categories
             category_list_str = ', '.join(all_categories)
 
