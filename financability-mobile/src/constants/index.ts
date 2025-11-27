@@ -29,6 +29,7 @@ export const API_CONFIG = {
       REFRESH: '/api/mongodb/auth/mongodb/refresh/',
       PROFILE: '/api/mongodb/auth/mongodb/profile/',
       UPDATE_PROFILE: '/api/mongodb/auth/mongodb/profile/update/',
+      ONBOARDING_COMPLETE: '/api/mongodb/auth/mongodb/onboarding/complete/',
     },
     ACCOUNTS: {
       LIST: '/api/mongodb/accounts/',

@@ -3,6 +3,7 @@ export interface User {
   id: string;
   username: string;
   email: string;
+  onboarding_complete?: boolean;
   profile?: UserProfile;
 }
 

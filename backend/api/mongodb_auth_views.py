@@ -75,6 +75,7 @@ class MongoDBAuthViews:
                     'id': str(user['_id']),
                     'username': user['username'],
                     'email': user['email'],
+                    'onboarding_complete': user.get('onboarding_complete', False),
                     'profile': user.get('profile', {})
                 }
             }, status=status.HTTP_200_OK)
@@ -133,6 +134,7 @@ class MongoDBAuthViews:
                     'id': str(user['_id']),
                     'username': user['username'],
                     'email': user['email'],
+                    'onboarding_complete': user.get('onboarding_complete', False),
                     'profile': user.get('profile', {})
                 }
             }, status=status.HTTP_201_CREATED)
@@ -231,6 +233,7 @@ class MongoDBAuthViews:
                     'id': str(user['_id']),
                     'username': user['username'],
                     'email': user['email'],
+                    'onboarding_complete': user.get('onboarding_complete', False),
                     'profile': user.get('profile', {}),
                     'date_joined': user.get('date_joined'),
                     'last_login': user.get('last_login')
@@ -292,6 +295,46 @@ class MongoDBAuthViews:
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Update profile error: {e}")
+            return Response({
+                'error': 'Internal server error'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @staticmethod
+    @api_view(['PUT'])
+    def complete_onboarding(request):
+        """Mark onboarding as complete"""
+        try:
+            # Extract user ID from JWT token
+            auth_header = request.headers.get('Authorization')
+            if not auth_header or not auth_header.startswith('Bearer '):
+                return Response({
+                    'error': 'Authorization header required'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            token = auth_header.split(' ')[1]
+            jwt_service = JWTAuthService()
+            payload = jwt_service.verify_token(token)
+            
+            if not payload:
+                return Response({
+                    'error': 'Invalid or expired token'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # Update onboarding_complete flag
+            user_service = UserService()
+            success = user_service.update_onboarding_complete(payload.get('user_id'), True)
+            
+            if not success:
+                return Response({
+                    'error': 'Failed to update onboarding status'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            return Response({
+                'message': 'Onboarding marked as complete'
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Complete onboarding error: {e}")
             return Response({
                 'error': 'Internal server error'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -598,6 +641,11 @@ def mongodb_get_profile(request):
 def mongodb_update_profile(request):
     """MongoDB update profile view function"""
     return MongoDBAuthViews.update_profile(request)
+
+@csrf_exempt
+def mongodb_complete_onboarding(request):
+    """MongoDB complete onboarding view function"""
+    return MongoDBAuthViews.complete_onboarding(request)
 
 @csrf_exempt
 def mongodb_update_user_comprehensive(request):

@@ -6,6 +6,7 @@ Replaces Django ORM URLs with MongoDB-based endpoints
 from django.urls import path
 from django.http import JsonResponse
 from .mongodb_auth_views import (
+    mongodb_complete_onboarding,
     mongodb_login, mongodb_register, mongodb_refresh_token,
     mongodb_get_profile, mongodb_update_profile, mongodb_update_user_comprehensive, mongodb_delete_user,
     mongodb_upload_profile_image, mongodb_delete_profile_image, mongodb_get_settings, mongodb_update_settings
@@ -56,6 +57,7 @@ urlpatterns = [
     path('auth/mongodb/refresh/', mongodb_refresh_token, name='mongodb_refresh_token'),
     path('auth/mongodb/profile/', mongodb_get_profile, name='mongodb_get_profile'),
     path('auth/mongodb/profile/update/', mongodb_update_profile, name='mongodb_update_profile'),
+    path('auth/mongodb/onboarding/complete/', mongodb_complete_onboarding, name='mongodb_complete_onboarding'),
     path('auth/mongodb/user/update/', mongodb_update_user_comprehensive, name='mongodb_update_user_comprehensive'),
     path('auth/mongodb/user/delete/', mongodb_delete_user, name='mongodb_delete_user'),
     path('auth/mongodb/user/upload-image/', mongodb_upload_profile_image, name='mongodb_upload_profile_image'),

@@ -162,6 +162,7 @@ class UserService(MongoDBService):
                 "is_active": True,
                 "date_joined": datetime.utcnow(),
                 "last_login": None,
+                "onboarding_complete": False,
                 "profile": {
                     "first_name": "",
                     "last_name": "",
@@ -231,6 +232,24 @@ class UserService(MongoDBService):
         except Exception as e:
             logger.error(f"Error getting user by username: {e}")
             return None
+    
+    def update_onboarding_complete(self, user_id: str, complete: bool) -> bool:
+        """Update user onboarding_complete flag"""
+        try:
+            from bson import ObjectId
+            try:
+                user_id_obj = ObjectId(user_id)
+            except:
+                user_id_obj = user_id
+            
+            result = self.db.users.update_one(
+                {"_id": user_id_obj},
+                {"$set": {"onboarding_complete": complete}}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            logger.error(f"Error updating onboarding_complete: {e}")
+            return False
     
     def update_user_profile(self, user_id: str, profile_data: Dict) -> bool:
         """Update user profile"""
