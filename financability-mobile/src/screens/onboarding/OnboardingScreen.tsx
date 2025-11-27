@@ -4,16 +4,23 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import WelcomeStep from './steps/WelcomeStep';
 import AccountsStep from './steps/AccountsStep';
+import DebtsStep from './steps/DebtsStep';
 import BudgetStep from './steps/BudgetStep';
 import CompletionStep from './steps/CompletionStep';
 
-type OnboardingStep = 'welcome' | 'accounts' | 'budget' | 'completion';
+type OnboardingStep =
+  | 'welcome'
+  | 'accounts'
+  | 'debts'
+  | 'budget'
+  | 'completion';
 
 const OnboardingScreen: React.FC = () => {
   const { theme } = useTheme();
   const { completeOnboarding } = useOnboarding();
   const [currentStep, setCurrentStep] = useState<OnboardingStep>('welcome');
   const [, setAccountsAdded] = useState(false);
+  const [, setDebtsAdded] = useState(false);
   const [, setBudgetSet] = useState(false);
 
   const styles = createStyles(theme);
@@ -21,6 +28,7 @@ const OnboardingScreen: React.FC = () => {
   const steps: OnboardingStep[] = [
     'welcome',
     'accounts',
+    'debts',
     'budget',
     'completion',
   ];
@@ -60,6 +68,14 @@ const OnboardingScreen: React.FC = () => {
             onNext={handleNext}
             onBack={handleBack}
             onAccountsAdded={() => setAccountsAdded(true)}
+          />
+        );
+      case 'debts':
+        return (
+          <DebtsStep
+            onNext={handleNext}
+            onBack={handleBack}
+            onDebtsAdded={() => setDebtsAdded(true)}
           />
         );
       case 'budget':

@@ -33,7 +33,14 @@ class MongoDBAuthViews:
     def login(request):
         """MongoDB-based login endpoint"""
         try:
-            data = json.loads(request.body)
+            # Use request.data which DRF automatically parses, or fallback to request.body
+            if hasattr(request, 'data') and request.data:
+                data = request.data
+            else:
+                # Fallback: manually parse request.body (decode bytes if needed)
+                body_str = request.body.decode('utf-8') if isinstance(request.body, bytes) else request.body
+                data = json.loads(body_str) if body_str else {}
+            
             username = data.get('username')
             password = data.get('password')
             
@@ -88,7 +95,14 @@ class MongoDBAuthViews:
     def register(request):
         """MongoDB-based user registration endpoint"""
         try:
-            data = json.loads(request.body)
+            # Use request.data which DRF automatically parses, or fallback to request.body
+            if hasattr(request, 'data') and request.data:
+                data = request.data
+            else:
+                # Fallback: manually parse request.body (decode bytes if needed)
+                body_str = request.body.decode('utf-8') if isinstance(request.body, bytes) else request.body
+                data = json.loads(body_str) if body_str else {}
+            
             username = data.get('username')
             email = data.get('email')
             password = data.get('password')

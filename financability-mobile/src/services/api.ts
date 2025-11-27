@@ -113,6 +113,7 @@ class ApiClient {
           statusText: error.response?.statusText,
           url: error.config?.url,
           baseURL: error.config?.baseURL,
+          responseData: error.response?.data,
         });
 
         // Enhanced error handling for network issues
@@ -240,6 +241,9 @@ class ApiClient {
       console.log(
         `❌ POST ${url} - Error: ${error.response?.status || 'Network Error'}`
       );
+      if (error.response?.data) {
+        console.log(`❌ Error response data:`, error.response.data);
+      }
       return this.handleError(error);
     }
   }
