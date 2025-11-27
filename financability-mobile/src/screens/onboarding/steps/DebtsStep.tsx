@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -105,148 +107,159 @@ const DebtsStep: React.FC<DebtsStepProps> = ({
   ];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons name="card" size={48} color={theme.colors.primary} />
-        <Text style={styles.title}>Add Your Debts</Text>
-        <Text style={styles.subtitle}>
-          Track your debts to get a complete picture of your financial health
-        </Text>
-      </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Ionicons name="card" size={48} color={theme.colors.primary} />
+          <Text style={styles.title}>Add Your Debts</Text>
+          <Text style={styles.subtitle}>
+            Track your debts to get a complete picture of your financial health
+          </Text>
+        </View>
 
-      {debts.length > 0 && (
-        <View style={styles.debtsList}>
-          <Text style={styles.sectionTitle}>Your Debts</Text>
-          {debts.map(debt => (
-            <View key={debt.id} style={styles.debtCard}>
-              <Ionicons
-                name="checkmark-circle"
-                size={24}
-                color={theme.colors.success}
-              />
-              <View style={styles.debtInfo}>
-                <Text style={styles.debtName}>{debt.name}</Text>
-                <Text style={styles.debtType}>
-                  {debtTypes.find(t => t.value === debt.debt_type)?.label ||
-                    debt.debt_type}
+        {debts.length > 0 && (
+          <View style={styles.debtsList}>
+            <Text style={styles.sectionTitle}>Your Debts</Text>
+            {debts.map(debt => (
+              <View key={debt.id} style={styles.debtCard}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={24}
+                  color={theme.colors.success}
+                />
+                <View style={styles.debtInfo}>
+                  <Text style={styles.debtName}>{debt.name}</Text>
+                  <Text style={styles.debtType}>
+                    {debtTypes.find(t => t.value === debt.debt_type)?.label ||
+                      debt.debt_type}
+                  </Text>
+                </View>
+                <Text style={styles.debtBalance}>
+                  ${debt.balance.toLocaleString()}
                 </Text>
               </View>
-              <Text style={styles.debtBalance}>
-                ${debt.balance.toLocaleString()}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {!showForm ? (
-        <View style={styles.buttonContainer}>
-          <Button
-            title={debts.length > 0 ? 'Add Another Debt' : 'Add Debt'}
-            onPress={() => setShowForm(true)}
-            icon="add-circle-outline"
-          />
-          <Button
-            title={debts.length > 0 ? 'Continue' : 'Skip for Now'}
-            onPress={onNext}
-            style={styles.continueButton}
-            variant={debts.length === 0 ? 'outline' : undefined}
-          />
-        </View>
-      ) : (
-        <ScrollView style={styles.formContainer}>
-          <Input
-            label="Debt Name"
-            value={form.name}
-            onChangeText={text => setForm({ ...form, name: text })}
-            placeholder="e.g., Chase Credit Card"
-          />
-
-          <Text style={styles.label}>Debt Type</Text>
-          <View style={styles.typeContainer}>
-            {debtTypes.map(type => (
-              <TouchableOpacity
-                key={type.value}
-                style={[
-                  styles.typeButton,
-                  form.debtType === type.value && styles.typeButtonActive,
-                ]}
-                onPress={() => setForm({ ...form, debtType: type.value })}
-              >
-                <Ionicons
-                  name={type.icon as any}
-                  size={24}
-                  color={
-                    form.debtType === type.value
-                      ? theme.colors.primary
-                      : theme.colors.textSecondary
-                  }
-                />
-                <Text
-                  style={[
-                    styles.typeButtonText,
-                    form.debtType === type.value && styles.typeButtonTextActive,
-                  ]}
-                >
-                  {type.label}
-                </Text>
-              </TouchableOpacity>
             ))}
           </View>
+        )}
 
-          <Input
-            label="Current Balance"
-            value={form.balance.toString()}
-            onChangeText={text =>
-              setForm({ ...form, balance: parseFloat(text) || 0 })
-            }
-            placeholder="0.00"
-            keyboardType="numeric"
-          />
-
-          <Input
-            label="Interest Rate (%)"
-            value={form.interestRate.toString()}
-            onChangeText={text =>
-              setForm({ ...form, interestRate: parseFloat(text) || 0 })
-            }
-            placeholder="0.00"
-            keyboardType="numeric"
-          />
-
-          <Input
-            label="Effective Date"
-            value={form.effectiveDate}
-            onChangeText={text => setForm({ ...form, effectiveDate: text })}
-            placeholder="YYYY-MM-DD"
-          />
-
-          <View style={styles.formActions}>
+        {!showForm ? (
+          <View style={styles.buttonContainer}>
             <Button
-              title="Cancel"
-              onPress={() => setShowForm(false)}
-              variant="outline"
-              style={styles.cancelButton}
+              title={debts.length > 0 ? 'Add Another Debt' : 'Add Debt'}
+              onPress={() => setShowForm(true)}
+              icon="add-circle-outline"
             />
             <Button
-              title="Add Debt"
-              onPress={handleSubmit}
-              loading={submitting}
-              style={styles.submitButton}
+              title={debts.length > 0 ? 'Continue' : 'Skip for Now'}
+              onPress={onNext}
+              style={styles.continueButton}
+              variant={debts.length === 0 ? 'outline' : undefined}
             />
           </View>
-        </ScrollView>
-      )}
+        ) : (
+          <View style={styles.formContainer}>
+            <Input
+              label="Debt Name"
+              value={form.name}
+              onChangeText={text => setForm({ ...form, name: text })}
+              placeholder="e.g., Chase Credit Card"
+            />
 
-      <TouchableOpacity onPress={onBack} style={styles.backButton}>
-        <Ionicons
-          name="arrow-back"
-          size={20}
-          color={theme.colors.textSecondary}
-        />
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
-    </View>
+            <Text style={styles.label}>Debt Type</Text>
+            <View style={styles.typeContainer}>
+              {debtTypes.map(type => (
+                <TouchableOpacity
+                  key={type.value}
+                  style={[
+                    styles.typeButton,
+                    form.debtType === type.value && styles.typeButtonActive,
+                  ]}
+                  onPress={() => setForm({ ...form, debtType: type.value })}
+                >
+                  <Ionicons
+                    name={type.icon as any}
+                    size={24}
+                    color={
+                      form.debtType === type.value
+                        ? theme.colors.primary
+                        : theme.colors.textSecondary
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.typeButtonText,
+                      form.debtType === type.value &&
+                        styles.typeButtonTextActive,
+                    ]}
+                  >
+                    {type.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Input
+              label="Current Balance"
+              value={form.balance.toString()}
+              onChangeText={text =>
+                setForm({ ...form, balance: parseFloat(text) || 0 })
+              }
+              placeholder="0.00"
+              keyboardType="numeric"
+            />
+
+            <Input
+              label="Interest Rate (%)"
+              value={form.interestRate.toString()}
+              onChangeText={text =>
+                setForm({ ...form, interestRate: parseFloat(text) || 0 })
+              }
+              placeholder="0.00"
+              keyboardType="numeric"
+            />
+
+            <Input
+              label="Effective Date"
+              value={form.effectiveDate}
+              onChangeText={text => setForm({ ...form, effectiveDate: text })}
+              placeholder="YYYY-MM-DD"
+            />
+
+            <View style={styles.formActions}>
+              <Button
+                title="Cancel"
+                onPress={() => setShowForm(false)}
+                variant="outline"
+                style={styles.cancelButton}
+              />
+              <Button
+                title="Add Debt"
+                onPress={handleSubmit}
+                loading={submitting}
+                style={styles.submitButton}
+              />
+            </View>
+          </View>
+        )}
+
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={theme.colors.textSecondary}
+          />
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -254,6 +267,9 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
       padding: theme.spacing.lg,
     },
     header: {

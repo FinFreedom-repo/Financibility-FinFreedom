@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -96,133 +98,145 @@ const AccountsStep: React.FC<AccountsStepProps> = ({
   ];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons name="wallet" size={48} color={theme.colors.primary} />
-        <Text style={styles.title}>Add Your Accounts</Text>
-        <Text style={styles.subtitle}>
-          Start by adding at least one account to track your finances
-        </Text>
-      </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Ionicons name="wallet" size={48} color={theme.colors.primary} />
+          <Text style={styles.title}>Add Your Accounts</Text>
+          <Text style={styles.subtitle}>
+            Start by adding at least one account to track your finances
+          </Text>
+        </View>
 
-      {accounts.length > 0 && (
-        <View style={styles.accountsList}>
-          <Text style={styles.sectionTitle}>Your Accounts</Text>
-          {accounts.map(account => (
-            <View key={account.id} style={styles.accountCard}>
-              <Ionicons
-                name="checkmark-circle"
-                size={24}
-                color={theme.colors.success}
-              />
-              <View style={styles.accountInfo}>
-                <Text style={styles.accountName}>{account.name}</Text>
-                <Text style={styles.accountType}>
-                  {accountTypes.find(t => t.value === account.account_type)
-                    ?.label || account.account_type}
+        {accounts.length > 0 && (
+          <View style={styles.accountsList}>
+            <Text style={styles.sectionTitle}>Your Accounts</Text>
+            {accounts.map(account => (
+              <View key={account.id} style={styles.accountCard}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={24}
+                  color={theme.colors.success}
+                />
+                <View style={styles.accountInfo}>
+                  <Text style={styles.accountName}>{account.name}</Text>
+                  <Text style={styles.accountType}>
+                    {accountTypes.find(t => t.value === account.account_type)
+                      ?.label || account.account_type}
+                  </Text>
+                </View>
+                <Text style={styles.accountBalance}>
+                  ${account.balance.toLocaleString()}
                 </Text>
               </View>
-              <Text style={styles.accountBalance}>
-                ${account.balance.toLocaleString()}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {!showForm ? (
-        <View style={styles.buttonContainer}>
-          <Button
-            title={accounts.length > 0 ? 'Add Another Account' : 'Add Account'}
-            onPress={() => setShowForm(true)}
-            icon="add-circle-outline"
-          />
-          {accounts.length > 0 && (
-            <Button
-              title="Continue"
-              onPress={onNext}
-              style={styles.continueButton}
-            />
-          )}
-        </View>
-      ) : (
-        <ScrollView style={styles.formContainer}>
-          <Input
-            label="Account Name"
-            value={form.name}
-            onChangeText={text => setForm({ ...form, name: text })}
-            placeholder="e.g., Chase Checking"
-          />
-
-          <Text style={styles.label}>Account Type</Text>
-          <View style={styles.typeContainer}>
-            {accountTypes.map(type => (
-              <TouchableOpacity
-                key={type.value}
-                style={[
-                  styles.typeButton,
-                  form.accountType === type.value && styles.typeButtonActive,
-                ]}
-                onPress={() => setForm({ ...form, accountType: type.value })}
-              >
-                <Ionicons
-                  name={type.icon as any}
-                  size={24}
-                  color={
-                    form.accountType === type.value
-                      ? theme.colors.primary
-                      : theme.colors.textSecondary
-                  }
-                />
-                <Text
-                  style={[
-                    styles.typeButtonText,
-                    form.accountType === type.value &&
-                      styles.typeButtonTextActive,
-                  ]}
-                >
-                  {type.label}
-                </Text>
-              </TouchableOpacity>
             ))}
           </View>
+        )}
 
-          <Input
-            label="Current Balance"
-            value={form.balance.toString()}
-            onChangeText={text =>
-              setForm({ ...form, balance: parseFloat(text) || 0 })
-            }
-            placeholder="0.00"
-            keyboardType="numeric"
-          />
-
-          <View style={styles.formActions}>
+        {!showForm ? (
+          <View style={styles.buttonContainer}>
             <Button
-              title="Cancel"
-              onPress={() => setShowForm(false)}
-              variant="outline"
-              style={styles.cancelButton}
+              title={
+                accounts.length > 0 ? 'Add Another Account' : 'Add Account'
+              }
+              onPress={() => setShowForm(true)}
+              icon="add-circle-outline"
             />
-            <Button
-              title="Add Account"
-              onPress={handleSubmit}
-              loading={submitting}
-              style={styles.submitButton}
-            />
+            {accounts.length > 0 && (
+              <Button
+                title="Continue"
+                onPress={onNext}
+                style={styles.continueButton}
+              />
+            )}
           </View>
-        </ScrollView>
-      )}
+        ) : (
+          <View style={styles.formContainer}>
+            <Input
+              label="Account Name"
+              value={form.name}
+              onChangeText={text => setForm({ ...form, name: text })}
+              placeholder="e.g., Chase Checking"
+            />
 
-      <TouchableOpacity onPress={onBack} style={styles.backButton}>
-        <Ionicons
-          name="arrow-back"
-          size={20}
-          color={theme.colors.textSecondary}
-        />
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
-    </View>
+            <Text style={styles.label}>Account Type</Text>
+            <View style={styles.typeContainer}>
+              {accountTypes.map(type => (
+                <TouchableOpacity
+                  key={type.value}
+                  style={[
+                    styles.typeButton,
+                    form.accountType === type.value && styles.typeButtonActive,
+                  ]}
+                  onPress={() => setForm({ ...form, accountType: type.value })}
+                >
+                  <Ionicons
+                    name={type.icon as any}
+                    size={24}
+                    color={
+                      form.accountType === type.value
+                        ? theme.colors.primary
+                        : theme.colors.textSecondary
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.typeButtonText,
+                      form.accountType === type.value &&
+                        styles.typeButtonTextActive,
+                    ]}
+                  >
+                    {type.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Input
+              label="Current Balance"
+              value={form.balance.toString()}
+              onChangeText={text =>
+                setForm({ ...form, balance: parseFloat(text) || 0 })
+              }
+              placeholder="0.00"
+              keyboardType="numeric"
+            />
+
+            <View style={styles.formActions}>
+              <Button
+                title="Cancel"
+                onPress={() => setShowForm(false)}
+                variant="outline"
+                style={styles.cancelButton}
+              />
+              <Button
+                title="Add Account"
+                onPress={handleSubmit}
+                loading={submitting}
+                style={styles.submitButton}
+              />
+            </View>
+          </View>
+        )}
+
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={theme.colors.textSecondary}
+          />
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -230,6 +244,9 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
       padding: theme.spacing.lg,
     },
     header: {

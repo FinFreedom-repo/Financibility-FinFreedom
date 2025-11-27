@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../contexts/ThemeContext';
@@ -101,19 +103,23 @@ const BudgetStep: React.FC<BudgetStepProps> = ({
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons name="pie-chart" size={48} color={theme.colors.primary} />
-        <Text style={styles.title}>Set Up Your Budget</Text>
-        <Text style={styles.subtitle}>
-          Tell us about your monthly income and expenses
-        </Text>
-      </View>
-
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
       <ScrollView
-        style={styles.formContainer}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.header}>
+          <Ionicons name="pie-chart" size={48} color={theme.colors.primary} />
+          <Text style={styles.title}>Set Up Your Budget</Text>
+          <Text style={styles.subtitle}>
+            Tell us about your monthly income and expenses
+          </Text>
+        </View>
         <Input
           label="Monthly Income"
           value={form.income.toString()}
@@ -202,17 +208,17 @@ const BudgetStep: React.FC<BudgetStepProps> = ({
             icon="checkmark-circle"
           />
         </View>
-      </ScrollView>
 
-      <TouchableOpacity onPress={onBack} style={styles.backButton}>
-        <Ionicons
-          name="arrow-back"
-          size={20}
-          color={theme.colors.textSecondary}
-        />
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}>
+          <Ionicons
+            name="arrow-back"
+            size={20}
+            color={theme.colors.textSecondary}
+          />
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -220,6 +226,9 @@ const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
       padding: theme.spacing.lg,
     },
     header: {
@@ -236,9 +245,6 @@ const createStyles = (theme: any) =>
       ...theme.typography.body1,
       color: theme.colors.textSecondary,
       textAlign: 'center',
-    },
-    formContainer: {
-      flex: 1,
     },
     sectionTitle: {
       ...theme.typography.h4,
