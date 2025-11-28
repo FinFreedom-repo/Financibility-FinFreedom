@@ -76,7 +76,6 @@ export const calculateDebtPayoffPlanFrontend = (
       debtPayments.set(debt.name, 0);
     });
 
-    
     if (availableForDebt > 0 && debtBalances.some(d => d.balance > 0)) {
       // Sort debts by strategy (Snowball: lowest to highest balance, Avalanche: highest to lowest interest rate)
       // IMPORTANT: Sort by CURRENT balance after interest has been added
@@ -201,9 +200,48 @@ export const updateTotalDebtFromPayoffPlan = (
       if (idx >= currentMonthIdx) {
         const planIdx = idx - currentMonthIdx;
         const monthPlan = payoffPlan.plan[planIdx];
-        if (monthPlan) {
-          remainingDebtRow[`month_${idx}`] = monthPlan.remainingDebt || 0;
+        if (monthPlan && monthPlan.remainingDebt !== undefined) {
+          remainingDebtRow[`month_${idx}`] = monthPlan.remainingDebt;
         }
+      }
+    });
+  }
+
+  return updatedData;
+};
+
+// Update Remaining Debt row from outstanding debts when no payoff plan exists
+export const updateRemainingDebtFromDebts = (
+  gridData: Record<string, any>[],
+  outstandingDebts: any[],
+  months: any[]
+) => {
+  const updatedData = [...gridData];
+  const remainingDebtRow = updatedData.find(
+    row => row.category === 'Remaining Debt'
+  );
+
+  if (remainingDebtRow && outstandingDebts && outstandingDebts.length > 0) {
+    const currentMonthIdx = months.findIndex(m => m.type === 'current');
+
+    // Calculate total debt (excluding mortgages)
+    const totalDebt = outstandingDebts
+      .filter(d => {
+        const balance = parseFloat(d.balance?.toString() || '0');
+        const debtType = d.debt_type || '';
+        return balance > 0 && debtType !== 'mortgage';
+      })
+      .reduce((sum, debt) => {
+        return sum + (parseFloat(debt.balance?.toString() || '0') || 0);
+      }, 0);
+
+    // Only set debt from current month forward, not in historical months
+    months.forEach((_, idx) => {
+      if (idx >= currentMonthIdx) {
+        remainingDebtRow[`month_${idx}`] = totalDebt;
+      } else {
+        // Historical months should remain at 0
+        remainingDebtRow[`month_${idx}`] = 0;
       }
     });
   }

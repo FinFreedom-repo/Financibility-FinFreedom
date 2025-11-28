@@ -2,12 +2,15 @@ import apiClient from './api';
 
 export interface Debt {
   _id: string;
+  id?: string;
   name: string;
   debt_type: string;
   balance: number;
   amount: number;
   interest_rate: number;
   effective_date: string;
+  payoff_date?: string | null;
+  user?: string;
   created_at: string;
   updated_at: string;
 }
@@ -69,7 +72,28 @@ class DebtPlanningService {
       console.log('💳 Fetching debts...');
       const response = await apiClient.get('/api/mongodb/debts/');
       console.log('💳 Debts response:', response.data);
-      return (response.data as any)?.debts || [];
+      const responseData = response.data as any;
+      const debts = Array.isArray(responseData?.debts)
+        ? responseData.debts
+        : [];
+
+      const processedDebts = debts.map((debt: any) => ({
+        _id: debt._id || debt.id,
+        id: debt._id || debt.id,
+        name: debt.name || 'Unnamed Debt',
+        debt_type: debt.debt_type || 'other',
+        balance: parseFloat(debt.amount || debt.balance) || 0,
+        amount: parseFloat(debt.amount || debt.balance) || 0,
+        interest_rate: parseFloat(debt.interest_rate) || 0,
+        effective_date:
+          debt.effective_date || new Date().toISOString().split('T')[0],
+        payoff_date: debt.payoff_date || null,
+        user: debt.user,
+        created_at: debt.created_at,
+        updated_at: debt.updated_at,
+      }));
+
+      return processedDebts;
     } catch (error) {
       console.error('💳 Error fetching debts:', error);
       throw new Error(

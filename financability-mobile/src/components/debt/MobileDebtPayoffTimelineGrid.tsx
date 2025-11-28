@@ -73,10 +73,23 @@ const MobileDebtPayoffTimelineGrid: React.FC<
   const generateGridData = () => {
     const currentMonthIdx = months.findIndex(m => m.type === 'current');
 
-    // Safety check: if no payoff plan, return empty grid
-    if (!payoffPlan || !payoffPlan.plan || payoffPlan.plan.length === 0) {
+    // If no payoff plan but we have debts, show debts with initial balances
+    const hasPayoffPlan =
+      payoffPlan && payoffPlan.plan && payoffPlan.plan.length > 0;
+    const hasDebts = outstandingDebts && outstandingDebts.length > 0;
+
+    if (!hasPayoffPlan && !hasDebts) {
       return [];
     }
+
+    // Calculate total debt from outstanding debts if no payoff plan
+    const totalDebt = hasDebts
+      ? outstandingDebts.reduce(
+          (sum, debt) =>
+            sum + (parseFloat(debt.balance?.toString() || '0') || 0),
+          0
+        )
+      : 0;
 
     // Create grid data in the same format as Budget Projection
     const gridData = [
@@ -84,6 +97,10 @@ const MobileDebtPayoffTimelineGrid: React.FC<
         category: 'Remaining Debt',
         type: 'calculated',
         ...months.reduce((acc, _, idx) => {
+          if (!hasPayoffPlan) {
+            // If no payoff plan, show total debt for all months
+            return { ...acc, [`month_${idx}`]: totalDebt } as any;
+          }
           const planIdx = idx - currentMonthIdx;
           if (idx < currentMonthIdx || planIdx < 0) {
             return { ...acc, [`month_${idx}`]: 0 } as any;
@@ -105,6 +122,9 @@ const MobileDebtPayoffTimelineGrid: React.FC<
         category: 'Principal Paid Down',
         type: 'calculated',
         ...months.reduce((acc, _, idx) => {
+          if (!hasPayoffPlan) {
+            return { ...acc, [`month_${idx}`]: 0 };
+          }
           const planIdx = idx - currentMonthIdx;
           if (idx < currentMonthIdx) {
             return { ...acc, [`month_${idx}`]: 0 };
@@ -133,6 +153,9 @@ const MobileDebtPayoffTimelineGrid: React.FC<
         category: 'Interest Paid',
         type: 'calculated',
         ...months.reduce((acc, _, idx) => {
+          if (!hasPayoffPlan) {
+            return { ...acc, [`month_${idx}`]: 0 };
+          }
           const planIdx = idx - currentMonthIdx;
           if (idx < currentMonthIdx || planIdx < 0) {
             return { ...acc, [`month_${idx}`]: 0 };
@@ -178,14 +201,20 @@ const MobileDebtPayoffTimelineGrid: React.FC<
                 [`month_${idx}`]: parseFloat(debt.balance.toString()) || 0,
               } as any;
             }
-            // Current and future months: use plan data
-            let value =
-              payoffPlan?.plan?.[planIdx]?.debts?.find(
-                (d: any) => d.name === debt.name
-              )?.balance || 0;
-            if (idx > currentMonthIdx) {
-              const prev = (acc as any)[`month_${idx - 1}`];
-              if (typeof prev === 'number' && prev <= 0) value = 0;
+            // Current and future months: use plan data if available, otherwise use initial balance
+            let value = 0;
+            if (hasPayoffPlan && payoffPlan?.plan?.[planIdx]) {
+              value =
+                payoffPlan.plan[planIdx].debts?.find(
+                  (d: any) => d.name === debt.name
+                )?.balance || 0;
+              if (idx > currentMonthIdx) {
+                const prev = (acc as any)[`month_${idx - 1}`];
+                if (typeof prev === 'number' && prev <= 0) value = 0;
+              }
+            } else {
+              // No payoff plan yet, show initial balance for all months
+              value = parseFloat(debt.balance.toString()) || 0;
             }
             return { ...acc, [`month_${idx}`]: value } as any;
           }, {}),

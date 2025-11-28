@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,7 @@ const AccountsStep: React.FC<AccountsStepProps> = ({
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const [form, setForm] = useState<CreateAccountData>({
     name: '',
@@ -44,21 +45,19 @@ const AccountsStep: React.FC<AccountsStepProps> = ({
 
   const styles = createStyles(theme);
 
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
-
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     try {
       const data = await accountsDebtsService.getAccounts();
       setAccounts(data);
       if (data.length > 0) {
         onAccountsAdded();
       }
-    } catch (_error) {
-      // Silently handle error - user can still proceed
-    }
-  };
+    } catch {}
+  }, [onAccountsAdded]);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
 
   const handleSubmit = async () => {
     if (!form.name.trim()) {
@@ -66,13 +65,23 @@ const AccountsStep: React.FC<AccountsStepProps> = ({
       return;
     }
 
+    if (isSubmittingRef.current) {
+      return;
+    }
+
     try {
+      isSubmittingRef.current = true;
       setSubmitting(true);
-      await accountsDebtsService.createAccount({
+
+      const accountData = {
         ...form,
         balance: Number(form.balance),
         interestRate: Number(form.interestRate),
-      });
+      };
+
+      await accountsDebtsService.createAccount(accountData);
+      await fetchAccounts();
+
       setForm({
         name: '',
         accountType: 'checking',
@@ -80,21 +89,29 @@ const AccountsStep: React.FC<AccountsStepProps> = ({
         interestRate: 0.01,
         effectiveDate: new Date().toISOString().split('T')[0],
       });
+
       setShowForm(false);
-      await fetchAccounts();
-      Alert.alert('Success', 'Account added successfully!');
-    } catch (error) {
+    } catch {
+      setShowForm(true);
       Alert.alert('Error', 'Failed to add account. Please try again.');
     } finally {
       setSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 
+  const defaultAccountRates = {
+    checking: 0.01,
+    investment: 7.0,
+    other: 0.0,
+  };
+
   const accountTypes = [
-    { value: 'checking', label: 'Checking', icon: 'card' },
-    { value: 'savings', label: 'Savings', icon: 'wallet' },
-    { value: 'investment', label: 'Investment', icon: 'trending-up' },
-    { value: 'retirement', label: 'Retirement', icon: 'business' },
+    { value: 'checking', label: 'Checking Account', icon: 'card' },
+    { value: 'savings', label: 'Savings Account', icon: 'wallet' },
+    { value: 'investment', label: 'Investment Account', icon: 'trending-up' },
+    { value: 'retirement', label: 'Retirement Account', icon: 'business' },
+    { value: 'other', label: 'Other Account', icon: 'ellipsis-horizontal' },
   ];
 
   return (
@@ -143,13 +160,13 @@ const AccountsStep: React.FC<AccountsStepProps> = ({
 
         {!showForm ? (
           <View style={styles.buttonContainer}>
-            <Button
-              title={
-                accounts.length > 0 ? 'Add Another Account' : 'Add Account'
-              }
-              onPress={() => setShowForm(true)}
-              icon="add-circle-outline"
-            />
+            {accounts.length === 0 && (
+              <Button
+                title="Add Account"
+                onPress={() => setShowForm(true)}
+                icon="add-circle-outline"
+              />
+            )}
             {accounts.length > 0 && (
               <Button
                 title="Continue"
@@ -164,50 +181,96 @@ const AccountsStep: React.FC<AccountsStepProps> = ({
               label="Account Name"
               value={form.name}
               onChangeText={text => setForm({ ...form, name: text })}
-              placeholder="e.g., Chase Checking"
+              placeholder="Enter account name"
+              leftIcon="wallet"
             />
 
-            <Text style={styles.label}>Account Type</Text>
-            <View style={styles.typeContainer}>
-              {accountTypes.map(type => (
-                <TouchableOpacity
-                  key={type.value}
-                  style={[
-                    styles.typeButton,
-                    form.accountType === type.value && styles.typeButtonActive,
-                  ]}
-                  onPress={() => setForm({ ...form, accountType: type.value })}
-                >
-                  <Ionicons
-                    name={type.icon as any}
-                    size={24}
-                    color={
-                      form.accountType === type.value
-                        ? theme.colors.primary
-                        : theme.colors.textSecondary
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.typeButtonText,
-                      form.accountType === type.value &&
-                        styles.typeButtonTextActive,
-                    ]}
-                  >
-                    {type.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.inputRow}>
+              <View style={styles.inputHalf}>
+                <Text style={styles.inputLabel}>Account Type</Text>
+                <View style={styles.pickerContainer}>
+                  {accountTypes.map(type => (
+                    <TouchableOpacity
+                      key={type.value}
+                      style={[
+                        styles.pickerOption,
+                        form.accountType === type.value &&
+                          styles.pickerOptionSelected,
+                      ]}
+                      onPress={() => {
+                        setForm({
+                          ...form,
+                          accountType: type.value,
+                          interestRate:
+                            defaultAccountRates[
+                              type.value as keyof typeof defaultAccountRates
+                            ] ?? form.interestRate,
+                        });
+                      }}
+                    >
+                      <Ionicons
+                        name={type.icon as any}
+                        size={20}
+                        color={
+                          form.accountType === type.value
+                            ? theme.colors.primary
+                            : theme.colors.textSecondary
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.pickerOptionText,
+                          form.accountType === type.value &&
+                            styles.pickerOptionTextSelected,
+                        ]}
+                      >
+                        {type.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.inputRow}>
+              <View style={styles.inputHalf}>
+                <Input
+                  label="Balance"
+                  value={(form.balance || 0).toString()}
+                  onChangeText={text =>
+                    setForm({
+                      ...form,
+                      balance: parseFloat(text) || 0,
+                    })
+                  }
+                  placeholder="0.00"
+                  keyboardType="numeric"
+                  leftIcon="cash"
+                />
+              </View>
+              <View style={styles.inputHalf}>
+                <Input
+                  label="Interest Rate (%)"
+                  value={(form.interestRate || 0).toString()}
+                  onChangeText={text =>
+                    setForm({
+                      ...form,
+                      interestRate: parseFloat(text) || 0,
+                    })
+                  }
+                  placeholder="0.00"
+                  keyboardType="numeric"
+                  leftIcon="trending-up"
+                />
+              </View>
             </View>
 
             <Input
-              label="Current Balance"
-              value={form.balance.toString()}
-              onChangeText={text =>
-                setForm({ ...form, balance: parseFloat(text) || 0 })
-              }
-              placeholder="0.00"
-              keyboardType="numeric"
+              label="Effective Date"
+              value={form.effectiveDate}
+              onChangeText={text => setForm({ ...form, effectiveDate: text })}
+              placeholder="YYYY-MM-DD"
+              leftIcon="calendar"
             />
 
             <View style={styles.formActions}>
@@ -307,40 +370,47 @@ const createStyles = (theme: any) =>
     },
     formContainer: {
       marginTop: theme.spacing.lg,
+      flexGrow: 1,
     },
-    label: {
-      ...theme.typography.body1,
-      color: theme.colors.text,
-      marginTop: theme.spacing.md,
-      marginBottom: theme.spacing.sm,
-      fontWeight: '600',
-    },
-    typeContainer: {
+    inputRow: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
       marginBottom: theme.spacing.md,
     },
-    typeButton: {
-      width: '48%',
-      alignItems: 'center',
-      padding: theme.spacing.md,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.borderRadius.md,
-      marginRight: '2%',
-      marginBottom: theme.spacing.sm,
-      borderWidth: 2,
-      borderColor: 'transparent',
+    inputHalf: {
+      flex: 1,
+      marginHorizontal: theme.spacing.xs,
     },
-    typeButtonActive: {
+    inputLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: theme.spacing.sm,
+    },
+    pickerContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: theme.spacing.sm,
+    },
+    pickerOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: theme.spacing.sm,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+      minWidth: '45%',
+    },
+    pickerOptionSelected: {
       borderColor: theme.colors.primary,
       backgroundColor: theme.colors.primary + '10',
     },
-    typeButtonText: {
-      ...theme.typography.caption,
+    pickerOptionText: {
+      marginLeft: theme.spacing.sm,
+      fontSize: 12,
       color: theme.colors.textSecondary,
-      marginTop: theme.spacing.xs,
     },
-    typeButtonTextActive: {
+    pickerOptionTextSelected: {
       color: theme.colors.primary,
       fontWeight: '600',
     },

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,15 @@ interface DebtsStepProps {
   onDebtsAdded: () => void;
 }
 
+const defaultDebtRates = {
+  'credit-card': 24.99,
+  'personal-loan': 12.0,
+  'student-loan': 5.5,
+  'auto-loan': 7.5,
+  mortgage: 6.5,
+  other: 15.0,
+};
+
 const DebtsStep: React.FC<DebtsStepProps> = ({
   onNext,
   onBack,
@@ -33,32 +42,32 @@ const DebtsStep: React.FC<DebtsStepProps> = ({
   const [debts, setDebts] = useState<Debt[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const [form, setForm] = useState<CreateDebtData>({
     name: '',
-    debtType: 'credit_card',
+    debtType: 'credit-card',
     balance: 0,
-    interestRate: 0,
+    interestRate: 24.99,
     effectiveDate: new Date().toISOString().split('T')[0],
+    payoffDate: '',
   });
 
   const styles = createStyles(theme);
 
-  useEffect(() => {
-    fetchDebts();
-  }, []);
-
-  const fetchDebts = async () => {
+  const fetchDebts = useCallback(async () => {
     try {
       const data = await accountsDebtsService.getDebts();
       setDebts(data);
       if (data.length > 0) {
         onDebtsAdded();
       }
-    } catch (_error) {
-      // Silently handle error - user can still proceed
-    }
-  };
+    } catch {}
+  }, [onDebtsAdded]);
+
+  useEffect(() => {
+    fetchDebts();
+  }, [fetchDebts]);
 
   const handleSubmit = async () => {
     if (!form.name.trim()) {
@@ -71,39 +80,52 @@ const DebtsStep: React.FC<DebtsStepProps> = ({
       return;
     }
 
+    if (isSubmittingRef.current) {
+      return;
+    }
+
     try {
+      isSubmittingRef.current = true;
       setSubmitting(true);
-      await accountsDebtsService.createDebt({
+
+      const debtData = {
         ...form,
         balance: Number(form.balance),
-        interestRate: Number(form.interestRate),
-      });
+        interestRate:
+          Number(form.interestRate) ||
+          defaultDebtRates[form.debtType as keyof typeof defaultDebtRates] ||
+          0,
+      };
+
+      await accountsDebtsService.createDebt(debtData);
+      await fetchDebts();
+
       setForm({
         name: '',
-        debtType: 'credit_card',
+        debtType: 'credit-card',
         balance: 0,
-        interestRate: 0,
+        interestRate: 24.99,
         effectiveDate: new Date().toISOString().split('T')[0],
+        payoffDate: '',
       });
+
       setShowForm(false);
-      await fetchDebts();
-      Alert.alert('Success', 'Debt added successfully!');
-    } catch (error) {
+    } catch {
+      setShowForm(true);
       Alert.alert('Error', 'Failed to add debt. Please try again.');
     } finally {
       setSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 
   const debtTypes = [
-    { value: 'credit_card', label: 'Credit Card', icon: 'card' },
-    { value: 'student_loan', label: 'Student Loan', icon: 'school' },
-    { value: 'auto_loan', label: 'Auto Loan', icon: 'car' },
-    { value: 'personal_loan', label: 'Personal Loan', icon: 'cash' },
+    { value: 'credit-card', label: 'Credit Card', icon: 'card' },
+    { value: 'personal-loan', label: 'Personal Loan', icon: 'cash' },
+    { value: 'student-loan', label: 'Student Loan', icon: 'school' },
+    { value: 'auto-loan', label: 'Auto Loan', icon: 'car' },
     { value: 'mortgage', label: 'Mortgage', icon: 'home' },
-    { value: 'home_equity', label: 'Home Equity', icon: 'business' },
-    { value: 'business_loan', label: 'Business Loan', icon: 'briefcase' },
-    { value: 'other', label: 'Other', icon: 'ellipsis-horizontal' },
+    { value: 'other', label: 'Other Debt', icon: 'ellipsis-horizontal' },
   ];
 
   return (
@@ -152,11 +174,13 @@ const DebtsStep: React.FC<DebtsStepProps> = ({
 
         {!showForm ? (
           <View style={styles.buttonContainer}>
-            <Button
-              title={debts.length > 0 ? 'Add Another Debt' : 'Add Debt'}
-              onPress={() => setShowForm(true)}
-              icon="add-circle-outline"
-            />
+            {debts.length === 0 && (
+              <Button
+                title="Add Debt"
+                onPress={() => setShowForm(true)}
+                icon="add-circle-outline"
+              />
+            )}
             <Button
               title={debts.length > 0 ? 'Continue' : 'Skip for Now'}
               onPress={onNext}
@@ -170,68 +194,109 @@ const DebtsStep: React.FC<DebtsStepProps> = ({
               label="Debt Name"
               value={form.name}
               onChangeText={text => setForm({ ...form, name: text })}
-              placeholder="e.g., Chase Credit Card"
+              placeholder="Enter debt name"
+              leftIcon="card"
             />
 
-            <Text style={styles.label}>Debt Type</Text>
-            <View style={styles.typeContainer}>
-              {debtTypes.map(type => (
-                <TouchableOpacity
-                  key={type.value}
-                  style={[
-                    styles.typeButton,
-                    form.debtType === type.value && styles.typeButtonActive,
-                  ]}
-                  onPress={() => setForm({ ...form, debtType: type.value })}
-                >
-                  <Ionicons
-                    name={type.icon as any}
-                    size={24}
-                    color={
-                      form.debtType === type.value
-                        ? theme.colors.primary
-                        : theme.colors.textSecondary
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.typeButtonText,
-                      form.debtType === type.value &&
-                        styles.typeButtonTextActive,
-                    ]}
-                  >
-                    {type.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.inputRow}>
+              <View style={styles.inputHalf}>
+                <Text style={styles.inputLabel}>Debt Type</Text>
+                <View style={styles.pickerContainer}>
+                  {debtTypes.map(type => (
+                    <TouchableOpacity
+                      key={type.value}
+                      style={[
+                        styles.pickerOption,
+                        form.debtType === type.value &&
+                          styles.pickerOptionSelected,
+                      ]}
+                      onPress={() => {
+                        setForm({
+                          ...form,
+                          debtType: type.value,
+                          interestRate:
+                            defaultDebtRates[
+                              type.value as keyof typeof defaultDebtRates
+                            ],
+                        });
+                      }}
+                    >
+                      <Ionicons
+                        name={type.icon as any}
+                        size={20}
+                        color={
+                          form.debtType === type.value
+                            ? theme.colors.primary
+                            : theme.colors.textSecondary
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.pickerOptionText,
+                          form.debtType === type.value &&
+                            styles.pickerOptionTextSelected,
+                        ]}
+                      >
+                        {type.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             </View>
 
-            <Input
-              label="Current Balance"
-              value={form.balance.toString()}
-              onChangeText={text =>
-                setForm({ ...form, balance: parseFloat(text) || 0 })
-              }
-              placeholder="0.00"
-              keyboardType="numeric"
-            />
+            <View style={styles.inputRow}>
+              <View style={styles.inputHalf}>
+                <Input
+                  label="Balance"
+                  value={(form.balance || 0).toString()}
+                  onChangeText={text =>
+                    setForm({ ...form, balance: parseFloat(text) || 0 })
+                  }
+                  placeholder="0.00"
+                  keyboardType="numeric"
+                  leftIcon="cash"
+                />
+              </View>
+              <View style={styles.inputHalf}>
+                <Input
+                  label="Interest Rate (%)"
+                  value={(form.interestRate || 0).toString()}
+                  onChangeText={text =>
+                    setForm({
+                      ...form,
+                      interestRate: parseFloat(text) || 0,
+                    })
+                  }
+                  placeholder="0.00"
+                  keyboardType="numeric"
+                  leftIcon="trending-up"
+                />
+              </View>
+            </View>
 
-            <Input
-              label="Interest Rate (%)"
-              value={form.interestRate.toString()}
-              onChangeText={text =>
-                setForm({ ...form, interestRate: parseFloat(text) || 0 })
-              }
-              placeholder="0.00"
-              keyboardType="numeric"
-            />
-
-            <Input
-              label="Effective Date"
-              value={form.effectiveDate}
-              onChangeText={text => setForm({ ...form, effectiveDate: text })}
-              placeholder="YYYY-MM-DD"
-            />
+            <View style={styles.inputRow}>
+              <View style={styles.inputHalf}>
+                <Input
+                  label="Effective Date"
+                  value={form.effectiveDate}
+                  onChangeText={text =>
+                    setForm({ ...form, effectiveDate: text })
+                  }
+                  placeholder="YYYY-MM-DD"
+                  leftIcon="calendar"
+                />
+              </View>
+              <View style={styles.inputHalf}>
+                <Input
+                  label="Payoff Date (Optional)"
+                  value={form.payoffDate || ''}
+                  onChangeText={text => setForm({ ...form, payoffDate: text })}
+                  placeholder="YYYY-MM-DD"
+                  leftIcon="flag"
+                />
+              </View>
+            </View>
 
             <View style={styles.formActions}>
               <Button
@@ -330,40 +395,47 @@ const createStyles = (theme: any) =>
     },
     formContainer: {
       marginTop: theme.spacing.lg,
+      flexGrow: 1,
     },
-    label: {
-      ...theme.typography.body1,
-      color: theme.colors.text,
-      marginTop: theme.spacing.md,
-      marginBottom: theme.spacing.sm,
-      fontWeight: '600',
-    },
-    typeContainer: {
+    inputRow: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
       marginBottom: theme.spacing.md,
     },
-    typeButton: {
-      width: '48%',
-      alignItems: 'center',
-      padding: theme.spacing.md,
-      backgroundColor: theme.colors.surface,
-      borderRadius: theme.borderRadius.md,
-      marginRight: '2%',
-      marginBottom: theme.spacing.sm,
-      borderWidth: 2,
-      borderColor: 'transparent',
+    inputHalf: {
+      flex: 1,
+      marginHorizontal: theme.spacing.xs,
     },
-    typeButtonActive: {
+    inputLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: theme.spacing.sm,
+    },
+    pickerContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: theme.spacing.sm,
+    },
+    pickerOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: theme.spacing.sm,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+      minWidth: '45%',
+    },
+    pickerOptionSelected: {
       borderColor: theme.colors.primary,
       backgroundColor: theme.colors.primary + '10',
     },
-    typeButtonText: {
-      ...theme.typography.caption,
+    pickerOptionText: {
+      marginLeft: theme.spacing.sm,
+      fontSize: 12,
       color: theme.colors.textSecondary,
-      marginTop: theme.spacing.xs,
     },
-    typeButtonTextActive: {
+    pickerOptionTextSelected: {
       color: theme.colors.primary,
       fontWeight: '600',
     },

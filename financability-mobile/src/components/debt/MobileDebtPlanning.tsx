@@ -20,6 +20,7 @@ import debtPlanningService, {
 import {
   calculateDebtPayoffPlanFrontend as calcDebtPayoffPlan,
   updateTotalDebtFromPayoffPlan,
+  updateRemainingDebtFromDebts,
 } from './DebtCalculationUtils';
 import Button from '../common/Button';
 import Loading from '../common/Loading';
@@ -82,6 +83,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
   const gridUpdateCounter = useRef(0);
   const isUserEditingRef = useRef(false);
   const isLoadingRef = useRef(false);
+  const localGridDataRef = useRef<Record<string, any>[]>([]);
 
   const styles = createStyles(theme);
 
@@ -158,7 +160,11 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
 
       // Initialize grid data
       await initializeGridData();
+
+      // Reset recalculation trigger to allow recalculation after new debts are loaded
+      recalculationTriggered.current = false;
     } catch (error) {
+      console.error('💳 Error loading initial data:', error);
       Alert.alert('Error', 'Failed to load initial data: ' + error);
     } finally {
       setLoading(false);
@@ -209,6 +215,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       // After that, local state updates handle all changes
       const gridData = transformBackendBudgetsToGrid(backendBudgets);
       setLocalGridData(gridData);
+      localGridDataRef.current = gridData;
 
       const genMonths = generateMonths();
       const currentIdx = genMonths.findIndex(m => m.type === 'current');
@@ -267,6 +274,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         const genMonths = generateMonths();
         const gridData = transformBackendBudgetsToGrid([]);
         setLocalGridData(gridData);
+        localGridDataRef.current = gridData;
 
         const currentIdx = genMonths.findIndex(m => m.type === 'current');
         const monthBudgets = genMonths
@@ -287,6 +295,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       // Transform backend budget data to grid format
       const gridData = transformBackendBudgetsToGrid(budgets);
       setLocalGridData(gridData);
+      localGridDataRef.current = gridData;
 
       // Initialize editable months
       const genMonths = generateMonths();
@@ -315,6 +324,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       // Initialize empty grid on error
       const gridData = transformBackendBudgetsToGrid([]);
       setLocalGridData(gridData);
+      localGridDataRef.current = gridData;
       setEditableMonths([]);
     } finally {
       setIsInitializingGrid(false);
@@ -700,7 +710,9 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         });
         // Recalculate net savings after the update
         // The debt calculation useEffect will automatically trigger when localGridData changes
-        return recalculateNetSavings(updated);
+        const recalculated = recalculateNetSavings(updated);
+        localGridDataRef.current = recalculated;
+        return recalculated;
       });
 
       // Save to backend in the background (don't block UI, don't reload)
@@ -871,6 +883,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             }
             return row;
           });
+          localGridDataRef.current = updated;
           return updated;
         });
 
@@ -925,6 +938,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             }
             return row;
           });
+          localGridDataRef.current = updated;
           return updated;
         });
       }
@@ -932,6 +946,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       // Recalculate net savings after propagation
       setLocalGridData(prev => {
         const recalculated = recalculateNetSavings(prev);
+        localGridDataRef.current = recalculated;
         return recalculated;
       });
 
@@ -1187,7 +1202,8 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
 
     try {
       const months = generateMonths();
-      const netSavingsRow = localGridData.find(
+      const currentGridData = localGridDataRef.current;
+      const netSavingsRow = currentGridData.find(
         row => row.category === 'Net Savings'
       );
 
@@ -1195,11 +1211,19 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         return;
       }
 
+      const filteredDebts = outstandingDebts.filter(d => {
+        const balance = parseFloat(d.balance?.toString() || '0');
+        const debtType = d.debt_type || '';
+        return balance > 0 && debtType !== 'mortgage';
+      });
+
+      if (filteredDebts.length === 0) {
+        return;
+      }
+
       const freshPayoffPlan = calculateDebtPayoffPlanFrontend(
         netSavingsRow,
-        outstandingDebts.filter(
-          d => d.balance > 0 && d.debt_type !== 'mortgage'
-        ),
+        filteredDebts,
         strategy,
         months
       );
@@ -1232,9 +1256,21 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             freshPayoffPlan,
             months
           );
+          localGridDataRef.current = updatedData;
           gridUpdateCounter.current++;
           setGridForceUpdate(prev => prev + 1);
           return updatedData;
+        });
+      } else if (filteredDebts.length > 0) {
+        // If calculation failed but we have debts, update Remaining Debt from debts
+        setLocalGridData(prevData => {
+          const updated = updateRemainingDebtFromDebts(
+            prevData,
+            filteredDebts,
+            months
+          );
+          localGridDataRef.current = updated;
+          return updated;
         });
       }
     } catch (error) {
@@ -1245,7 +1281,6 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     }
   }, [
     generateMonths,
-    localGridData,
     outstandingDebts,
     strategy,
     calculateDebtPayoffPlanFrontend,
@@ -1362,11 +1397,21 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     } finally {
       setDebtCalculationInProgress(false);
     }
-  }, [triggerImmediateDebtRecalculation, debtCalculationInProgress]);
+  }, [triggerImmediateDebtRecalculation]);
 
   // Initial debt calculation after data loads
   const recalculationTriggered = useRef(false);
+  const lastDebtsCount = useRef(0);
+
   useEffect(() => {
+    const currentDebtsCount = outstandingDebts?.length || 0;
+    const debtsChanged = currentDebtsCount !== lastDebtsCount.current;
+
+    if (debtsChanged) {
+      lastDebtsCount.current = currentDebtsCount;
+      recalculationTriggered.current = false;
+    }
+
     if (
       outstandingDebts?.length > 0 &&
       localGridData?.length > 0 &&
@@ -1376,6 +1421,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       !recalculationTriggered.current
     ) {
       recalculationTriggered.current = true;
+
       const timeoutId = setTimeout(() => {
         handleDebtChange().finally(() => {
           recalculationTriggered.current = false;
