@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  startTransition,
+} from 'react';
 import {
   View,
   Text,
@@ -98,18 +104,25 @@ const DebtsStep: React.FC<DebtsStepProps> = ({
       };
 
       await accountsDebtsService.createDebt(debtData);
-      await fetchDebts();
 
-      setForm({
-        name: '',
-        debtType: 'credit-card',
-        balance: 0,
-        interestRate: 24.99,
-        effectiveDate: new Date().toISOString().split('T')[0],
-        payoffDate: '',
+      const updatedDebts = await accountsDebtsService.getDebts();
+
+      startTransition(() => {
+        setDebts(updatedDebts);
+        setForm({
+          name: '',
+          debtType: 'credit-card',
+          balance: 0,
+          interestRate: 24.99,
+          effectiveDate: new Date().toISOString().split('T')[0],
+          payoffDate: '',
+        });
+        setShowForm(false);
       });
 
-      setShowForm(false);
+      if (updatedDebts.length > 0) {
+        onDebtsAdded();
+      }
     } catch {
       setShowForm(true);
       Alert.alert('Error', 'Failed to add debt. Please try again.');
@@ -179,6 +192,14 @@ const DebtsStep: React.FC<DebtsStepProps> = ({
                 title="Add Debt"
                 onPress={() => setShowForm(true)}
                 icon="add-circle-outline"
+              />
+            )}
+            {debts.length > 0 && (
+              <Button
+                title="Add Another Debt"
+                onPress={() => setShowForm(true)}
+                icon="add-circle-outline"
+                variant="outline"
               />
             )}
             <Button

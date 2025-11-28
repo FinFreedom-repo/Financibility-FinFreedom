@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  startTransition,
+} from 'react';
 import {
   View,
   Text,
@@ -80,17 +86,24 @@ const AccountsStep: React.FC<AccountsStepProps> = ({
       };
 
       await accountsDebtsService.createAccount(accountData);
-      await fetchAccounts();
 
-      setForm({
-        name: '',
-        accountType: 'checking',
-        balance: 0,
-        interestRate: 0.01,
-        effectiveDate: new Date().toISOString().split('T')[0],
+      const updatedAccounts = await accountsDebtsService.getAccounts();
+
+      startTransition(() => {
+        setAccounts(updatedAccounts);
+        setForm({
+          name: '',
+          accountType: 'checking',
+          balance: 0,
+          interestRate: 0.01,
+          effectiveDate: new Date().toISOString().split('T')[0],
+        });
+        setShowForm(false);
       });
 
-      setShowForm(false);
+      if (updatedAccounts.length > 0) {
+        onAccountsAdded();
+      }
     } catch {
       setShowForm(true);
       Alert.alert('Error', 'Failed to add account. Please try again.');
@@ -168,11 +181,19 @@ const AccountsStep: React.FC<AccountsStepProps> = ({
               />
             )}
             {accounts.length > 0 && (
-              <Button
-                title="Continue"
-                onPress={onNext}
-                style={styles.continueButton}
-              />
+              <>
+                <Button
+                  title="Add Another Account"
+                  onPress={() => setShowForm(true)}
+                  icon="add-circle-outline"
+                  variant="outline"
+                />
+                <Button
+                  title="Continue"
+                  onPress={onNext}
+                  style={styles.continueButton}
+                />
+              </>
             )}
           </View>
         ) : (
