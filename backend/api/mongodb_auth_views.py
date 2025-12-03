@@ -31,7 +31,7 @@ class MongoDBAuthViews:
     @api_view(['POST'])
     @permission_classes([AllowAny])
     def login(request):
-        """MongoDB-based login endpoint"""
+        """MongoDB-based login endpoint with enhanced error messages"""
         try:
             # Use request.data which DRF automatically parses, or fallback to request.body
             if hasattr(request, 'data') and request.data:
@@ -44,18 +44,37 @@ class MongoDBAuthViews:
             username = data.get('username')
             password = data.get('password')
             
+            # Validate required fields
             if not username or not password:
                 return Response({
-                    'error': 'Username and password are required'
+                    'error': 'Both username and password are required',
+                    'message': 'Please enter your username and password to continue'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Authenticate user using MongoDB
+            # Check if user exists first
             user_service = UserService()
+            existing_user = user_service.get_user_by_username(username)
+            
+            if not existing_user:
+                return Response({
+                    'error': 'User not found',
+                    'message': f"No account found with username '{username}'. Please check your username or sign up for a new account."
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # Check if account is active
+            if not existing_user.get('is_active', True):
+                return Response({
+                    'error': 'Account disabled',
+                    'message': 'Your account has been disabled. Please contact support for assistance.'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # Authenticate user with password
             user = user_service.authenticate_user(username, password)
             
             if not user:
                 return Response({
-                    'error': 'Invalid username or password'
+                    'error': 'Incorrect password',
+                    'message': 'The password you entered is incorrect. Please try again or reset your password.'
                 }, status=status.HTTP_401_UNAUTHORIZED)
             
             # Generate JWT tokens
@@ -68,7 +87,13 @@ class MongoDBAuthViews:
             access_token = jwt_service.create_access_token(token_data)
             refresh_token = jwt_service.create_refresh_token(token_data)
             
+            # Get last login time before updating
+            last_login = user.get('last_login')
+            last_login_str = last_login.strftime('%B %d, %Y at %I:%M %p') if last_login else 'First time login'
+            
             return Response({
+                'success': True,
+                'message': f"Welcome back, {user['username']}!",
                 'access': access_token,
                 'refresh': refresh_token,
                 'user': {
@@ -76,25 +101,28 @@ class MongoDBAuthViews:
                     'username': user['username'],
                     'email': user['email'],
                     'onboarding_complete': user.get('onboarding_complete', False),
-                    'profile': user.get('profile', {})
+                    'profile': user.get('profile', {}),
+                    'last_login': last_login_str
                 }
             }, status=status.HTTP_200_OK)
             
         except json.JSONDecodeError:
             return Response({
-                'error': 'Invalid JSON data'
+                'error': 'Invalid request format',
+                'message': 'The request data is not properly formatted. Please try again.'
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Login error: {e}")
             return Response({
-                'error': 'Internal server error'
+                'error': 'Server error',
+                'message': 'An unexpected error occurred. Please try again later.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @staticmethod
     @api_view(['POST'])
     @permission_classes([AllowAny])
     def register(request):
-        """MongoDB-based user registration endpoint"""
+        """MongoDB-based user registration endpoint with enhanced validation and messages"""
         try:
             # Use request.data which DRF automatically parses, or fallback to request.body
             if hasattr(request, 'data') and request.data:
@@ -108,13 +136,63 @@ class MongoDBAuthViews:
             email = data.get('email')
             password = data.get('password')
             
-            if not username or not email or not password:
+            # Validate required fields
+            missing_fields = []
+            if not username:
+                missing_fields.append('username')
+            if not email:
+                missing_fields.append('email')
+            if not password:
+                missing_fields.append('password')
+            
+            if missing_fields:
                 return Response({
-                    'error': 'Username, email, and password are required'
+                    'error': 'Missing required fields',
+                    'message': f"Please provide: {', '.join(missing_fields)}",
+                    'missing_fields': missing_fields
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate username format
+            if len(username) < 3:
+                return Response({
+                    'error': 'Invalid username',
+                    'message': 'Username must be at least 3 characters long'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate email format
+            import re
+            email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+            if not re.match(email_pattern, email):
+                return Response({
+                    'error': 'Invalid email',
+                    'message': 'Please enter a valid email address'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Validate password strength
+            if len(password) < 8:
+                return Response({
+                    'error': 'Weak password',
+                    'message': 'Password must be at least 8 characters long'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if username already exists
+            user_service = UserService()
+            existing_username = user_service.get_user_by_username(username)
+            if existing_username:
+                return Response({
+                    'error': 'Username taken',
+                    'message': f"The username '{username}' is already taken. Please choose a different username."
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if email already exists
+            existing_email = user_service.db.users.find_one({'email': email})
+            if existing_email:
+                return Response({
+                    'error': 'Email already registered',
+                    'message': f"An account with email '{email}' already exists. Please use a different email or try logging in."
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             # Create user in MongoDB
-            user_service = UserService()
             user = user_service.create_user(username, email, password)
             
             # Generate JWT tokens
@@ -128,6 +206,8 @@ class MongoDBAuthViews:
             refresh_token = jwt_service.create_refresh_token(token_data)
             
             return Response({
+                'success': True,
+                'message': f"Welcome to FinFreedom, {username}! Your account has been created successfully.",
                 'access': access_token,
                 'refresh': refresh_token,
                 'user': {
@@ -140,17 +220,21 @@ class MongoDBAuthViews:
             }, status=status.HTTP_201_CREATED)
             
         except ValueError as e:
+            error_msg = str(e)
             return Response({
-                'error': str(e)
+                'error': 'Validation error',
+                'message': error_msg
             }, status=status.HTTP_400_BAD_REQUEST)
         except json.JSONDecodeError:
             return Response({
-                'error': 'Invalid JSON data'
+                'error': 'Invalid request format',
+                'message': 'The request data is not properly formatted. Please try again.'
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(f"Registration error: {e}")
             return Response({
-                'error': 'Internal server error'
+                'error': 'Server error',
+                'message': 'An unexpected error occurred while creating your account. Please try again later.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @staticmethod

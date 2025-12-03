@@ -81,14 +81,20 @@ const RegisterScreen: React.FC = () => {
     }
 
     try {
-      
       const result = await register(credentials);
       
-      
-      if (!result.success) {
+      if (result.success) {
+        // Show success message
+        Alert.alert(
+          '✓ Registration Successful',
+          result.message || 'Welcome! Your account has been created successfully.',
+          [{ text: 'Get Started' }]
+        );
+      } else {
+        // Display the error message from backend
         Alert.alert(
           'Registration Failed', 
-          `Error: ${result.message}\n\nPlease check:\n1. Your internet connection\n2. Backend server is running\n3. API URL is correct`,
+          result.message || 'Unable to create account. Please try again.',
           [
             { text: 'OK' },
             { text: 'Retry', onPress: handleRegister }
@@ -96,19 +102,18 @@ const RegisterScreen: React.FC = () => {
         );
       }
     } catch (error: any) {
-      
       let errorMessage = 'Unknown error occurred';
       
       if (error.message?.includes('Network Error')) {
-        errorMessage = 'Network Error: Cannot connect to server. Please check:\n1. Backend server is running on http://192.168.18.224:8000\n2. Your device is connected to the same WiFi network\n3. Firewall is not blocking the connection';
+        errorMessage = 'Network Error: Cannot connect to server. Please check your internet connection and ensure the backend is running.';
       } else if (error.message?.includes('timeout')) {
         errorMessage = 'Request timeout: Server took too long to respond. Please try again.';
       } else if (error.message?.includes('ECONNREFUSED')) {
         errorMessage = 'Connection refused: Backend server is not running or not accessible.';
       } else if (error.message?.includes('ENOTFOUND')) {
-        errorMessage = 'Server not found: Check if the IP address 192.168.18.224 is correct.';
+        errorMessage = 'Server not found: Please check your internet connection.';
       } else {
-        errorMessage = `Error: ${error.message || 'Unknown error'}`;
+        errorMessage = error.message || 'Unknown error occurred';
       }
       
       Alert.alert(

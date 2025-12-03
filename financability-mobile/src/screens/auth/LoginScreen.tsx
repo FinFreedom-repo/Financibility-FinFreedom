@@ -74,8 +74,16 @@ const LoginScreen: React.FC = () => {
     try {
       const result = await login(credentials);
       
-      if (!result.success) {
-        setLoginError(result.message);
+      if (result.success) {
+        // Show success message
+        Alert.alert(
+          '✓ Login Successful',
+          result.message || 'Welcome back! You have successfully logged in.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Display the error message from backend or use default
+        setLoginError(result.message || 'Login failed. Please try again.');
       }
     } catch (error: any) {
       let errorMessage = 'Unknown error occurred';

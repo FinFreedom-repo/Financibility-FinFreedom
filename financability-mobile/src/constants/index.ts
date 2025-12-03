@@ -185,16 +185,33 @@ export const ERROR_MESSAGES = {
   SERVER_ERROR: 'Server error. Please try again later.',
   VALIDATION: 'Please check your input and try again.',
   UNKNOWN: 'An unexpected error occurred.',
+  // Auth specific errors
+  USER_NOT_FOUND: 'No account found with that username.',
+  INCORRECT_PASSWORD: 'The password you entered is incorrect.',
+  USERNAME_TAKEN: 'This username is already taken.',
+  EMAIL_TAKEN: 'An account with this email already exists.',
+  WEAK_PASSWORD: 'Password must be at least 8 characters long.',
+  INVALID_EMAIL: 'Please enter a valid email address.',
 } as const;
 
 // Success Messages
 export const SUCCESS_MESSAGES = {
-  LOGIN: 'Successfully logged in!',
-  REGISTER: 'Account created successfully!',
-  LOGOUT: 'Successfully logged out!',
+  LOGIN: 'Welcome back! You have successfully logged in.',
+  REGISTER: 'Welcome! Your account has been created successfully.',
+  LOGOUT: 'You have been logged out successfully.',
   SAVE: 'Changes saved successfully!',
   DELETE: 'Item deleted successfully!',
   UPDATE: 'Updated successfully!',
+} as const;
+
+// Loading Messages
+export const LOADING_MESSAGES = {
+  LOGIN: 'Signing you in...',
+  REGISTER: 'Creating your account...',
+  LOADING: 'Loading...',
+  AUTHENTICATING: 'Authenticating...',
+  SAVING: 'Saving changes...',
+  DELETING: 'Deleting...',
 } as const;
 
 // Chart Colors
