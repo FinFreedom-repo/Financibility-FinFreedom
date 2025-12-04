@@ -46,6 +46,7 @@ export interface CreateBudgetData {
   additional_items: BudgetItem[];
   savings_items: BudgetItem[];
   manually_edited_categories: string[];
+  total_remaining_debt?: number;
 }
 
 export interface BudgetSummary {

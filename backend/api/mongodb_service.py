@@ -1261,7 +1261,7 @@ class BudgetService(MongoDBService):
                 default_budget["expenses"].update(budget_data["expenses"])
             
             # Update other fields
-            for key in ["income", "additional_income", "additional_income_items", "additional_items", "savings_items", "manually_edited_categories"]:
+            for key in ["income", "additional_income", "additional_income_items", "additional_items", "savings_items", "manually_edited_categories", "total_remaining_debt"]:
                 if key in budget_data:
                     default_budget[key] = budget_data[key]
             

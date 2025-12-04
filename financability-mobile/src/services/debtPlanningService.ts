@@ -24,8 +24,9 @@ export interface BudgetData {
   _id?: string;
   income?: number;
   additional_income?: number;
-  additional_income_items?: Array<{ name: string; amount: number }>;
+  additional_income_items?: { name: string; amount: number }[];
   expenses?: Record<string, number>;
+  total_remaining_debt?: number;
 }
 
 export interface DebtPlannerRequest {
@@ -41,18 +42,18 @@ export interface DebtPlannerResponse {
     total_months: number;
     total_interest_paid: number;
     total_payments: number;
-    monthly_payments: Array<{
+    monthly_payments: {
       month: number;
       year: number;
       total_payment: number;
-      debts: Array<{
+      debts: {
         debt_id: string;
         debt_name: string;
         payment: number;
         remaining_balance: number;
         interest_paid: number;
-      }>;
-    }>;
+      }[];
+    }[];
   };
 }
 

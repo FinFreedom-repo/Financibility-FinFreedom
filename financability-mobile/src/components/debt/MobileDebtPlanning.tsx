@@ -319,7 +319,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         setEditableMonths(monthBudgets);
       }
 
-      // Update remaining debt from debts if we have debts but no budget or no net savings
+      // Update remaining debt from debts - always populate historical months
       const debts = debtsToUse || outstandingDebts;
       if (debts && debts.length > 0) {
         const filteredDebts = debts.filter(d => {
@@ -329,29 +329,15 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         });
 
         if (filteredDebts.length > 0) {
-          // Check if we have net savings data
-          const netSavingsRow = gridData.find(
-            row => row.category === 'Net Savings'
+          // Always update remaining debt to populate historical months
+          // The function will handle current/future months based on net savings
+          const updatedGridData = updateRemainingDebtFromDebts(
+            gridData,
+            filteredDebts,
+            genMonths
           );
-          const currentMonthIdx = genMonths.findIndex(
-            m => m.type === 'current'
-          );
-          const hasNetSavings =
-            netSavingsRow &&
-            parseFloat(
-              netSavingsRow[`month_${currentMonthIdx}`]?.toString() || '0'
-            ) > 0;
-
-          // If no net savings, update remaining debt directly
-          if (!hasNetSavings) {
-            const updatedGridData = updateRemainingDebtFromDebts(
-              gridData,
-              filteredDebts,
-              genMonths
-            );
-            setLocalGridData(updatedGridData);
-            localGridDataRef.current = updatedGridData;
-          }
+          setLocalGridData(updatedGridData);
+          localGridDataRef.current = updatedGridData;
         }
       }
     } catch (error) {
@@ -639,6 +625,20 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
                 (expenseRow as any)[`month_${monthIdx}`] = amount || 0;
               }
             });
+          }
+
+          // Populate Remaining Debt from stored snapshot for historical months
+          if (months[monthIdx]?.type === 'historical') {
+            const remainingDebtRow = gridData.find(
+              row => row.category === 'Remaining Debt'
+            );
+            if (
+              remainingDebtRow &&
+              (budget as any).total_remaining_debt !== undefined
+            ) {
+              (remainingDebtRow as any)[`month_${monthIdx}`] =
+                (budget as any).total_remaining_debt || 0;
+            }
           }
         }
       });
@@ -974,6 +974,49 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     [lockedCells, recalculateNetSavings]
   );
 
+  // Helper function to calculate total debt for a given month/year
+  const calculateTotalDebtForMonth = (
+    month: number,
+    year: number,
+    debts: Debt[]
+  ): number => {
+    if (!debts || debts.length === 0) return 0;
+
+    const targetDate = new Date(year, month - 1, 1);
+
+    const totalDebt = debts
+      .filter(d => {
+        const debtType = d.debt_type || '';
+        if (debtType === 'mortgage') return false;
+
+        const effectiveDate = d.effective_date;
+        if (!effectiveDate) return false;
+
+        const debtDate = new Date(effectiveDate);
+        if (isNaN(debtDate.getTime())) return false;
+
+        // Debt existed if effective_date is on or before the target month
+        return debtDate <= targetDate;
+      })
+      .reduce((sum, debt) => {
+        // For historical months, use original amount; for current/future, use balance
+        const currentDate = new Date();
+        const isHistorical =
+          targetDate <
+          new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const amount = isHistorical
+          ? parseFloat(
+              debt.amount?.toString() || debt.balance?.toString() || '0'
+            )
+          : parseFloat(
+              debt.balance?.toString() || debt.amount?.toString() || '0'
+            );
+        return sum + (amount || 0);
+      }, 0);
+
+    return totalDebt;
+  };
+
   const saveMonthChangesDirectly = async (
     month: number,
     year: number,
@@ -1089,10 +1132,16 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
 
       // Handle income
       if (budgetField === 'income') {
+        const totalDebt = calculateTotalDebtForMonth(
+          month,
+          year,
+          outstandingDebts || []
+        );
         if (existingBudget) {
           await budgetService.updateBudget(existingBudget._id!, {
             ...existingBudget,
             income: value,
+            total_remaining_debt: totalDebt,
           });
         } else {
           await budgetService.saveMonthBudget({
@@ -1118,12 +1167,18 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             additional_items: [],
             savings_items: [],
             manually_edited_categories: [category],
+            total_remaining_debt: totalDebt,
           });
         }
         return;
       }
 
       // Handle expenses
+      const totalDebt = calculateTotalDebtForMonth(
+        month,
+        year,
+        outstandingDebts || []
+      );
       if (existingBudget) {
         const updatedExpenses = {
           ...existingBudget.expenses,
@@ -1139,6 +1194,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
               ? []
               : [category]),
           ],
+          total_remaining_debt: totalDebt,
         });
       } else {
         const expenses: any = {
@@ -1167,6 +1223,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
           additional_items: [],
           savings_items: [],
           manually_edited_categories: [category],
+          total_remaining_debt: totalDebt,
         });
       }
     } catch (error) {

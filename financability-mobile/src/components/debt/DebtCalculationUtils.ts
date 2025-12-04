@@ -219,7 +219,7 @@ export const updateRemainingDebtFromDebts = (
   if (remainingDebtRow && outstandingDebts && outstandingDebts.length > 0) {
     const currentMonthIdx = months.findIndex(m => m.type === 'current');
 
-    // Calculate total debt (excluding mortgages)
+    // Calculate total debt for current and future months (excluding mortgages)
     const totalDebt = outstandingDebts
       .filter(d => {
         const balance = parseFloat(d.balance?.toString() || '0');
@@ -230,13 +230,16 @@ export const updateRemainingDebtFromDebts = (
         return sum + (parseFloat(debt.balance?.toString() || '0') || 0);
       }, 0);
 
-    // Only set debt from current month forward, not in historical months
-    months.forEach((_, idx) => {
+    // Set debt for each month
+    months.forEach((month, idx) => {
       if (idx >= currentMonthIdx) {
+        // Current and future months: use current total debt
         remainingDebtRow[`month_${idx}`] = totalDebt;
       } else {
-        // Historical months should remain at 0
-        remainingDebtRow[`month_${idx}`] = 0;
+        // Historical months: skip - they are set from budget snapshots in transformBackendBudgetsToGrid
+        // Historical months are "freeze frames" and should not be recalculated
+        // They are populated from the total_remaining_debt field in budgets
+        return;
       }
     });
   }
