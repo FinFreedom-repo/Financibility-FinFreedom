@@ -7,10 +7,6 @@ export const calculateDebtPayoffPlanFrontend = (
   strategyType: 'snowball' | 'avalanche',
   months: any[]
 ) => {
-  console.log(
-    '🔄 Calculating debt payoff plan on frontend with corrected timing...'
-  );
-
   if (!debts || debts.length === 0 || !netSavingsData) {
     return null;
   }
@@ -133,7 +129,6 @@ export const calculateDebtPayoffPlanFrontend = (
     plan.push(monthPlan);
   }
 
-  console.log('✅ Frontend debt payoff plan calculated with same-month timing');
   return { plan };
 };
 

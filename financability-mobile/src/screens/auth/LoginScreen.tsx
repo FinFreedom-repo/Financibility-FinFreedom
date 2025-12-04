@@ -83,7 +83,15 @@ const LoginScreen: React.FC = () => {
         );
       } else {
         // Display the error message from backend or use default
-        setLoginError(result.message || 'Login failed. Please try again.');
+        const errorMsg = result.message || 'Login failed. Please try again.';
+        setLoginError(errorMsg);
+        
+        // Also show as Alert for better visibility
+        Alert.alert(
+          '❌ Login Failed',
+          errorMsg,
+          [{ text: 'OK' }]
+        );
       }
     } catch (error: any) {
       let errorMessage = 'Unknown error occurred';
@@ -101,6 +109,13 @@ const LoginScreen: React.FC = () => {
       }
       
       setLoginError(errorMessage);
+      
+      // Show error as Alert
+      Alert.alert(
+        '❌ Connection Error',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
     }
   };
 

@@ -128,9 +128,15 @@ class ApiClient {
         const originalRequest = error.config;
 
         // Handle 401 (Unauthorized) and 403 (Forbidden) - both indicate auth issues
+        // BUT: Don't try to refresh token for login/register endpoints
+        const isAuthEndpoint =
+          originalRequest.url?.includes('/login') ||
+          originalRequest.url?.includes('/register');
+
         if (
           (error.response?.status === 401 || error.response?.status === 403) &&
-          !originalRequest._retry
+          !originalRequest._retry &&
+          !isAuthEndpoint // Skip token refresh for auth endpoints
         ) {
           if (this.isRefreshing) {
             // If already refreshing, queue the request
@@ -317,20 +323,16 @@ class ApiClient {
       // Server responded with error status
       const { status, data } = error.response;
 
-      // Handle specific authentication errors
-      if (status === 401) {
-        return {
-          error: 'Incorrect username or password',
-          status,
-        };
-      }
+      // Extract error message from backend response
+      // Backend sends both 'error' and 'message' fields
+      const errorMessage =
+        data?.message ||
+        data?.error ||
+        data?.detail ||
+        ERROR_MESSAGES.SERVER_ERROR;
 
       return {
-        error:
-          data?.error ||
-          data?.detail ||
-          data?.message ||
-          ERROR_MESSAGES.SERVER_ERROR,
+        error: errorMessage,
         status,
       };
     } else if (error.request) {

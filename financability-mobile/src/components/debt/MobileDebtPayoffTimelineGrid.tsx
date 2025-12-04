@@ -188,10 +188,11 @@ const MobileDebtPayoffTimelineGrid: React.FC<
         }
       });
 
-      sortedDebts.forEach(debt => {
+      sortedDebts.forEach((debt, debtIndex) => {
         const debtRow = {
           category: debt.name,
           type: 'debt',
+          debtId: debt.id || debt._id || `debt-${debtIndex}`,
           ...months.reduce((acc, _, idx) => {
             const planIdx = idx - currentMonthIdx;
             if (idx < currentMonthIdx || planIdx < 0) {
@@ -349,9 +350,10 @@ const MobileDebtPayoffTimelineGrid: React.FC<
     );
   };
 
-  const renderCategoryRow = (row: Record<string, any>) => {
+  const renderCategoryRow = (row: Record<string, any>, index: number) => {
+    const uniqueKey = row.debtId || row.category || `row-${index}`;
     return (
-      <View key={row.category} style={styles.row}>
+      <View key={uniqueKey} style={styles.row}>
         <View style={styles.categoryCell}>
           <Text
             style={[
@@ -493,7 +495,7 @@ const MobileDebtPayoffTimelineGrid: React.FC<
           </View>
 
           {/* Data rows */}
-          {gridData.map(renderCategoryRow)}
+          {gridData.map((row, index) => renderCategoryRow(row, index))}
         </View>
       </ScrollView>
     </View>

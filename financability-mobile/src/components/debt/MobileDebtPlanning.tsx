@@ -158,13 +158,12 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       const debtsData = await debtPlanningService.getDebts();
       setOutstandingDebts(debtsData || []);
 
-      // Initialize grid data
-      await initializeGridData();
+      // Initialize grid data - pass debts directly to avoid state timing issues
+      await initializeGridData(debtsData || []);
 
       // Reset recalculation trigger to allow recalculation after new debts are loaded
       recalculationTriggered.current = false;
     } catch (error) {
-      console.error('💳 Error loading initial data:', error);
       Alert.alert('Error', 'Failed to load initial data: ' + error);
     } finally {
       setLoading(false);
@@ -262,17 +261,19 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     }
   }, [backendBudgets]);
 
-  const initializeGridData = async () => {
+  const initializeGridData = async (debtsToUse?: Debt[]) => {
     try {
       setIsInitializingGrid(true);
 
       const budgets = await debtPlanningService.getBudgetData();
       setBackendBudgets(budgets);
 
+      const genMonths = generateMonths();
+      let gridData: Record<string, any>[];
+
       if (budgets.length === 0) {
         // No budget data - initialize empty grid
-        const genMonths = generateMonths();
-        const gridData = transformBackendBudgetsToGrid([]);
+        gridData = transformBackendBudgetsToGrid([]);
         setLocalGridData(gridData);
         localGridDataRef.current = gridData;
 
@@ -289,36 +290,70 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             actualNetSavings: 0,
           }));
         setEditableMonths(monthBudgets);
-        return;
+      } else {
+        // Transform backend budget data to grid format
+        gridData = transformBackendBudgetsToGrid(budgets);
+        setLocalGridData(gridData);
+        localGridDataRef.current = gridData;
+
+        // Initialize editable months
+        const currentIdx = genMonths.findIndex(m => m.type === 'current');
+        const monthBudgets = genMonths
+          .filter(
+            (m, idx) =>
+              idx >= currentIdx &&
+              idx < currentIdx + Math.max(12, projectionMonths)
+          )
+          .map(m => {
+            const budget = budgets.find(
+              b => b.month === m.month && b.year === m.year
+            );
+            return {
+              month: m.month,
+              year: m.year,
+              actualNetSavings: budget
+                ? calculateNetSavingsFromBudget(budget)
+                : 0,
+            };
+          });
+        setEditableMonths(monthBudgets);
       }
 
-      // Transform backend budget data to grid format
-      const gridData = transformBackendBudgetsToGrid(budgets);
-      setLocalGridData(gridData);
-      localGridDataRef.current = gridData;
-
-      // Initialize editable months
-      const genMonths = generateMonths();
-      const currentIdx = genMonths.findIndex(m => m.type === 'current');
-      const monthBudgets = genMonths
-        .filter(
-          (m, idx) =>
-            idx >= currentIdx &&
-            idx < currentIdx + Math.max(12, projectionMonths)
-        )
-        .map(m => {
-          const budget = budgets.find(
-            b => b.month === m.month && b.year === m.year
-          );
-          return {
-            month: m.month,
-            year: m.year,
-            actualNetSavings: budget
-              ? calculateNetSavingsFromBudget(budget)
-              : 0,
-          };
+      // Update remaining debt from debts if we have debts but no budget or no net savings
+      const debts = debtsToUse || outstandingDebts;
+      if (debts && debts.length > 0) {
+        const filteredDebts = debts.filter(d => {
+          const balance = parseFloat(d.balance?.toString() || '0');
+          const debtType = d.debt_type || '';
+          return balance > 0 && debtType !== 'mortgage';
         });
-      setEditableMonths(monthBudgets);
+
+        if (filteredDebts.length > 0) {
+          // Check if we have net savings data
+          const netSavingsRow = gridData.find(
+            row => row.category === 'Net Savings'
+          );
+          const currentMonthIdx = genMonths.findIndex(
+            m => m.type === 'current'
+          );
+          const hasNetSavings =
+            netSavingsRow &&
+            parseFloat(
+              netSavingsRow[`month_${currentMonthIdx}`]?.toString() || '0'
+            ) > 0;
+
+          // If no net savings, update remaining debt directly
+          if (!hasNetSavings) {
+            const updatedGridData = updateRemainingDebtFromDebts(
+              gridData,
+              filteredDebts,
+              genMonths
+            );
+            setLocalGridData(updatedGridData);
+            localGridDataRef.current = updatedGridData;
+          }
+        }
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to load budget data. Please try again.');
       // Initialize empty grid on error
@@ -330,9 +365,8 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       setIsInitializingGrid(false);
 
       // Trigger initial debt payoff calculation after grid is initialized
-      // The useEffect watching localGridData will also trigger, but we want to ensure
-      // it runs after initialization is complete
-      if (outstandingDebts.length > 0) {
+      const debts = debtsToUse || outstandingDebts;
+      if (debts && debts.length > 0) {
         // Use requestAnimationFrame to ensure state updates are flushed
         requestAnimationFrame(() => {
           setTimeout(() => {
@@ -630,27 +664,24 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         return true;
       });
 
+      // Propagate current month values to future months only (not historical months)
+      // Historical months are "freeze frames" - they should only show data from their actual database entries
       if (currentMonthIdx !== -1) {
         filteredGridData.forEach(row => {
           const currentValue = (row as any)[`month_${currentMonthIdx}`] || 0;
           for (let idx = 0; idx < months.length; idx++) {
+            // Skip historical months - they are freeze frames and should never be propagated
             if (months[idx].type === 'historical') {
-              // For historical months, always use current month's value
-              (row as any)[`month_${idx}`] = currentValue;
               continue;
             }
-            // For future months: only fill with current value if:
-            // 1. This month has NO database entry (not in dbMonthIndices)
-            // 2. AND the current value is 0 (meaning no data was loaded from backend)
-            // This preserves any values that were loaded from the database above
+            // Only propagate to future months that don't have database entries and are currently 0
             if (
+              months[idx].type === 'future' &&
               !dbMonthIndices.has(idx) &&
               (row as any)[`month_${idx}`] === 0
             ) {
               (row as any)[`month_${idx}`] = currentValue;
             }
-            // If dbMonthIndices.has(idx) is true, the value was already set from backend data above
-            // and should NOT be overwritten
           }
         });
       }
@@ -926,22 +957,8 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         setPropagationProgress(progress);
       }
 
-      // Update historical months immediately in frontend
-      for (let i = 0; i < currentMonthIdx; i++) {
-        const histMonth = months[i];
-        if (!histMonth || histMonth.type !== 'historical') continue;
-
-        setLocalGridData(prev => {
-          const updated = prev.map(row => {
-            if (row.category === category) {
-              return { ...row, [`month_${i}`]: currentVal } as any;
-            }
-            return row;
-          });
-          localGridDataRef.current = updated;
-          return updated;
-        });
-      }
+      // Historical months are freeze frames - never update them via propagation
+      // They should only show data from their actual database entries
 
       // Recalculate net savings after propagation
       setLocalGridData(prev => {
@@ -964,9 +981,6 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     value: number
   ) => {
     try {
-      console.log(
-        `💾 saveMonthChangesDirectly called: ${category} = ${value} for ${month}/${year}`
-      );
       // Use static import - budgetService is imported at the top of the file
 
       // Get existing budget for this month/year or create new one
@@ -1070,28 +1084,17 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
           }
           return;
         }
-        console.log('Unknown category:', category);
         return;
       }
 
       // Handle income
       if (budgetField === 'income') {
         if (existingBudget) {
-          console.log(
-            `💾 Updating existing budget ${existingBudget._id} with income=${value}`
-          );
-          const updated = await budgetService.updateBudget(
-            existingBudget._id!,
-            {
-              ...existingBudget,
-              income: value,
-            }
-          );
-          console.log(`✅ Budget updated successfully:`, updated);
+          await budgetService.updateBudget(existingBudget._id!, {
+            ...existingBudget,
+            income: value,
+          });
         } else {
-          console.log(
-            `💾 Creating new budget for ${month}/${year} with income=${value}`
-          );
           await budgetService.saveMonthBudget({
             month,
             year,
@@ -1120,17 +1123,14 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         return;
       }
 
-      // Handle expensesc
+      // Handle expenses
       if (existingBudget) {
         const updatedExpenses = {
           ...existingBudget.expenses,
           [budgetField]: value,
         };
 
-        console.log(
-          `💾 Updating existing budget ${existingBudget._id} with ${budgetField}=${value}`
-        );
-        const updated = await budgetService.updateBudget(existingBudget._id!, {
+        await budgetService.updateBudget(existingBudget._id!, {
           ...existingBudget,
           expenses: updatedExpenses,
           manually_edited_categories: [
@@ -1140,11 +1140,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
               : [category]),
           ],
         });
-        console.log(`✅ Budget updated successfully:`, updated);
       } else {
-        console.log(
-          `💾 Creating new budget for ${month}/${year} with ${budgetField}=${value}`
-        );
         const expenses: any = {
           housing: 0,
           transportation: 0,
@@ -1174,7 +1170,6 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         });
       }
     } catch (error) {
-      console.error('Error saving month changes:', error);
       // Re-throw the error so the caller knows the save failed
       throw new Error(
         `Failed to save ${category} for ${month}/${year}: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -1218,6 +1213,15 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       });
 
       if (filteredDebts.length === 0) {
+        setLocalGridData(prevData => {
+          const updated = updateRemainingDebtFromDebts(
+            prevData,
+            outstandingDebts,
+            months
+          );
+          localGridDataRef.current = updated;
+          return updated;
+        });
         return;
       }
 
@@ -1229,8 +1233,6 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       );
 
       if (freshPayoffPlan && freshPayoffPlan.plan) {
-        // Set payoffPlan in the format that MobileDebtPayoffTimelineGrid expects
-        // The grid expects payoffPlan.plan[].debts[] structure
         setPayoffPlan({
           plan: freshPayoffPlan.plan.map((month: any) => ({
             month: month.month || 0,
@@ -1261,8 +1263,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
           setGridForceUpdate(prev => prev + 1);
           return updatedData;
         });
-      } else if (filteredDebts.length > 0) {
-        // If calculation failed but we have debts, update Remaining Debt from debts
+      } else {
         setLocalGridData(prevData => {
           const updated = updateRemainingDebtFromDebts(
             prevData,
