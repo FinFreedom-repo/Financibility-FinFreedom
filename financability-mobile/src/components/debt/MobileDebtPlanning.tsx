@@ -48,20 +48,11 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
   const [editableMonths, setEditableMonths] = useState<any[]>([]);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0);
 
-  const [gridUpdating, setGridUpdating] = useState(false);
   const [strategy, setStrategy] = useState<'snowball' | 'avalanche'>(
     'snowball'
   );
   const [isInitializingGrid, setIsInitializingGrid] = useState(false);
-
-  const [lockedCells, setLockedCells] = useState<Record<number, string[]>>({});
-  const [, setUserEditedCells] = useState(new Map());
-
-  const [, setIsUpdatingCell] = useState(false);
-  const [, setPropagationProgress] = useState(0);
-
   const [isPropagatingChanges, setIsPropagatingChanges] = useState(false);
-  const [propagationStatus] = useState('');
 
   const [payoffPlan, setPayoffPlan] = useState<DebtPlannerResponse | null>(
     null
@@ -79,8 +70,6 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     debt: null as Debt | null,
   });
 
-  const [, setGridForceUpdate] = useState(0);
-  const gridUpdateCounter = useRef(0);
   const isUserEditingRef = useRef(false);
   const isLoadingRef = useRef(false);
   const localGridDataRef = useRef<Record<string, any>[]>([]);
@@ -147,22 +136,15 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
   }, [historicalMonthsShown, projectionMonths]);
 
   const loadInitialData = useCallback(async () => {
-    // Prevent multiple simultaneous loads
     if (isLoadingRef.current) return;
 
     try {
       isLoadingRef.current = true;
       setLoading(true);
 
-      // Load debts
       const debtsData = await debtPlanningService.getDebts();
       setOutstandingDebts(debtsData || []);
-
-      // Initialize grid data - pass debts directly to avoid state timing issues
       await initializeGridData(debtsData || []);
-
-      // Reset recalculation trigger to allow recalculation after new debts are loaded
-      recalculationTriggered.current = false;
     } catch (error) {
       Alert.alert('Error', 'Failed to load initial data: ' + error);
     } finally {
@@ -206,9 +188,8 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       backendBudgets &&
       backendBudgets.length > 0 &&
       !isInitializingGrid &&
-      !gridUpdating &&
       !isUserEditingRef.current &&
-      localGridData.length === 0 // Only rebuild if we have no local data yet
+      localGridData.length === 0
     ) {
       // Only rebuild on initial load when we have no local grid data
       // After that, local state updates handle all changes
@@ -240,26 +221,18 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         });
       setEditableMonths(monthBudgets);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     projectionMonths,
     historicalMonthsShown,
     backendBudgets,
     generateMonths,
     isInitializingGrid,
-    // Don't include gridUpdating - we use isUserEditingRef instead
+    localGridData.length,
+    // transformBackendBudgetsToGrid is stable via useCallback and has deps: generateMonths, recalculateNetSavings
+    // Both are implicitly covered: generateMonths is listed above, recalculateNetSavings has dep: generateMonths
+    // Adding it here would cause ordering issues (defined later at line 419)
   ]);
-
-  // Auto-recalculate debt payoff when backend budgets change
-  useEffect(() => {
-    if (
-      outstandingDebts?.length &&
-      localGridData?.length &&
-      !debtCalculationInProgress &&
-      !isInitializingGrid
-    ) {
-      handleDebtChange();
-    }
-  }, [backendBudgets]);
 
   const initializeGridData = async (debtsToUse?: Debt[]) => {
     try {
@@ -272,7 +245,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       let gridData: Record<string, any>[];
 
       if (budgets.length === 0) {
-        // No budget data - initialize empty grid
+        // No budget data - initialize empty gridWe check localGridDataRef.current for empt
         gridData = transformBackendBudgetsToGrid([]);
         setLocalGridData(gridData);
         localGridDataRef.current = gridData;
@@ -319,7 +292,6 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         setEditableMonths(monthBudgets);
       }
 
-      // Update remaining debt from debts - always populate historical months
       const debts = debtsToUse || outstandingDebts;
       if (debts && debts.length > 0) {
         const filteredDebts = debts.filter(d => {
@@ -329,37 +301,73 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         });
 
         if (filteredDebts.length > 0) {
-          // Always update remaining debt to populate historical months
-          // The function will handle current/future months based on net savings
-          const updatedGridData = updateRemainingDebtFromDebts(
-            gridData,
-            filteredDebts,
-            genMonths
+          const netSavingsRow = gridData.find(
+            row => row.category === 'Net Savings'
           );
-          setLocalGridData(updatedGridData);
-          localGridDataRef.current = updatedGridData;
+
+          if (netSavingsRow) {
+            const freshPayoffPlan = calculateDebtPayoffPlanFrontend(
+              netSavingsRow,
+              filteredDebts,
+              strategy,
+              genMonths
+            );
+
+            if (freshPayoffPlan && freshPayoffPlan.plan) {
+              const updatedWithPayoff = updateTotalDebtFromPayoffPlan(
+                gridData,
+                freshPayoffPlan,
+                genMonths
+              );
+              setLocalGridData(updatedWithPayoff);
+              localGridDataRef.current = updatedWithPayoff;
+
+              setPayoffPlan({
+                plan: freshPayoffPlan.plan.map((month: any) => ({
+                  month: month.month || 0,
+                  debts: month.debts || [],
+                  totalPaid: month.totalPaid || 0,
+                  totalInterest: month.totalInterest || 0,
+                  remainingDebt: month.remainingDebt || 0,
+                })),
+                total_months: freshPayoffPlan.plan.length,
+                total_interest_paid: freshPayoffPlan.plan.reduce(
+                  (sum: number, month: any) => sum + (month.totalInterest || 0),
+                  0
+                ),
+                total_payments: freshPayoffPlan.plan.reduce(
+                  (sum: number, month: any) => sum + (month.totalPaid || 0),
+                  0
+                ),
+              } as any);
+            } else {
+              const updatedGridData = updateRemainingDebtFromDebts(
+                gridData,
+                filteredDebts,
+                genMonths
+              );
+              setLocalGridData(updatedGridData);
+              localGridDataRef.current = updatedGridData;
+            }
+          } else {
+            const updatedGridData = updateRemainingDebtFromDebts(
+              gridData,
+              filteredDebts,
+              genMonths
+            );
+            setLocalGridData(updatedGridData);
+            localGridDataRef.current = updatedGridData;
+          }
         }
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to load budget data. Please try again.');
-      // Initialize empty grid on error
       const gridData = transformBackendBudgetsToGrid([]);
       setLocalGridData(gridData);
       localGridDataRef.current = gridData;
       setEditableMonths([]);
     } finally {
       setIsInitializingGrid(false);
-
-      // Trigger initial debt payoff calculation after grid is initialized
-      const debts = debtsToUse || outstandingDebts;
-      if (debts && debts.length > 0) {
-        // Use requestAnimationFrame to ensure state updates are flushed
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            triggerImmediateDebtRecalculation();
-          }, 500);
-        });
-      }
     }
   };
 
@@ -692,7 +700,7 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
       // This ensures it's always calculated from the current budget data
       return calculatedData;
     },
-    [generateMonths, outstandingDebts, recalculateNetSavings]
+    [generateMonths, recalculateNetSavings]
   );
 
   const calculateNetSavingsFromBudget = (budget: BudgetData) => {
@@ -705,407 +713,177 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     );
     return totalIncome - expenses;
   };
-
-  const onCellValueChanged = useCallback(
-    async (monthIdx: number, category: string, newValue: string) => {
-      const months = generateMonths();
-      if (!months[monthIdx]) return;
-
-      // Don't allow editing calculated fields
-      if (category === 'Net Savings' || category === 'Remaining Debt') {
-        return;
-      }
-
-      if (isInitializingGrid) {
-        return;
-      }
-
-      // Parse the value
-      const parsedValue = (() => {
-        const trimmed = newValue.trim();
-        if (trimmed === '' || trimmed === '-') return 0;
-        const num = parseFloat(trimmed);
-        return isNaN(num) ? 0 : num;
-      })();
-
-      // OPTIMISTIC UPDATE: Update local state immediately (no waiting, no reload)
-      setLocalGridData(prev => {
-        const updated = prev.map(row => {
-          if (row.category === category) {
-            return {
-              ...row,
-              [`month_${monthIdx}`]: parsedValue,
-            } as any;
-          }
-          return row;
-        });
-        // Recalculate net savings after the update
-        // The debt calculation useEffect will automatically trigger when localGridData changes
-        const recalculated = recalculateNetSavings(updated);
-        localGridDataRef.current = recalculated;
-        return recalculated;
-      });
-
-      // Save to backend in the background (don't block UI, don't reload)
-      const month = months[monthIdx];
-      saveMonthChangesDirectly(month.month, month.year, category, parsedValue)
-        .then(() => {
-          // Success - optimistic update already shown, nothing to do
-        })
-        .catch(error => {
-          // Save failed - show error and offer to reload
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          Alert.alert(
-            'Save Failed',
-            `Failed to save ${category}: ${errorMessage}\n\nWould you like to reload the data?`,
-            [
-              {
-                text: 'Cancel',
-                style: 'cancel',
-              },
-              {
-                text: 'Reload',
-                onPress: () => {
-                  loadInitialData();
-                },
-              },
-            ]
-          );
-        });
-    },
-    [isInitializingGrid, generateMonths, recalculateNetSavings, loadInitialData]
-  );
-
-  const handleRealTimeGridUpdate = useCallback(
-    async (
-      monthIdx: number,
-      category: string,
-      newValue: string,
-      months: any[]
-    ) => {
-      return new Promise<Record<string, any>[]>(resolve => {
-        setLocalGridData(prev => {
-          let updated = prev.map(row => {
-            if (row.category === category) {
-              const parsedValue = (() => {
-                const trimmed = newValue.trim();
-                if (trimmed === '' || trimmed === '-') return 0;
-                const num = parseFloat(trimmed);
-                return isNaN(num) ? 0 : num;
-              })();
-              return {
-                ...row,
-                [`month_${monthIdx}`]: parsedValue,
-              } as any;
-            }
-            return row;
-          });
-
-          // If this is an Additional Income item and the row doesn't exist, create it
-          if (
-            category !== 'Primary Income' &&
-            category !== 'Net Savings' &&
-            category !== 'Remaining Debt' &&
-            !updated.find(row => row.category === category)
-          ) {
-            const additionalIncomeRow = {
-              category: category,
-              type: 'additional_income',
-              ...months.reduce(
-                (acc, _, idx) => ({ ...acc, [`month_${idx}`]: 0 }),
-                {}
-              ),
-            };
-            const parsedValue = (() => {
-              const trimmed = newValue.trim();
-              if (trimmed === '' || trimmed === '-') return 0;
-              const num = parseFloat(trimmed);
-              return isNaN(num) ? 0 : num;
-            })();
-            (additionalIncomeRow as any)[`month_${monthIdx}`] = parsedValue;
-
-            // Insert after Primary Income
-            const primaryIncomeIndex = updated.findIndex(
-              row => row.category === 'Primary Income'
-            );
-            if (primaryIncomeIndex !== -1) {
-              updated.splice(primaryIncomeIndex + 1, 0, additionalIncomeRow);
-            } else {
-              updated.push(additionalIncomeRow);
-            }
-          }
-
-          // Recalculate net savings after updating the cell
-          const recalculated = recalculateNetSavings(updated);
-
-          // Update editableMonths with fresh Net Savings from the grid
-          const netSavingsRow = recalculated.find(
-            row => row.category === 'Net Savings'
-          );
-          if (netSavingsRow) {
-            const currentMonthIdx = months.findIndex(m => m.type === 'current');
-            const monthBudgetsForDebtCalc = editableMonths.map(
-              (budget, idx) => {
-                const gridColumnIdx = currentMonthIdx + idx;
-                const netSavingsValue =
-                  (netSavingsRow as any)[`month_${gridColumnIdx}`] || 0;
-                return {
-                  ...budget,
-                  actualNetSavings: netSavingsValue,
-                };
-              }
-            );
-
-            setEditableMonths(monthBudgetsForDebtCalc);
-          }
-
-          resolve(recalculated);
-          return recalculated;
-        });
-      });
-    },
-    [editableMonths, recalculateNetSavings]
-  );
-
-  const propagateCurrentMonthChanges = useCallback(
-    async (
-      currentMonthIdx: number,
-      category: string,
-      newValue: string,
-      months: any[],
-      updatedGridData: Record<string, any>[]
-    ) => {
-      const currentVal = (() => {
-        const trimmed = newValue.trim();
-        if (trimmed === '' || trimmed === '-') return 0;
-        const num = parseFloat(trimmed);
-        return isNaN(num) ? 0 : num;
-      })();
-
-      setIsPropagatingChanges(true);
-      setPropagationProgress(0);
-
-      // Immediate frontend propagation (no database calls)
-      const changesToSave = [];
-      let propagatedCount = 0;
-      const totalFutureMonths = months.filter(
-        (_, idx) => idx > currentMonthIdx && months[idx]?.type === 'future'
-      ).length;
-
-      // Update all future months immediately in frontend state
-      for (let i = currentMonthIdx + 1; i < months.length; i++) {
-        const futureMonth = months[i];
-        if (!futureMonth || futureMonth.type !== 'future') {
-          continue;
-        }
-
-        // Skip locked (user-edited) cells
-        const lockedForMonth = new Set(lockedCells[i] || []);
-        if (lockedForMonth.has(category)) {
-          continue;
-        }
-
-        // Update grid cell immediately in frontend
-        setLocalGridData(prev => {
-          const updated = prev.map(row => {
-            if (row.category === category) {
-              return { ...row, [`month_${i}`]: currentVal } as any;
-            }
-            return row;
-          });
-          localGridDataRef.current = updated;
-          return updated;
-        });
-
-        // Track changes for batched database update (only within Atlas window)
-        const withinAtlasWindow = i <= currentMonthIdx + 12;
-        if (withinAtlasWindow) {
-          // Handle propagation for different income types
-          if (category === 'Primary Income') {
-            changesToSave.push({
-              month: futureMonth.month,
-              year: futureMonth.year,
-              category: 'Primary Income',
-              value: currentVal,
-            });
-          } else if (
-            updatedGridData.find(
-              row =>
-                row.category === category && row.type === 'additional_income'
-            )
-          ) {
-            changesToSave.push({
-              month: futureMonth.month,
-              year: futureMonth.year,
-              category: category,
-              value: currentVal,
-              additional_income_item: true,
-            });
-          } else {
-            changesToSave.push({
-              month: futureMonth.month,
-              year: futureMonth.year,
-              category: category,
-              value: currentVal,
-            });
-          }
-        }
-
-        propagatedCount++;
-        const progress = Math.round((propagatedCount / totalFutureMonths) * 35); // 0-35% for frontend updates
-        setPropagationProgress(progress);
-      }
-
-      // Historical months are freeze frames - never update them via propagation
-      // They should only show data from their actual database entries
-
-      // Recalculate net savings after propagation
-      setLocalGridData(prev => {
-        const recalculated = recalculateNetSavings(prev);
-        localGridDataRef.current = recalculated;
-        return recalculated;
-      });
-
-      // Update propagation progress
-      setPropagationProgress(100);
-      setIsPropagatingChanges(false);
-    },
-    [lockedCells, recalculateNetSavings]
-  );
-
   // Helper function to calculate total debt for a given month/year
-  const calculateTotalDebtForMonth = (
-    month: number,
-    year: number,
-    debts: Debt[]
-  ): number => {
-    if (!debts || debts.length === 0) return 0;
+  const calculateTotalDebtForMonth = useCallback(
+    (month: number, year: number, debts: Debt[]): number => {
+      if (!debts || debts.length === 0) return 0;
 
-    const targetDate = new Date(year, month - 1, 1);
+      const targetDate = new Date(year, month - 1, 1);
 
-    const totalDebt = debts
-      .filter(d => {
-        const debtType = d.debt_type || '';
-        if (debtType === 'mortgage') return false;
+      const totalDebt = debts
+        .filter(d => {
+          const debtType = d.debt_type || '';
+          if (debtType === 'mortgage') return false;
 
-        const effectiveDate = d.effective_date;
-        if (!effectiveDate) return false;
+          const effectiveDate = d.effective_date;
+          if (!effectiveDate) return false;
 
-        const debtDate = new Date(effectiveDate);
-        if (isNaN(debtDate.getTime())) return false;
+          const debtDate = new Date(effectiveDate);
+          if (isNaN(debtDate.getTime())) return false;
 
-        // Debt existed if effective_date is on or before the target month
-        return debtDate <= targetDate;
-      })
-      .reduce((sum, debt) => {
-        // For historical months, use original amount; for current/future, use balance
-        const currentDate = new Date();
-        const isHistorical =
-          targetDate <
-          new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        const amount = isHistorical
-          ? parseFloat(
-              debt.amount?.toString() || debt.balance?.toString() || '0'
-            )
-          : parseFloat(
-              debt.balance?.toString() || debt.amount?.toString() || '0'
-            );
-        return sum + (amount || 0);
-      }, 0);
+          // Debt existed if effective_date is on or before the target month
+          return debtDate <= targetDate;
+        })
+        .reduce((sum, debt) => {
+          // For historical months, use original amount; for current/future, use balance
+          const currentDate = new Date();
+          const isHistorical =
+            targetDate <
+            new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+          const amount = isHistorical
+            ? parseFloat(
+                debt.amount?.toString() || debt.balance?.toString() || '0'
+              )
+            : parseFloat(
+                debt.balance?.toString() || debt.amount?.toString() || '0'
+              );
+          return sum + (amount || 0);
+        }, 0);
 
-    return totalDebt;
-  };
+      return totalDebt;
+    },
+    []
+  );
 
-  const saveMonthChangesDirectly = async (
-    month: number,
-    year: number,
-    category: string,
-    value: number
-  ) => {
-    try {
-      // Use static import - budgetService is imported at the top of the file
+  const saveMonthChangesDirectly = useCallback(
+    async (month: number, year: number, category: string, value: number) => {
+      try {
+        // Use static import - budgetService is imported at the top of the file
 
-      // Get existing budget for this month/year or create new one
-      const budgets = await budgetService.getBudgets();
-      const existingBudget = budgets.find(
-        b => b.month === month && b.year === year
-      );
+        // Get existing budget for this month/year or create new one
+        const budgets = await budgetService.getBudgets();
+        const existingBudget = budgets.find(
+          b => b.month === month && b.year === year
+        );
 
-      // Map category names to budget structure
-      const categoryMap: Record<
-        string,
-        | 'housing'
-        | 'transportation'
-        | 'food'
-        | 'healthcare'
-        | 'entertainment'
-        | 'shopping'
-        | 'travel'
-        | 'education'
-        | 'utilities'
-        | 'childcare'
-        | 'debt_payments'
-        | 'others'
-        | 'income'
-        | 'additional_income'
-      > = {
-        'Primary Income': 'income',
-        Housing: 'housing',
-        Transportation: 'transportation',
-        Food: 'food',
-        Healthcare: 'healthcare',
-        Entertainment: 'entertainment',
-        Shopping: 'shopping',
-        Travel: 'travel',
-        Education: 'education',
-        Utilities: 'utilities',
-        Childcare: 'childcare',
-        Miscellaneous: 'others',
-        'Required Debt Payments': 'debt_payments',
-        // Savings is handled separately below - not in this map
-      };
+        // Map category names to budget structure
+        const categoryMap: Record<
+          string,
+          | 'housing'
+          | 'transportation'
+          | 'food'
+          | 'healthcare'
+          | 'entertainment'
+          | 'shopping'
+          | 'travel'
+          | 'education'
+          | 'utilities'
+          | 'childcare'
+          | 'debt_payments'
+          | 'others'
+          | 'income'
+          | 'additional_income'
+        > = {
+          'Primary Income': 'income',
+          Housing: 'housing',
+          Transportation: 'transportation',
+          Food: 'food',
+          Healthcare: 'healthcare',
+          Entertainment: 'entertainment',
+          Shopping: 'shopping',
+          Travel: 'travel',
+          Education: 'education',
+          Utilities: 'utilities',
+          Childcare: 'childcare',
+          Miscellaneous: 'others',
+          'Required Debt Payments': 'debt_payments',
+          // Savings is handled separately below - not in this map
+        };
 
-      const budgetField = categoryMap[category];
+        const budgetField = categoryMap[category];
 
-      // Handle Savings separately - it's stored as savings_items array, not a direct field
-      if (category === 'Savings') {
-        // For now, Savings is calculated, not directly editable in debt planning
-        // If we need to support editing Savings, we'd need to handle savings_items array
-        return;
-      }
+        // Handle Savings separately - it's stored as savings_items array, not a direct field
+        if (category === 'Savings') {
+          // For now, Savings is calculated, not directly editable in debt planning
+          // If we need to support editing Savings, we'd need to handle savings_items array
+          return;
+        }
 
-      if (!budgetField) {
-        // Handle additional income items
-        if (
-          category.startsWith('+ ') ||
-          category.includes('Additional Income')
-        ) {
-          const incomeItemName =
-            category
-              .replace('+ ', '')
-              .replace('Additional Income', '')
-              .trim() || 'Additional Income';
+        if (!budgetField) {
+          // Handle additional income items
+          if (
+            category.startsWith('+ ') ||
+            category.includes('Additional Income')
+          ) {
+            const incomeItemName =
+              category
+                .replace('+ ', '')
+                .replace('Additional Income', '')
+                .trim() || 'Additional Income';
 
+            if (existingBudget) {
+              const updatedAdditionalIncomeItems = [
+                ...(existingBudget.additional_income_items || []),
+                { name: incomeItemName, amount: value },
+              ];
+
+              await budgetService.updateBudget(existingBudget._id!, {
+                ...existingBudget,
+                additional_income_items: updatedAdditionalIncomeItems,
+              });
+            } else {
+              await budgetService.saveMonthBudget({
+                month,
+                year,
+                income: 0,
+                additional_income: 0,
+                additional_income_items: [
+                  { name: incomeItemName, amount: value },
+                ],
+                expenses: {
+                  housing: 0,
+                  transportation: 0,
+                  food: 0,
+                  healthcare: 0,
+                  entertainment: 0,
+                  shopping: 0,
+                  travel: 0,
+                  education: 0,
+                  utilities: 0,
+                  childcare: 0,
+                  debt_payments: 0,
+                  others: 0,
+                },
+                additional_items: [],
+                savings_items: [],
+                manually_edited_categories: [category],
+              });
+            }
+            return;
+          }
+          return;
+        }
+
+        // Handle income
+        if (budgetField === 'income') {
+          const totalDebt = calculateTotalDebtForMonth(
+            month,
+            year,
+            outstandingDebts || []
+          );
           if (existingBudget) {
-            const updatedAdditionalIncomeItems = [
-              ...(existingBudget.additional_income_items || []),
-              { name: incomeItemName, amount: value },
-            ];
-
             await budgetService.updateBudget(existingBudget._id!, {
               ...existingBudget,
-              additional_income_items: updatedAdditionalIncomeItems,
+              income: value,
+              total_remaining_debt: totalDebt,
             });
           } else {
             await budgetService.saveMonthBudget({
               month,
               year,
-              income: 0,
+              income: value,
               additional_income: 0,
-              additional_income_items: [
-                { name: incomeItemName, amount: value },
-              ],
+              additional_income_items: [],
               expenses: {
                 housing: 0,
                 transportation: 0,
@@ -1123,116 +901,185 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
               additional_items: [],
               savings_items: [],
               manually_edited_categories: [category],
+              total_remaining_debt: totalDebt,
             });
           }
           return;
         }
-        return;
-      }
 
-      // Handle income
-      if (budgetField === 'income') {
+        // Handle expenses
         const totalDebt = calculateTotalDebtForMonth(
           month,
           year,
           outstandingDebts || []
         );
         if (existingBudget) {
+          const updatedExpenses = {
+            ...existingBudget.expenses,
+            [budgetField]: value,
+          };
+
           await budgetService.updateBudget(existingBudget._id!, {
             ...existingBudget,
-            income: value,
+            expenses: updatedExpenses,
+            manually_edited_categories: [
+              ...(existingBudget.manually_edited_categories || []),
+              ...(existingBudget.manually_edited_categories?.includes(category)
+                ? []
+                : [category]),
+            ],
             total_remaining_debt: totalDebt,
           });
         } else {
+          const expenses: any = {
+            housing: 0,
+            transportation: 0,
+            food: 0,
+            healthcare: 0,
+            entertainment: 0,
+            shopping: 0,
+            travel: 0,
+            education: 0,
+            utilities: 0,
+            childcare: 0,
+            debt_payments: 0,
+            others: 0,
+          };
+          expenses[budgetField] = value;
+
           await budgetService.saveMonthBudget({
             month,
             year,
-            income: value,
+            income: 0,
             additional_income: 0,
             additional_income_items: [],
-            expenses: {
-              housing: 0,
-              transportation: 0,
-              food: 0,
-              healthcare: 0,
-              entertainment: 0,
-              shopping: 0,
-              travel: 0,
-              education: 0,
-              utilities: 0,
-              childcare: 0,
-              debt_payments: 0,
-              others: 0,
-            },
+            expenses,
             additional_items: [],
             savings_items: [],
             manually_edited_categories: [category],
             total_remaining_debt: totalDebt,
           });
         }
+      } catch (error) {
+        // Re-throw the error so the caller knows the save failed
+        throw new Error(
+          `Failed to save ${category} for ${month}/${year}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    },
+    [outstandingDebts, calculateTotalDebtForMonth]
+  );
+
+  const onCellValueChanged = useCallback(
+    async (monthIdx: number, category: string, newValue: string) => {
+      const months = generateMonths();
+      if (!months[monthIdx]) return;
+
+      // Don't allow editing calculated fields
+      if (category === 'Net Savings' || category === 'Remaining Debt') {
         return;
       }
 
-      // Handle expenses
-      const totalDebt = calculateTotalDebtForMonth(
-        month,
-        year,
-        outstandingDebts || []
-      );
-      if (existingBudget) {
-        const updatedExpenses = {
-          ...existingBudget.expenses,
-          [budgetField]: value,
-        };
-
-        await budgetService.updateBudget(existingBudget._id!, {
-          ...existingBudget,
-          expenses: updatedExpenses,
-          manually_edited_categories: [
-            ...(existingBudget.manually_edited_categories || []),
-            ...(existingBudget.manually_edited_categories?.includes(category)
-              ? []
-              : [category]),
-          ],
-          total_remaining_debt: totalDebt,
-        });
-      } else {
-        const expenses: any = {
-          housing: 0,
-          transportation: 0,
-          food: 0,
-          healthcare: 0,
-          entertainment: 0,
-          shopping: 0,
-          travel: 0,
-          education: 0,
-          utilities: 0,
-          childcare: 0,
-          debt_payments: 0,
-          others: 0,
-        };
-        expenses[budgetField] = value;
-
-        await budgetService.saveMonthBudget({
-          month,
-          year,
-          income: 0,
-          additional_income: 0,
-          additional_income_items: [],
-          expenses,
-          additional_items: [],
-          savings_items: [],
-          manually_edited_categories: [category],
-          total_remaining_debt: totalDebt,
-        });
+      if (isInitializingGrid) {
+        return;
       }
-    } catch (error) {
-      // Re-throw the error so the caller knows the save failed
-      throw new Error(
-        `Failed to save ${category} for ${month}/${year}: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
-  };
+
+      const parsedValue = (() => {
+        const trimmed = newValue.trim();
+        if (trimmed === '' || trimmed === '-') return 0;
+        const num = parseFloat(trimmed);
+        return isNaN(num) ? 0 : num;
+      })();
+
+      const currentMonthIdx = months.findIndex(m => m.type === 'current');
+      const isEditingCurrentMonth = monthIdx === currentMonthIdx;
+
+      const monthsToPropagate: number[] = [];
+      if (isEditingCurrentMonth) {
+        const currentRow = localGridData.find(r => r.category === category);
+        if (currentRow) {
+          for (let i = monthIdx + 1; i < months.length; i++) {
+            if (
+              months[i]?.type === 'future' &&
+              (currentRow[`month_${i}`] || 0) === 0
+            ) {
+              monthsToPropagate.push(i);
+            }
+          }
+        }
+      }
+
+      setLocalGridData(prev => {
+        const updated = prev.map(row => {
+          if (row.category === category) {
+            const updatedRow = { ...row };
+            updatedRow[`month_${monthIdx}`] = parsedValue;
+
+            monthsToPropagate.forEach(i => {
+              updatedRow[`month_${i}`] = parsedValue;
+            });
+
+            return updatedRow as any;
+          }
+          return row;
+        });
+
+        const recalculated = recalculateNetSavings(updated);
+        localGridDataRef.current = recalculated;
+        return recalculated;
+      });
+
+      const month = months[monthIdx];
+      const savePromises: Promise<void>[] = [
+        saveMonthChangesDirectly(
+          month.month,
+          month.year,
+          category,
+          parsedValue
+        ),
+      ];
+
+      monthsToPropagate.forEach(i => {
+        const futureMonth = months[i];
+        savePromises.push(
+          saveMonthChangesDirectly(
+            futureMonth.month,
+            futureMonth.year,
+            category,
+            parsedValue
+          )
+        );
+      });
+
+      Promise.all(savePromises)
+        .then(() => {})
+        .catch(error => {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          Alert.alert(
+            'Save Failed',
+            `Failed to save ${category}: ${errorMessage}\n\nWould you like to reload the data?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Reload',
+                onPress: () => {
+                  loadInitialData();
+                },
+              },
+            ]
+          );
+        });
+    },
+    [
+      isInitializingGrid,
+      generateMonths,
+      recalculateNetSavings,
+      loadInitialData,
+      localGridData,
+      saveMonthChangesDirectly,
+    ]
+  );
 
   const calculateDebtPayoffPlanFrontend = useCallback(
     (
@@ -1316,8 +1163,6 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             months
           );
           localGridDataRef.current = updatedData;
-          gridUpdateCounter.current++;
-          setGridForceUpdate(prev => prev + 1);
           return updatedData;
         });
       } else {
@@ -1342,96 +1187,77 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
     outstandingDebts,
     strategy,
     calculateDebtPayoffPlanFrontend,
+    debtCalculationInProgress,
   ]);
 
-  // Recalculate when month window changes
-  useEffect(() => {
-    if (
-      localGridData?.length &&
-      outstandingDebts?.length &&
-      !debtCalculationInProgress &&
-      !isInitializingGrid
-    ) {
-      triggerImmediateDebtRecalculation();
-    }
-  }, [projectionMonths, historicalMonthsShown]);
-
-  // Recalculate when strategy changes
-  useEffect(() => {
-    if (
-      localGridData?.length &&
-      outstandingDebts?.length &&
-      !debtCalculationInProgress &&
-      !isInitializingGrid
-    ) {
-      triggerImmediateDebtRecalculation();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [strategy]);
-
-  // Recalculate debt payoff when localGridData changes (e.g., when income/savings are edited)
-  // This ensures debt payoff updates immediately when budget values change
-  const previousNetSavingsRef = useRef<string>('');
+  const lastRecalcTrigger = useRef({
+    debtsLength: 0,
+    strategy: 'snowball' as 'snowball' | 'avalanche',
+    netSavings: '',
+  });
   const debtRecalculationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Clear any pending recalculation
     if (debtRecalculationTimeoutRef.current) {
       clearTimeout(debtRecalculationTimeoutRef.current);
       debtRecalculationTimeoutRef.current = null;
     }
 
     if (
-      localGridData?.length &&
-      outstandingDebts?.length &&
-      !debtCalculationInProgress &&
-      !isInitializingGrid &&
-      !isUserEditingRef.current &&
-      !isLoadingRef.current
+      !outstandingDebts?.length ||
+      !localGridData?.length ||
+      loading ||
+      debtCalculationInProgress ||
+      isUserEditingRef.current ||
+      isLoadingRef.current
     ) {
-      // Find Net Savings row to detect changes
-      const netSavingsRow = localGridData.find(
-        row => row.category === 'Net Savings'
-      );
+      return;
+    }
 
-      if (netSavingsRow) {
-        // Create a string representation of Net Savings values to detect changes
-        const months = generateMonths();
-        const currentMonthIdx = months.findIndex(m => m.type === 'current');
-        const netSavingsString = months
-          .slice(currentMonthIdx)
-          .map((_, idx) => {
-            const monthIdx = currentMonthIdx + idx;
-            const value = netSavingsRow[`month_${monthIdx}`] || 0;
-            return Math.round(value * 100) / 100; // Round to 2 decimals to avoid floating point issues
-          })
-          .join(',');
+    const netSavingsRow = localGridData.find(
+      row => row.category === 'Net Savings'
+    );
+    if (!netSavingsRow) return;
 
-        // Only trigger if Net Savings actually changed
-        if (netSavingsString !== previousNetSavingsRef.current) {
-          // Skip if this is the initial load (empty string means first run)
-          const isInitialLoad = previousNetSavingsRef.current === '';
-          previousNetSavingsRef.current = netSavingsString;
+    const months = generateMonths();
+    const currentMonthIdx = months.findIndex(m => m.type === 'current');
+    const netSavingsString = months
+      .slice(currentMonthIdx)
+      .map(
+        (_, idx) =>
+          Math.round(
+            (netSavingsRow[`month_${currentMonthIdx + idx}`] || 0) * 100
+          ) / 100
+      )
+      .join(',');
 
-          if (isInitialLoad) {
-            // This is the initial load, let the other useEffect handle it
-            return;
+    const currentTrigger = {
+      debtsLength: outstandingDebts.length,
+      strategy,
+      netSavings: netSavingsString,
+    };
+
+    const hasChanged =
+      currentTrigger.debtsLength !== lastRecalcTrigger.current.debtsLength ||
+      currentTrigger.strategy !== lastRecalcTrigger.current.strategy ||
+      currentTrigger.netSavings !== lastRecalcTrigger.current.netSavings;
+
+    if (hasChanged || !isInitializingGrid) {
+      lastRecalcTrigger.current = currentTrigger;
+
+      debtRecalculationTimeoutRef.current = setTimeout(
+        () => {
+          if (
+            !debtCalculationInProgress &&
+            !isUserEditingRef.current &&
+            !isLoadingRef.current
+          ) {
+            triggerImmediateDebtRecalculation();
           }
-
-          // Debounce to avoid too many recalculations during rapid edits
-          debtRecalculationTimeoutRef.current = setTimeout(() => {
-            if (
-              !debtCalculationInProgress &&
-              !isInitializingGrid &&
-              !isUserEditingRef.current &&
-              !isLoadingRef.current
-            ) {
-              triggerImmediateDebtRecalculation();
-            }
-            debtRecalculationTimeoutRef.current = null;
-          }, 300); // 300ms debounce
-        }
-      }
+          debtRecalculationTimeoutRef.current = null;
+        },
+        isInitializingGrid ? 0 : 300
+      );
     }
 
     return () => {
@@ -1440,60 +1266,15 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
         debtRecalculationTimeoutRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localGridData, outstandingDebts?.length]);
-
-  const handleDebtChange = useCallback(async () => {
-    if (debtCalculationInProgress) return;
-
-    setDebtCalculationInProgress(true);
-
-    try {
-      await triggerImmediateDebtRecalculation();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update debt calculations: ' + error);
-    } finally {
-      setDebtCalculationInProgress(false);
-    }
-  }, [triggerImmediateDebtRecalculation]);
-
-  // Initial debt calculation after data loads
-  const recalculationTriggered = useRef(false);
-  const lastDebtsCount = useRef(0);
-
-  useEffect(() => {
-    const currentDebtsCount = outstandingDebts?.length || 0;
-    const debtsChanged = currentDebtsCount !== lastDebtsCount.current;
-
-    if (debtsChanged) {
-      lastDebtsCount.current = currentDebtsCount;
-      recalculationTriggered.current = false;
-    }
-
-    if (
-      outstandingDebts?.length > 0 &&
-      localGridData?.length > 0 &&
-      !loading &&
-      !isInitializingGrid &&
-      !debtCalculationInProgress &&
-      !recalculationTriggered.current
-    ) {
-      recalculationTriggered.current = true;
-
-      const timeoutId = setTimeout(() => {
-        handleDebtChange().finally(() => {
-          recalculationTriggered.current = false;
-        });
-      }, 100);
-
-      return () => clearTimeout(timeoutId);
-    }
   }, [
-    outstandingDebts?.length,
-    localGridData?.length,
+    localGridData,
+    outstandingDebts,
+    strategy,
     loading,
     isInitializingGrid,
     debtCalculationInProgress,
+    generateMonths,
+    triggerImmediateDebtRecalculation,
   ]);
 
   const handleDebtSave = async (debtData: Partial<Debt>) => {
@@ -1593,9 +1374,9 @@ const MobileDebtPlanning: React.FC<MobileDebtPlanningProps> = () => {
             gridData={localGridData}
             months={generateMonths()}
             onCellValueChanged={onCellValueChanged}
-            gridUpdating={gridUpdating}
+            gridUpdating={false}
             isPropagatingChanges={isPropagatingChanges}
-            propagationStatus={propagationStatus}
+            propagationStatus=""
             theme={theme}
           />
         </View>
