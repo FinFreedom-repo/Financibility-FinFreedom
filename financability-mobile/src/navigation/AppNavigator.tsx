@@ -28,6 +28,12 @@ import ProfileScreen from '../screens/settings/ProfileScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import LoadingScreen from '../components/common/LoadingScreen';
 
+// NEW COPILOT MONEY-INSPIRED SCREENS
+import NetWorthScreen from '../screens/dashboard/NetWorthScreen';
+import TransactionsScreen from '../screens/transactions/TransactionsScreen';
+import SpendingInsightsScreen from '../screens/insights/SpendingInsightsScreen';
+import FinancialHealthScreen from '../screens/health/FinancialHealthScreen';
+
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 const Drawer = createDrawerNavigator();
@@ -262,6 +268,39 @@ const AppNavigator: React.FC = () => {
                   options={{
                     title: 'Expense Analyzer',
                     headerBackTitle: 'Analytics',
+                  }}
+                />
+                {/* NEW COPILOT MONEY-INSPIRED SCREENS */}
+                <Stack.Screen
+                  name="NetWorth"
+                  component={NetWorthScreen}
+                  options={{
+                    title: 'Net Worth',
+                    headerBackTitle: 'Back',
+                  }}
+                />
+                <Stack.Screen
+                  name="Transactions"
+                  component={TransactionsScreen}
+                  options={{
+                    title: 'Transactions',
+                    headerBackTitle: 'Back',
+                  }}
+                />
+                <Stack.Screen
+                  name="SpendingInsights"
+                  component={SpendingInsightsScreen}
+                  options={{
+                    title: 'Spending Insights',
+                    headerBackTitle: 'Back',
+                  }}
+                />
+                <Stack.Screen
+                  name="FinancialHealth"
+                  component={FinancialHealthScreen}
+                  options={{
+                    title: 'Financial Health',
+                    headerBackTitle: 'Back',
                   }}
                 />
               </>

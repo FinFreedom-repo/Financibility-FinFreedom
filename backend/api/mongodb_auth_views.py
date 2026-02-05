@@ -759,4 +759,55 @@ def mongodb_get_settings(request):
 @csrf_exempt
 def mongodb_update_settings(request):
     """MongoDB update settings view function"""
-    return MongoDBAuthViews.update_settings(request) 
+    return MongoDBAuthViews.update_settings(request)
+
+
+# Helper function for authentication in other views
+def get_user_from_token(request):
+    """
+    Extract and validate JWT token from request, return user if valid
+    
+    Args:
+        request: Django request object
+        
+    Returns:
+        User dict if token is valid, None otherwise
+    """
+    try:
+        # Get authorization header
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        
+        if not auth_header or not auth_header.startswith('Bearer '):
+            logger.warning("No valid authorization header found")
+            return None
+        
+        # Extract token
+        token = auth_header.split(' ')[1]
+        
+        # Validate token
+        jwt_service = JWTAuthService()
+        payload = jwt_service.verify_token(token)
+        
+        if not payload:
+            logger.warning("Invalid token")
+            return None
+        
+        # Get user from database
+        user_service = UserService()
+        user_id = payload.get('user_id')
+        
+        if not user_id:
+            logger.warning("No user_id in token payload")
+            return None
+        
+        user = user_service.get_user_by_id(user_id)
+        
+        if not user:
+            logger.warning(f"User not found for id: {user_id}")
+            return None
+        
+        return user
+        
+    except Exception as e:
+        logger.error(f"Error getting user from token: {e}")
+        return None 

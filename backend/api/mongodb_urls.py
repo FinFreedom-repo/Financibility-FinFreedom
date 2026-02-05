@@ -30,6 +30,11 @@ from .notifications import (
     delete_notification, create_notification, create_budget_alert,
     create_debt_reminder, create_savings_milestone, initialize_notifications
 )
+from .smart_transaction_views import (
+    auto_categorize_transaction, detect_recurring_transactions, get_spending_insights,
+    suggest_budget, detect_unusual_transactions, get_transaction_tags, search_transactions
+)
+from .financial_health_views import get_financial_health_score
 
 def health_check(request):
     """Simple health check endpoint"""
@@ -135,4 +140,16 @@ urlpatterns = [
     path('notifications/debt-reminder/', create_debt_reminder, name='create_debt_reminder'),
     path('notifications/savings-milestone/', create_savings_milestone, name='create_savings_milestone'),
     path('notifications/initialize/', initialize_notifications, name='initialize_notifications'),
+    
+    # Smart Transaction endpoints
+    path('insights/auto-categorize/', auto_categorize_transaction, name='auto_categorize'),
+    path('insights/recurring/', detect_recurring_transactions, name='detect_recurring'),
+    path('insights/spending/', get_spending_insights, name='spending_insights'),
+    path('insights/suggest-budget/', suggest_budget, name='suggest_budget'),
+    path('insights/unusual/', detect_unusual_transactions, name='unusual_transactions'),
+    path('insights/tags/', get_transaction_tags, name='transaction_tags'),
+    path('insights/search/', search_transactions, name='search_transactions'),
+    
+    # Financial Health Score
+    path('health-score/', get_financial_health_score, name='financial_health_score'),
 ] 

@@ -92,8 +92,36 @@ const DashboardScreen: React.FC = () => {
   // Features data matching website
   const features = [
     {
+      title: '💰 Net Worth Dashboard',
+      description: 'View your complete financial picture',
+      icon: 'trending-up',
+      color: '#4caf50',
+      screen: 'NetWorth',
+    },
+    {
+      title: '💳 Smart Transactions',
+      description: 'Track spending with tags, notes & receipts',
+      icon: 'card',
+      color: '#2196f3',
+      screen: 'Transactions',
+    },
+    {
+      title: '📊 Spending Insights',
+      description: 'Analyze trends and get smart recommendations',
+      icon: 'analytics',
+      color: '#ff9800',
+      screen: 'SpendingInsights',
+    },
+    {
+      title: '❤️ Financial Health Score',
+      description: 'See your complete financial health rating',
+      icon: 'fitness',
+      color: '#e91e63',
+      screen: 'FinancialHealth',
+    },
+    {
       title: 'Track Accounts & Debts',
-      description: 'Get a complete picture of your financial situation',
+      description: 'Manage all your accounts in one place',
       icon: 'business',
       color: '#2e7d32',
       screen: 'Accounts',
@@ -106,23 +134,16 @@ const DashboardScreen: React.FC = () => {
       screen: 'Budget',
     },
     {
-      title: 'Expense Analysis',
-      description: 'Understand where your money goes',
-      icon: 'bar-chart',
-      color: '#7b1fa2',
-      screen: 'Budget', // For now, navigate to Budget since we don't have a separate Expense Analysis screen
-    },
-    {
       title: 'Debt Planning',
       description: 'Create strategies to eliminate debt faster',
-      icon: 'card',
+      icon: 'cash',
       color: '#d32f2f',
       screen: 'DebtPlanning',
     },
     {
       title: 'Wealth Projection',
-      description: 'See your financial future with different scenarios',
-      icon: 'trending-up',
+      description: 'See your financial future with scenarios',
+      icon: 'rocket',
       color: '#1565c0',
       screen: 'WealthProjection',
     },
