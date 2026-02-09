@@ -35,6 +35,9 @@ from .smart_transaction_views import (
     suggest_budget, detect_unusual_transactions, get_transaction_tags, search_transactions
 )
 from .financial_health_views import get_financial_health_score
+from .voice_financial_views import (
+    parse_financial_voice, get_voice_examples, voice_quick_add, parse_budget_voice
+)
 
 def health_check(request):
     """Simple health check endpoint"""
@@ -152,4 +155,10 @@ urlpatterns = [
     
     # Financial Health Score
     path('health-score/', get_financial_health_score, name='financial_health_score'),
+    
+    # Voice Financial Input endpoints
+    path('parse-financial-voice/', parse_financial_voice, name='parse_financial_voice'),
+    path('voice-examples/', get_voice_examples, name='voice_examples'),
+    path('voice-quick-add/', voice_quick_add, name='voice_quick_add'),
+    path('parse-budget-voice/', parse_budget_voice, name='parse_budget_voice'),
 ] 

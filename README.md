@@ -10,6 +10,7 @@ A comprehensive financial management platform with both web and mobile applicati
 - **Wealth Projection**: Future wealth forecasting with interactive charts
 - **Budget Management**: Monthly budget tracking and analysis
 - **Account Management**: Track accounts and debts
+- **🎤 Voice Financial Input**: AI-powered voice commands to add accounts/debts (NEW!)
 - **Real-time Notifications**: Financial alerts and updates
 
 ### Mobile Application (React Native)

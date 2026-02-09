@@ -75,6 +75,7 @@ import Loading from './common/Loading';
 import Input from './common/Input';
 import { Button as CustomButton } from './common/Button';
 import Chart from './common/Chart';
+import VoiceBudgetInput from './VoiceBudgetInput';
 
 function MonthlyBudget() {
   const { user } = useAuth();
@@ -789,6 +790,28 @@ function MonthlyBudget() {
           }}>
             Monthly Budget Planner
           </Typography>
+
+          {/* Voice Budget Input */}
+          <VoiceBudgetInput
+            onDataParsed={(parsedData) => {
+              console.log('Voice budget data parsed:', parsedData);
+              // Apply parsed data to budget fields
+              if (parsedData.income) {
+                setFormData(prev => ({ ...prev, income: parsedData.income.toString() }));
+              }
+              if (parsedData.expenses) {
+                setExpenses(prev => ({
+                  ...prev,
+                  ...Object.fromEntries(
+                    Object.entries(parsedData.expenses).map(([key, val]) => [key, val.toString()])
+                  )
+                }));
+              }
+              // Show success message
+              setSuccessMessage('Voice input applied! Review and save your budget.');
+              setShowSuccessSnackbar(true);
+            }}
+          />
           
           {/* Navigation Tabs */}
           <Box sx={{ 
