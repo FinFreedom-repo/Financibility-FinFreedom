@@ -5,9 +5,6 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  TextField,
-  MenuItem,
-  Grid,
   IconButton,
   Tooltip,
   Alert,
@@ -36,6 +33,7 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const recognitionRef = useRef(null);
+  const finalTranscriptRef = useRef('');
 
   // Budget categories matching MonthlyBudget.js
   const budgetCategories = {
@@ -70,18 +68,20 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
 
       recognitionRef.current.onresult = (event) => {
         let interimTranscript = '';
-        let finalTranscript = '';
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcriptPiece = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalTranscript += transcriptPiece + ' ';
+            finalTranscriptRef.current += transcriptPiece + ' ';
           } else {
             interimTranscript += transcriptPiece;
           }
         }
 
-        setTranscript(finalTranscript || interimTranscript);
+        // Update display with final + interim
+        const fullTranscript = finalTranscriptRef.current + interimTranscript;
+        console.log('Budget transcript update:', fullTranscript); // Debug log
+        setTranscript(fullTranscript);
       };
 
       recognitionRef.current.onerror = (event) => {
@@ -109,18 +109,23 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
     }
 
     if (isListening) {
+      console.log('Stopping recognition, final transcript:', finalTranscriptRef.current);
       recognitionRef.current.stop();
       setIsListening(false);
-      // Auto-process when stopping
-      if (transcript) {
-        handleParseTranscript(transcript);
-      }
+      // Just stop - don't auto-parse
     } else {
       setError('');
       setSuccess('');
       setTranscript('');
-      recognitionRef.current.start();
-      setIsListening(true);
+      finalTranscriptRef.current = ''; // Reset accumulator
+      console.log('Starting speech recognition...');
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error('Failed to start recognition:', err);
+        setError('Failed to start speech recognition: ' + err.message);
+      }
     }
   };
 
@@ -275,6 +280,7 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
                   bgcolor: 'white',
                   borderRadius: 1,
                   border: '1px solid #e0e0e0',
+                  color: '#000000',
                 }}
               >
                 {transcript || 'Click the microphone to start speaking...'}

@@ -2,14 +2,19 @@
 Voice Financial Parser - AI-powered financial data extraction from natural language
 """
 import re
+import os
+import json
 from typing import Dict, Any, Optional
 from datetime import datetime
+import requests
 
 
 class VoiceFinancialParser:
-    """Parse natural language input into structured financial data"""
+    """Parse natural language input into structured financial data using Grok AI"""
     
     def __init__(self):
+        self.grok_api_key = os.getenv('GROK_API_KEY')
+        self.use_ai = bool(self.grok_api_key and self.grok_api_key != 'your_grok_api_key_here')
         # Account type keywords
         self.account_keywords = {
             'checking': ['checking', 'check', 'chk'],
@@ -48,6 +53,84 @@ class VoiceFinancialParser:
         Returns:
             Dictionary with parsed financial data
         """
+        # Try AI parsing first if available
+        if self.use_ai:
+            try:
+                return self._parse_with_grok(transcript)
+            except Exception as e:
+                print(f"Grok AI parsing failed: {e}, falling back to regex")
+        
+        # Fallback to regex-based parsing
+        return self._parse_with_regex(transcript)
+
+    def _parse_with_grok(self, transcript: str) -> Dict[str, Any]:
+        """Parse using Grok AI"""
+        prompt = f"""Parse the following voice transcript about a financial account or debt into structured JSON.
+
+Transcript: "{transcript}"
+
+Extract and return ONLY a valid JSON object with these exact fields:
+{{
+  "type": "account" or "debt",
+  "name": "descriptive name",
+  "amount": numeric value (no commas, just number),
+  "category": for accounts: "checking"|"savings"|"investment"|"retirement"|"other", for debts: "credit-card"|"personal-loan"|"student-loan"|"auto-loan"|"mortgage"|"other",
+  "interest_rate": numeric value or null,
+  "effective_date": "YYYY-MM-DD" or null,
+  "payoff_date": "YYYY-MM-DD" or null (only for debts),
+  "notes": original transcript,
+  "confidence": "high"|"medium"|"low"
+}}
+
+Rules:
+- Use today's date ({datetime.now().strftime('%Y-%m-%d')}) for effective_date if not specified
+- Detect if this is an account (asset) or debt (liability) based on context
+- Extract institution names if mentioned
+- Return ONLY the JSON, no explanation"""
+
+        headers = {
+            'Authorization': f'Bearer {self.grok_api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        data = {
+            'messages': [
+                {
+                    'role': 'system',
+                    'content': 'You are a financial data extraction assistant. Return only valid JSON.'
+                },
+                {
+                    'role': 'user',
+                    'content': prompt
+                }
+            ],
+            'model': 'grok-beta',
+            'temperature': 0.1
+        }
+        
+        response = requests.post(
+            'https://api.x.ai/v1/chat/completions',
+            headers=headers,
+            json=data,
+            timeout=30
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"Grok API error: {response.status_code} - {response.text}")
+        
+        result_text = response.json()['choices'][0]['message']['content'].strip()
+        
+        # Extract JSON from response (in case there's markdown formatting)
+        if '```json' in result_text:
+            result_text = result_text.split('```json')[1].split('```')[0].strip()
+        elif '```' in result_text:
+            result_text = result_text.split('```')[1].split('```')[0].strip()
+        
+        parsed_result = json.loads(result_text)
+        return parsed_result
+
+    def _parse_with_regex(self, transcript: str) -> Dict[str, Any]:
+        """Fallback regex-based parsing"""
         transcript_lower = transcript.lower().strip()
         
         result = {
