@@ -43,12 +43,13 @@ class VoiceFinancialParser:
             'paypal', 'venmo', 'cash app',
         ]
 
-    def parse_transcript(self, transcript: str) -> Dict[str, Any]:
+    def parse_transcript(self, transcript: str, streaming: bool = False) -> Dict[str, Any]:
         """
         Parse a voice transcript into structured financial data
         
         Args:
             transcript: Natural language financial description
+            streaming: If True, optimize for partial/incomplete transcripts
             
         Returns:
             Dictionary with parsed financial data
@@ -56,37 +57,62 @@ class VoiceFinancialParser:
         # Try AI parsing first if available
         if self.use_ai:
             try:
-                return self._parse_with_grok(transcript)
+                return self._parse_with_grok(transcript, streaming=streaming)
             except Exception as e:
                 print(f"Grok AI parsing failed: {e}, falling back to regex")
         
         # Fallback to regex-based parsing
         return self._parse_with_regex(transcript)
 
-    def _parse_with_grok(self, transcript: str) -> Dict[str, Any]:
-        """Parse using Grok AI"""
+    def _parse_with_grok(self, transcript: str, streaming: bool = False) -> Dict[str, Any]:
+        """Parse using Grok AI
+        
+        Args:
+            transcript: The voice transcript to parse
+            streaming: If True, optimize for partial/incomplete transcripts
+        """
+        streaming_hint = ""
+        if streaming:
+            streaming_hint = """
+IMPORTANT: This is a partial transcript (user is still speaking). 
+- Extract whatever information is available so far
+- Mark fields as null if not yet mentioned
+- Be lenient with incomplete sentences
+- Prioritize extracting amounts and institution names first"""
+
         prompt = f"""Parse the following voice transcript about a financial account or debt into structured JSON.
 
-Transcript: "{transcript}"
+Transcript: "{transcript}"{streaming_hint}
 
 Extract and return ONLY a valid JSON object with these exact fields:
 {{
   "type": "account" or "debt",
-  "name": "descriptive name",
-  "amount": numeric value (no commas, just number),
+  "name": "descriptive name (combine institution + account type if possible)",
+  "amount": numeric value (no commas, just number) or null,
   "category": for accounts: "checking"|"savings"|"investment"|"retirement"|"other", for debts: "credit-card"|"personal-loan"|"student-loan"|"auto-loan"|"mortgage"|"other",
   "interest_rate": numeric value or null,
-  "effective_date": "YYYY-MM-DD" or null,
+  "effective_date": "YYYY-MM-DD" (default to today: {datetime.now().strftime('%Y-%m-%d')}),
   "payoff_date": "YYYY-MM-DD" or null (only for debts),
   "notes": original transcript,
-  "confidence": "high"|"medium"|"low"
+  "confidence": "high"|"medium"|"low",
+  "field_confidence": {{
+    "name": 0-100,
+    "amount": 0-100,
+    "category": 0-100,
+    "interest_rate": 0-100
+  }}
 }}
 
-Rules:
-- Use today's date ({datetime.now().strftime('%Y-%m-%d')}) for effective_date if not specified
-- Detect if this is an account (asset) or debt (liability) based on context
-- Extract institution names if mentioned
-- Return ONLY the JSON, no explanation"""
+Parsing Rules:
+- Detect if this is an account (asset) or debt (liability) based on keywords:
+  * Accounts: "have", "account", "balance", "savings", "checking"
+  * Debts: "owe", "debt", "loan", "credit card", "mortgage"
+- Extract institution names (Chase, Bank of America, Wells Fargo, etc.)
+- Parse amounts flexibly: "$5,000", "five thousand", "5k", etc.
+- Parse interest rates: "5%", "5 percent", "at 5.5", etc.
+- Combine institution + account type for name (e.g., "Chase Checking")
+- Provide field-level confidence scores (0-100) for each extracted field
+- Return ONLY the JSON, no markdown formatting or explanation"""
 
         headers = {
             'Authorization': f'Bearer {self.grok_api_key}',
@@ -157,6 +183,14 @@ Rules:
         
         # Calculate confidence score
         result['confidence'] = self._calculate_confidence(result)
+        
+        # Add field-level confidence scores
+        result['field_confidence'] = {
+            'name': 80 if result['name'] and result['name'] != 'Financial Account' else 30,
+            'amount': 90 if result['amount'] else 0,
+            'category': 70 if result['category'] else 30,
+            'interest_rate': 85 if result['interest_rate'] else 0,
+        }
         
         return result
 

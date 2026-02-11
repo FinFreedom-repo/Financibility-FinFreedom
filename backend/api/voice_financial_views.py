@@ -24,7 +24,8 @@ def parse_financial_voice(request):
     
     Request body:
     {
-        "transcript": "I have a Chase checking account with $5,000"
+        "transcript": "I have a Chase checking account with $5,000",
+        "streaming": false  // Optional: set to true for partial transcripts
     }
     
     Response:
@@ -37,11 +38,18 @@ def parse_financial_voice(request):
         "effective_date": "2024-02-09",
         "payoff_date": null,
         "notes": "I have a Chase checking account with $5,000",
-        "confidence": "high"
+        "confidence": "high",
+        "field_confidence": {
+            "name": 95,
+            "amount": 100,
+            "category": 90,
+            "interest_rate": 0
+        }
     }
     """
     try:
         transcript = request.data.get('transcript', '')
+        streaming = request.data.get('streaming', False)
         
         if not transcript or not transcript.strip():
             return Response(
@@ -49,11 +57,12 @@ def parse_financial_voice(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        logger.info(f"Parsing voice transcript for user {request.user.username}: {transcript[:100]}...")
+        mode = "streaming" if streaming else "standard"
+        logger.info(f"Parsing voice transcript ({mode}) for user {request.user.username}: {transcript[:100]}...")
         
         # Parse the transcript
         parser = VoiceFinancialParser()
-        result = parser.parse_transcript(transcript)
+        result = parser.parse_transcript(transcript, streaming=streaming)
         
         logger.info(f"Successfully parsed transcript. Type: {result['type']}, Confidence: {result['confidence']}")
         
@@ -189,7 +198,8 @@ def parse_budget_voice(request):
     
     Request body:
     {
-        "transcript": "My monthly income is $5,000, I spend $1,500 on rent and $400 on food"
+        "transcript": "My monthly income is $5,000, I spend $1,500 on rent and $400 on food",
+        "streaming": false  // Optional: set to true for partial transcripts
     }
     
     Response:
@@ -205,6 +215,7 @@ def parse_budget_voice(request):
     """
     try:
         transcript = request.data.get('transcript', '')
+        streaming = request.data.get('streaming', False)
         
         if not transcript or not transcript.strip():
             return Response(
@@ -212,11 +223,12 @@ def parse_budget_voice(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        logger.info(f"Parsing budget transcript for user {request.user.username}: {transcript[:100]}...")
+        mode = "streaming" if streaming else "standard"
+        logger.info(f"Parsing budget transcript ({mode}) for user {request.user.username}: {transcript[:100]}...")
         
         # Parse the transcript
         parser = VoiceBudgetParser()
-        result = parser.parse_transcript(transcript)
+        result = parser.parse_transcript(transcript, streaming=streaming)
         
         logger.info(f"Successfully parsed budget transcript. Income: ${result.get('income', 0)}, Expenses: {len(result.get('expenses', {}))}")
         

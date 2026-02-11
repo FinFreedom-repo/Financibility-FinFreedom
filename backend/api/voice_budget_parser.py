@@ -40,12 +40,13 @@ class VoiceBudgetParser:
         # Income keywords
         self.income_keywords = ['income', 'salary', 'paycheck', 'earn', 'make']
 
-    def parse_transcript(self, transcript: str) -> Dict[str, Any]:
+    def parse_transcript(self, transcript: str, streaming: bool = False) -> Dict[str, Any]:
         """
         Parse a voice transcript into structured budget data
         
         Args:
             transcript: Natural language budget description
+            streaming: If True, optimize for partial/incomplete transcripts
             
         Returns:
             Dictionary with parsed budget data
@@ -53,22 +54,36 @@ class VoiceBudgetParser:
         # Try AI parsing first if available
         if self.use_ai:
             try:
-                return self._parse_with_grok(transcript)
+                return self._parse_with_grok(transcript, streaming=streaming)
             except Exception as e:
                 print(f"Grok AI parsing failed: {e}, falling back to regex")
         
         # Fallback to regex-based parsing
         return self._parse_with_regex(transcript)
 
-    def _parse_with_grok(self, transcript: str) -> Dict[str, Any]:
-        """Parse using Grok AI"""
+    def _parse_with_grok(self, transcript: str, streaming: bool = False) -> Dict[str, Any]:
+        """Parse using Grok AI
+        
+        Args:
+            transcript: The voice transcript to parse
+            streaming: If True, optimize for partial/incomplete transcripts
+        """
+        streaming_hint = ""
+        if streaming:
+            streaming_hint = """
+IMPORTANT: This is a partial transcript (user is still speaking). 
+- Extract whatever information is available so far
+- Mark categories with 0 if not yet mentioned
+- Be lenient with incomplete sentences
+- Prioritize extracting amounts and category names first"""
+
         prompt = f"""Parse the following voice transcript about a monthly budget into structured JSON.
 
-Transcript: "{transcript}"
+Transcript: "{transcript}"{streaming_hint}
 
 Extract and return ONLY a valid JSON object with these exact fields:
 {{
-  "income": numeric monthly income value,
+  "income": numeric monthly income value or 0,
   "expenses": {{
     "housing": amount or 0,
     "transportation": amount or 0,
@@ -91,11 +106,15 @@ Extract and return ONLY a valid JSON object with these exact fields:
   "raw_transcript": original transcript
 }}
 
-Rules:
-- Only include categories mentioned in the transcript
-- Extract all numeric values accurately
-- Return ONLY the JSON, no explanation
-- Use 0 for categories not mentioned"""
+Parsing Rules:
+- Extract amounts flexibly: "$3,700", "3700", "thirty seven hundred"
+- Match categories intelligently:
+  * housing = rent, mortgage, housing, apartment
+  * food = food, groceries, dining, restaurant
+  * transportation = car, gas, transit, uber
+  * utilities = electric, water, internet, phone
+- Use 0 for categories not mentioned
+- Return ONLY the JSON, no markdown formatting or explanation"""
 
         headers = {
             'Authorization': f'Bearer {self.grok_api_key}',

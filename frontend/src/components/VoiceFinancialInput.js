@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -16,6 +16,8 @@ import {
   Stack,
   Paper,
   Divider,
+  Fade,
+  Zoom,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -25,6 +27,7 @@ import {
   AutoAwesome as AIIcon,
   CheckCircle as CheckIcon,
   Error as ErrorIcon,
+  FlashOn as FlashIcon,
 } from '@mui/icons-material';
 import { Button } from './common/Button';
 import axios from '../utils/axios';
@@ -36,8 +39,12 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [fieldUpdates, setFieldUpdates] = useState({}); // Track which fields were auto-filled
+  const [streamingEnabled, setStreamingEnabled] = useState(true);
   const recognitionRef = useRef(null);
   const finalTranscriptRef = useRef('');
+  const parseTimeoutRef = useRef(null);
+  const lastParsedLengthRef = useRef(0);
 
   // Form data for the parsed financial info
   const [financialData, setFinancialData] = useState({
@@ -67,6 +74,84 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
     { value: 'mortgage', label: 'Mortgage' },
     { value: 'other', label: 'Other Debt' },
   ];
+
+  // Streaming parse function with debounce
+  const streamingParse = useCallback(async (text) => {
+    if (!text.trim() || !streamingEnabled) return;
+    
+    // Only parse if we have significant new content (at least 10 characters more)
+    if (text.length - lastParsedLengthRef.current < 10) return;
+    
+    lastParsedLengthRef.current = text.length;
+    
+    try {
+      const response = await axios.post('/api/mongodb/parse-financial-voice/', {
+        transcript: text,
+        streaming: true, // Tell backend this is a partial transcript
+      });
+
+      const parsed = response.data;
+      setParsedData(parsed);
+
+      // Track which fields are being updated
+      const updates = {};
+      
+      // Update form with parsed data, tracking changes
+      setFinancialData(prevData => {
+        const newData = {
+          type: parsed.type || prevData.type,
+          name: parsed.name || prevData.name,
+          amount: parsed.amount || prevData.amount,
+          category: parsed.category || prevData.category,
+          interestRate: parsed.interest_rate || prevData.interestRate,
+          effectiveDate: parsed.effective_date || prevData.effectiveDate,
+          payoffDate: parsed.payoff_date || prevData.payoffDate,
+          notes: parsed.notes || prevData.notes,
+        };
+
+        // Track which fields changed
+        Object.keys(newData).forEach(key => {
+          if (newData[key] !== prevData[key] && newData[key]) {
+            updates[key] = true;
+          }
+        });
+
+        return newData;
+      });
+
+      // Show visual feedback for updated fields
+      setFieldUpdates(updates);
+      setTimeout(() => setFieldUpdates({}), 2000);
+
+      if (onDataParsed) {
+        onDataParsed(parsed);
+      }
+    } catch (err) {
+      console.error('Streaming parse error:', err);
+      // Don't show errors during streaming, only on manual parse
+    }
+  }, [streamingEnabled, onDataParsed]);
+
+  // Debounced streaming parse effect
+  useEffect(() => {
+    if (isListening && streamingEnabled && transcript) {
+      // Clear existing timeout
+      if (parseTimeoutRef.current) {
+        clearTimeout(parseTimeoutRef.current);
+      }
+
+      // Set new timeout for parsing (wait 2 seconds after user stops talking)
+      parseTimeoutRef.current = setTimeout(() => {
+        streamingParse(transcript);
+      }, 2000);
+    }
+
+    return () => {
+      if (parseTimeoutRef.current) {
+        clearTimeout(parseTimeoutRef.current);
+      }
+    };
+  }, [transcript, isListening, streamingEnabled, streamingParse]);
 
   useEffect(() => {
     // Initialize Web Speech API
@@ -111,6 +196,9 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
+      if (parseTimeoutRef.current) {
+        clearTimeout(parseTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -152,25 +240,44 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
     setSuccess('');
 
     try {
-      // Call backend AI to parse the transcript
+      // Call backend AI to parse the transcript (NOT streaming mode for manual parse)
       const response = await axios.post('/api/mongodb/parse-financial-voice/', {
         transcript: text,
+        streaming: false,
       });
 
       const parsed = response.data;
       setParsedData(parsed);
 
+      // Track which fields are being updated
+      const updates = {};
+
       // Update form with parsed data
-      setFinancialData({
-        type: parsed.type || 'account',
-        name: parsed.name || '',
-        amount: parsed.amount || '',
-        category: parsed.category || '',
-        interestRate: parsed.interest_rate || '',
-        effectiveDate: parsed.effective_date || new Date().toISOString().split('T')[0],
-        payoffDate: parsed.payoff_date || '',
-        notes: parsed.notes || text,
+      setFinancialData(prevData => {
+        const newData = {
+          type: parsed.type || prevData.type,
+          name: parsed.name || prevData.name,
+          amount: parsed.amount || prevData.amount,
+          category: parsed.category || prevData.category,
+          interestRate: parsed.interest_rate || prevData.interestRate,
+          effectiveDate: parsed.effective_date || prevData.effectiveDate,
+          payoffDate: parsed.payoff_date || prevData.payoffDate,
+          notes: parsed.notes || text,
+        };
+
+        // Track which fields changed
+        Object.keys(newData).forEach(key => {
+          if (newData[key] !== prevData[key] && newData[key]) {
+            updates[key] = true;
+          }
+        });
+
+        return newData;
       });
+
+      // Show visual feedback for updated fields
+      setFieldUpdates(updates);
+      setTimeout(() => setFieldUpdates({}), 2000);
 
       setSuccess('✅ Successfully parsed your financial information!');
       
@@ -195,6 +302,37 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
     if (transcript) {
       handleParseTranscript(transcript);
     }
+  };
+
+  // Helper to render field with auto-fill indicator
+  const renderFieldWithIndicator = (field, fieldName) => {
+    const isAutoFilled = fieldUpdates[fieldName];
+    return (
+      <Box position="relative">
+        {field}
+        <Zoom in={isAutoFilled}>
+          <Chip
+            icon={<CheckIcon />}
+            label="Auto-filled"
+            size="small"
+            color="success"
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: -8,
+              height: 20,
+              fontSize: '0.7rem',
+              animation: 'pulse 0.5s ease-in-out',
+              '@keyframes pulse': {
+                '0%': { transform: 'scale(1)' },
+                '50%': { transform: 'scale(1.1)' },
+                '100%': { transform: 'scale(1)' },
+              },
+            }}
+          />
+        </Zoom>
+      </Box>
+    );
   };
 
   const handleSubmit = async () => {
@@ -227,6 +365,8 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
 
       // Clear form
       setTranscript('');
+      finalTranscriptRef.current = '';
+      lastParsedLengthRef.current = 0;
       setFinancialData({
         type: 'account',
         name: '',
@@ -238,6 +378,7 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
         notes: '',
       });
       setParsedData(null);
+      setFieldUpdates({});
 
       // Notify parent
       if (onSubmit) {
@@ -292,11 +433,22 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
       </AccordionSummary>
 
       <AccordionDetails sx={{ p: 3 }}>
-        <Typography variant="body2" color="text.secondary" paragraph>
-          Simply speak your financial information, and AI will automatically fill in
-          the details for you. Try saying something like: "I have a Chase checking
-          account with $5,000" or "I owe $3,000 on my Visa credit card at 18% interest"
-        </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="body2" color="text.secondary">
+            Simply speak your financial information, and AI will automatically fill in
+            the details for you. Try saying something like: "I have a Chase checking
+            account with $5,000" or "I owe $3,000 on my Visa credit card at 18% interest"
+          </Typography>
+          <Tooltip title="Real-time field filling while you speak">
+            <Chip
+              icon={<FlashIcon />}
+              label={streamingEnabled ? 'Live Mode' : 'Manual Mode'}
+              color={streamingEnabled ? 'success' : 'default'}
+              onClick={() => setStreamingEnabled(!streamingEnabled)}
+              sx={{ cursor: 'pointer' }}
+            />
+          </Tooltip>
+        </Stack>
 
         {/* Voice Input Controls */}
         <Paper
@@ -343,9 +495,29 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
             </Tooltip>
 
             <Box flex={1}>
-              <Typography variant="subtitle2" gutterBottom fontWeight="bold">
-                {isListening ? '🎙️ Listening...' : '💬 Transcript'}
-              </Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  {isListening ? '🎙️ Listening...' : '💬 Transcript'}
+                </Typography>
+                {streamingEnabled && isListening && (
+                  <Fade in={true}>
+                    <Chip
+                      icon={<AIIcon sx={{ animation: 'spin 2s linear infinite' }} />}
+                      label="Auto-filling fields..."
+                      size="small"
+                      color="secondary"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.7rem',
+                        '@keyframes spin': {
+                          '0%': { transform: 'rotate(0deg)' },
+                          '100%': { transform: 'rotate(360deg)' },
+                        },
+                      }}
+                    />
+                  </Fade>
+                )}
+              </Stack>
               <Typography
                 variant="body2"
                 sx={{
@@ -432,89 +604,104 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
 
         <Grid container spacing={2}>
           <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              select
-              label="Type"
-              value={financialData.type}
-              onChange={(e) =>
-                setFinancialData({ ...financialData, type: e.target.value })
-              }
-              size="small"
-            >
-              <MenuItem value="account">Account (Asset)</MenuItem>
-              <MenuItem value="debt">Debt (Liability)</MenuItem>
-            </TextField>
+            {renderFieldWithIndicator(
+              <TextField
+                fullWidth
+                select
+                label="Type"
+                value={financialData.type}
+                onChange={(e) =>
+                  setFinancialData({ ...financialData, type: e.target.value })
+                }
+                size="small"
+              >
+                <MenuItem value="account">Account (Asset)</MenuItem>
+                <MenuItem value="debt">Debt (Liability)</MenuItem>
+              </TextField>,
+              'type'
+            )}
           </Grid>
 
           <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              select
-              label="Category"
-              value={financialData.category}
-              onChange={(e) =>
-                setFinancialData({ ...financialData, category: e.target.value })
-              }
-              size="small"
-            >
-              {(financialData.type === 'account'
-                ? accountCategories
-                : debtCategories
-              ).map((cat) => (
-                <MenuItem key={cat.value} value={cat.value}>
-                  {cat.label}
-                </MenuItem>
-              ))}
-            </TextField>
+            {renderFieldWithIndicator(
+              <TextField
+                fullWidth
+                select
+                label="Category"
+                value={financialData.category}
+                onChange={(e) =>
+                  setFinancialData({ ...financialData, category: e.target.value })
+                }
+                size="small"
+              >
+                {(financialData.type === 'account'
+                  ? accountCategories
+                  : debtCategories
+                ).map((cat) => (
+                  <MenuItem key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </MenuItem>
+                ))}
+              </TextField>,
+              'category'
+            )}
           </Grid>
 
           <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Name"
-              placeholder="e.g., Chase Checking, Visa Credit Card"
-              value={financialData.name}
-              onChange={(e) =>
-                setFinancialData({ ...financialData, name: e.target.value })
-              }
-              size="small"
-            />
+            {renderFieldWithIndicator(
+              <TextField
+                fullWidth
+                label="Name"
+                placeholder="e.g., Chase Checking, Visa Credit Card"
+                value={financialData.name}
+                onChange={(e) =>
+                  setFinancialData({ ...financialData, name: e.target.value })
+                }
+                size="small"
+              />,
+              'name'
+            )}
           </Grid>
 
           <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Amount"
-              type="number"
-              placeholder="0.00"
-              value={financialData.amount}
-              onChange={(e) =>
-                setFinancialData({ ...financialData, amount: e.target.value })
-              }
-              size="small"
-              InputProps={{
-                startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
-              }}
-            />
+            {renderFieldWithIndicator(
+              <TextField
+                fullWidth
+                label="Amount"
+                type="number"
+                placeholder="0.00"
+                value={financialData.amount}
+                onChange={(e) =>
+                  setFinancialData({ ...financialData, amount: e.target.value })
+                }
+                size="small"
+                InputProps={{
+                  startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>,
+                }}
+              />,
+              'amount'
+            )}
           </Grid>
 
           <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Interest Rate (%)"
-              type="number"
-              placeholder="0.00"
-              value={financialData.interestRate}
-              onChange={(e) =>
-                setFinancialData({
-                  ...financialData,
-                  interestRate: e.target.value,
-                })
-              }
-              size="small"
-              inputProps={{ step: 0.01 }}
-            />
+            {renderFieldWithIndicator(
+              <TextField
+                fullWidth
+                label="Interest Rate (%)"
+                type="number"
+                placeholder="0.00"
+                value={financialData.interestRate}
+                onChange={(e) =>
+                  setFinancialData({
+                    ...financialData,
+                    interestRate: e.target.value,
+                  })
+                }
+                size="small"
+                inputProps={{ step: 0.01 }}
+              />,
+              'interestRate'
+            )}
           </Grid>
 
           <Grid item xs={12} sm={6}>
@@ -554,18 +741,21 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
           )}
 
           <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Notes"
-              placeholder="Any additional information..."
-              value={financialData.notes}
-              onChange={(e) =>
-                setFinancialData({ ...financialData, notes: e.target.value })
-              }
-              size="small"
-              multiline
-              rows={2}
-            />
+            {renderFieldWithIndicator(
+              <TextField
+                fullWidth
+                label="Notes"
+                placeholder="Any additional information..."
+                value={financialData.notes}
+                onChange={(e) =>
+                  setFinancialData({ ...financialData, notes: e.target.value })
+                }
+                size="small"
+                multiline
+                rows={2}
+              />,
+              'notes'
+            )}
           </Grid>
         </Grid>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -13,6 +13,7 @@ import {
   Stack,
   Paper,
   Divider,
+  Fade,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
@@ -21,6 +22,7 @@ import {
   Send as SendIcon,
   AutoAwesome as AIIcon,
   CheckCircle as CheckIcon,
+  FlashOn as FlashIcon,
 } from '@mui/icons-material';
 import { Button } from './common/Button';
 import axios from '../utils/axios';
@@ -32,8 +34,11 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [streamingEnabled, setStreamingEnabled] = useState(true);
   const recognitionRef = useRef(null);
   const finalTranscriptRef = useRef('');
+  const parseTimeoutRef = useRef(null);
+  const lastParsedLengthRef = useRef(0);
 
   // Budget categories matching MonthlyBudget.js
   const budgetCategories = {
@@ -55,6 +60,55 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
     retirement: { label: 'Retirement Savings', type: 'savings' },
     vacation: { label: 'Vacation Fund', type: 'savings' },
   };
+
+  // Streaming parse function with debounce
+  const streamingParse = useCallback(async (text) => {
+    if (!text.trim() || !streamingEnabled) return;
+    
+    // Only parse if we have significant new content (at least 10 characters more)
+    if (text.length - lastParsedLengthRef.current < 10) return;
+    
+    lastParsedLengthRef.current = text.length;
+    
+    try {
+      const response = await axios.post('/api/mongodb/parse-budget-voice/', {
+        transcript: text,
+        streaming: true,
+      });
+
+      const parsed = response.data;
+      setParsedData(parsed);
+
+      // Notify parent component immediately to fill fields
+      if (onDataParsed) {
+        onDataParsed(parsed);
+      }
+    } catch (err) {
+      console.error('Streaming parse error:', err);
+      // Don't show errors during streaming, only on manual parse
+    }
+  }, [streamingEnabled, onDataParsed]);
+
+  // Debounced streaming parse effect
+  useEffect(() => {
+    if (isListening && streamingEnabled && transcript) {
+      // Clear existing timeout
+      if (parseTimeoutRef.current) {
+        clearTimeout(parseTimeoutRef.current);
+      }
+
+      // Set new timeout for parsing (wait 2 seconds after user stops talking)
+      parseTimeoutRef.current = setTimeout(() => {
+        streamingParse(transcript);
+      }, 2000);
+    }
+
+    return () => {
+      if (parseTimeoutRef.current) {
+        clearTimeout(parseTimeoutRef.current);
+      }
+    };
+  }, [transcript, isListening, streamingEnabled, streamingParse]);
 
   useEffect(() => {
     // Initialize Web Speech API
@@ -99,6 +153,9 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
+      if (parseTimeoutRef.current) {
+        clearTimeout(parseTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -140,9 +197,10 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
     setSuccess('');
 
     try {
-      // Call backend AI to parse the budget transcript
+      // Call backend AI to parse the budget transcript (NOT streaming mode for manual parse)
       const response = await axios.post('/api/mongodb/parse-budget-voice/', {
         transcript: text,
+        streaming: false,
       });
 
       const parsed = response.data;
@@ -175,6 +233,8 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
       // Clear after 2 seconds
       setTimeout(() => {
         setTranscript('');
+        finalTranscriptRef.current = '';
+        lastParsedLengthRef.current = 0;
         setParsedData(null);
         setSuccess('');
       }, 2000);
@@ -219,10 +279,21 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
       </AccordionSummary>
 
       <AccordionDetails sx={{ p: 3 }}>
-        <Typography variant="body2" color="text.secondary" paragraph>
-          Simply speak your budget information, and AI will automatically fill in
-          the budget fields for you. Try saying: "My monthly income is $5,000, I spend $1,500 on rent, $400 on food, and $300 on transportation"
-        </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="body2" color="text.secondary">
+            Simply speak your budget information, and AI will automatically fill in
+            the budget fields for you. Try saying: "My monthly income is $5,000, I spend $1,500 on rent, $400 on food, and $300 on transportation"
+          </Typography>
+          <Tooltip title="Real-time field filling while you speak">
+            <Chip
+              icon={<FlashIcon />}
+              label={streamingEnabled ? 'Live Mode' : 'Manual Mode'}
+              color={streamingEnabled ? 'success' : 'default'}
+              onClick={() => setStreamingEnabled(!streamingEnabled)}
+              sx={{ cursor: 'pointer', ml: 2, flexShrink: 0 }}
+            />
+          </Tooltip>
+        </Stack>
 
         {/* Voice Input Controls */}
         <Paper
@@ -269,9 +340,29 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
             </Tooltip>
 
             <Box flex={1}>
-              <Typography variant="subtitle2" gutterBottom fontWeight="bold">
-                {isListening ? '🎙️ Listening...' : '💬 Transcript'}
-              </Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  {isListening ? '🎙️ Listening...' : '💬 Transcript'}
+                </Typography>
+                {streamingEnabled && isListening && (
+                  <Fade in={true}>
+                    <Chip
+                      icon={<AIIcon sx={{ animation: 'spin 2s linear infinite' }} />}
+                      label="Auto-filling budget..."
+                      size="small"
+                      color="secondary"
+                      sx={{
+                        height: 20,
+                        fontSize: '0.7rem',
+                        '@keyframes spin': {
+                          '0%': { transform: 'rotate(0deg)' },
+                          '100%': { transform: 'rotate(360deg)' },
+                        },
+                      }}
+                    />
+                  </Fade>
+                )}
+              </Stack>
               <Typography
                 variant="body2"
                 sx={{
