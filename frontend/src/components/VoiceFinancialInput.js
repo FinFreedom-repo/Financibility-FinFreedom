@@ -75,12 +75,12 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
     { value: 'other', label: 'Other Debt' },
   ];
 
-  // Streaming parse function with debounce
+  // Streaming parse function - parses in real-time
   const streamingParse = useCallback(async (text) => {
     if (!text.trim() || !streamingEnabled) return;
     
-    // Only parse if we have significant new content (at least 10 characters more)
-    if (text.length - lastParsedLengthRef.current < 10) return;
+    // Parse with smaller increments for real-time updates
+    if (text.length - lastParsedLengthRef.current < 5) return;
     
     lastParsedLengthRef.current = text.length;
     
@@ -132,7 +132,7 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
     }
   }, [streamingEnabled, onDataParsed]);
 
-  // Debounced streaming parse effect
+  // Real-time streaming parse effect - triggers frequently for instant updates
   useEffect(() => {
     if (isListening && streamingEnabled && transcript) {
       // Clear existing timeout
@@ -140,10 +140,10 @@ const VoiceFinancialInput = ({ onDataParsed, onSubmit }) => {
         clearTimeout(parseTimeoutRef.current);
       }
 
-      // Set new timeout for parsing (wait 2 seconds after user stops talking)
+      // Set new timeout for parsing (wait only 500ms for real-time feel)
       parseTimeoutRef.current = setTimeout(() => {
         streamingParse(transcript);
-      }, 2000);
+      }, 500);
     }
 
     return () => {

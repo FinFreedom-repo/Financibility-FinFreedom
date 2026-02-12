@@ -115,6 +115,22 @@ function MonthlyBudget() {
   const [showErrorSnackbar, setShowErrorSnackbar] = useState(false);
   const [currentBudgetId, setCurrentBudgetId] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Accordion state for new stacked layout
+  const [expandedAccordions, setExpandedAccordions] = useState({
+    overview: true,
+    income: false,
+    expenses: false,
+    savings: false,
+    stats: false
+  });
+
+  const handleAccordionChange = (panel) => (event, isExpanded) => {
+    setExpandedAccordions(prev => ({
+      ...prev,
+      [panel]: isExpanded
+    }));
+  };
   const [showAddExpenseDialog, setShowAddExpenseDialog] = useState(false);
   const [showAddIncomeDialog, setShowAddIncomeDialog] = useState(false);
   const [showAddSavingsDialog, setShowAddSavingsDialog] = useState(false);
@@ -793,77 +809,84 @@ function MonthlyBudget() {
 
           {/* Voice Budget Input */}
           <VoiceBudgetInput
+            currentBudgetData={{ ...formData, ...expenses }}
             onDataParsed={(parsedData) => {
               console.log('Voice budget data parsed:', parsedData);
-              // Apply parsed data to budget fields
+              
+              // Apply income and auto-expand
               if (parsedData.income) {
                 setFormData(prev => ({ ...prev, income: parsedData.income.toString() }));
+                setExpandedAccordions(prev => ({ ...prev, income: true }));
               }
+              
+              // Apply expenses and auto-expand
               if (parsedData.expenses) {
-                setExpenses(prev => ({
-                  ...prev,
-                  ...Object.fromEntries(
-                    Object.entries(parsedData.expenses).map(([key, val]) => [key, val.toString()])
-                  )
-                }));
+                const expenseUpdates = Object.fromEntries(
+                  Object.entries(parsedData.expenses)
+                    .filter(([_, val]) => val > 0)
+                    .map(([key, val]) => [key, val.toString()])
+                );
+                if (Object.keys(expenseUpdates).length > 0) {
+                  setExpenses(prev => ({ ...prev, ...expenseUpdates }));
+                  setExpandedAccordions(prev => ({ ...prev, expenses: true }));
+                }
               }
+              
+              // Apply savings and auto-expand
+              if (parsedData.savings) {
+                const savingsUpdates = {};
+                Object.entries(parsedData.savings).forEach(([key, value]) => {
+                  if (value > 0) {
+                    savingsUpdates[key] = value.toString();
+                  }
+                });
+                if (Object.keys(savingsUpdates).length > 0) {
+                  setFormData(prev => ({ ...prev, ...savingsUpdates }));
+                  setExpandedAccordions(prev => ({ ...prev, savings: true }));
+                }
+              }
+              
               // Show success message
               setSuccessMessage('Voice input applied! Review and save your budget.');
               setShowSuccessSnackbar(true);
             }}
           />
           
-          {/* Navigation Tabs */}
-          <Box sx={{ 
-            mb: 4, 
-            p: 3, 
-            borderRadius: 3,
-            background: `linear-gradient(90deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
-            boxShadow: '0 6px 24px rgba(0,0,0,0.12)'
-          }}>
-            <Stack 
-              direction={{ xs: 'column', sm: 'row' }} 
-              spacing={2} 
-              sx={{ 
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}
+          {/* Stacked Accordions - All sections on one page */}
+          <Stack spacing={3} sx={{ width: '100%', mb: 4 }}>
+            
+            {/* Overview Accordion */}
+            <Accordion 
+              expanded={expandedAccordions.overview}
+              onChange={handleAccordionChange('overview')}
+              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 3 }}
             >
-              {[
-                { key: 'overview', label: 'Overview', icon: <ViewIcon /> },
-                { key: 'income', label: 'Income', icon: <MoneyIcon /> },
-                { key: 'expenses', label: 'Expenses', icon: <TrendingDownIcon /> },
-                { key: 'savings', label: 'Savings', icon: <SavingsIcon /> },
-                { key: 'charts', label: 'Stats', icon: <BarChartIcon /> }
-              ].map((tab) => (
-                <Button
-                  key={tab.key}
-                  variant={activeTab === tab.key ? 'contained' : 'outlined'}
-                  startIcon={tab.icon}
-                  onClick={() => setActiveTab(tab.key)}
-                  sx={{ 
-                    minWidth: { xs: '100%', sm: 140, md: 160 },
-                    py: 1.5,
-                    px: 3,
-                    borderRadius: 2,
-                    fontSize: { xs: '1rem', sm: '1.1rem' },
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    boxShadow: activeTab === tab.key ? '0 4px 16px rgba(0,0,0,0.15)' : 'none',
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  {tab.label}
-                </Button>
-              ))}
-            </Stack>
-          </Box>
-
-          <Grid container spacing={4} sx={{ width: '100%' }}>
-            {/* Main Content */}
-            <Grid item xs={12} xl={activeTab === 'overview' ? 12 : 9}>
-              {/* Overview Tab */}
-              {activeTab === 'overview' && (
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  borderRadius: expandedAccordions.overview ? '8px 8px 0 0' : 2,
+                  minHeight: 64,
+                }}
+              >
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ width: '100%' }}>
+                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)' }}>
+                    <ViewIcon />
+                  </Avatar>
+                  <Box flex={1}>
+                    <Typography variant="h6" fontWeight="bold">
+                      📊 Overview & Summary
+                    </Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                      Quick snapshot of your budget
+                    </Typography>
+                  </Box>
+                </Stack>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 3 }}>
+                {/* Overview content */}
+                {(
                 <Card elevation={4} sx={{ 
                   borderRadius: 3,
                   background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
@@ -879,74 +902,74 @@ function MonthlyBudget() {
                       Budget Overview
                     </Typography>
                     
-                    <Grid container spacing={4}>
-                      <Grid item xs={12} sm={6} md={3}>
+                    <Grid container spacing={2}>
+                      <Grid item xs={3}>
                         <Box sx={{ 
                           textAlign: 'center', 
-                          p: 4, 
+                          p: { xs: 2, sm: 3, md: 4 }, 
                           background: 'linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)',
                           borderRadius: 3,
                           boxShadow: '0 6px 24px rgba(76, 175, 80, 0.3)',
                           color: 'white',
                           transition: 'transform 0.3s ease',
                           '&:hover': { transform: 'translateY(-6px)' },
-                          minHeight: 160
+                          minHeight: { xs: 120, sm: 140, md: 160 }
                         }}>
-                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 2, fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.5rem' } }}>
+                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '1.2rem', sm: '1.8rem', md: '2.5rem' } }}>
                             ${summary.totalIncome.toLocaleString()}
                           </Typography>
-                          <Typography variant="h6" sx={{ opacity: 0.9, fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' } }}>
+                          <Typography variant="h6" sx={{ opacity: 0.9, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1.2rem' } }}>
                             Total Income
                           </Typography>
                         </Box>
                       </Grid>
                       
-                      <Grid item xs={12} sm={6} md={3}>
+                      <Grid item xs={3}>
                         <Box sx={{ 
                           textAlign: 'center', 
-                          p: 4, 
+                          p: { xs: 2, sm: 3, md: 4 }, 
                           background: 'linear-gradient(135deg, #F44336 0%, #EF5350 100%)',
                           borderRadius: 3,
                           boxShadow: '0 6px 24px rgba(244, 67, 54, 0.3)',
                           color: 'white',
                           transition: 'transform 0.3s ease',
                           '&:hover': { transform: 'translateY(-6px)' },
-                          minHeight: 160
+                          minHeight: { xs: 120, sm: 140, md: 160 }
                         }}>
-                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 2, fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.5rem' } }}>
+                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '1.2rem', sm: '1.8rem', md: '2.5rem' } }}>
                             ${summary.totalExpenses.toLocaleString()}
                           </Typography>
-                          <Typography variant="h6" sx={{ opacity: 0.9, fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' } }}>
+                          <Typography variant="h6" sx={{ opacity: 0.9, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1.2rem' } }}>
                             Total Expenses
                           </Typography>
                         </Box>
                       </Grid>
                       
-                      <Grid item xs={12} sm={6} md={3}>
+                      <Grid item xs={3}>
                         <Box sx={{ 
                           textAlign: 'center', 
-                          p: 4, 
+                          p: { xs: 2, sm: 3, md: 4 }, 
                           background: 'linear-gradient(135deg, #007fff 0%, #4da6ff 100%)',
                           borderRadius: 3,
                           boxShadow: '0 6px 24px rgba(0, 102, 204, 0.3)',
                           color: 'white',
                           transition: 'transform 0.3s ease',
                           '&:hover': { transform: 'translateY(-6px)' },
-                          minHeight: 160
+                          minHeight: { xs: 120, sm: 140, md: 160 }
                         }}>
-                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 2, fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.5rem' } }}>
+                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '1.2rem', sm: '1.8rem', md: '2.5rem' } }}>
                             ${summary.totalSavings.toLocaleString()}
                           </Typography>
-                          <Typography variant="h6" sx={{ opacity: 0.9, fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' } }}>
+                          <Typography variant="h6" sx={{ opacity: 0.9, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1.2rem' } }}>
                             Total Savings
                           </Typography>
                         </Box>
                       </Grid>
                       
-                      <Grid item xs={12} sm={6} md={3}>
+                      <Grid item xs={3}>
                         <Box sx={{ 
                           textAlign: 'center', 
-                          p: 4, 
+                          p: { xs: 2, sm: 3, md: 4 }, 
                           background: summary.netBalance >= 0 
                             ? 'linear-gradient(135deg, #FF9800 0%, #FFB74D 100%)'
                             : 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
@@ -957,12 +980,12 @@ function MonthlyBudget() {
                           color: 'white',
                           transition: 'transform 0.3s ease',
                           '&:hover': { transform: 'translateY(-6px)' },
-                          minHeight: 160
+                          minHeight: { xs: 120, sm: 140, md: 160 }
                         }}>
-                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 2, fontSize: { xs: '1.8rem', sm: '2.2rem', md: '2.5rem' } }}>
+                          <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '1.2rem', sm: '1.8rem', md: '2.5rem' } }}>
                             ${summary.netBalance.toLocaleString()}
                           </Typography>
-                          <Typography variant="h6" sx={{ opacity: 0.9, fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' } }}>
+                          <Typography variant="h6" sx={{ opacity: 0.9, fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1.2rem' } }}>
                             Net Balance
                           </Typography>
                         </Box>
@@ -986,10 +1009,46 @@ function MonthlyBudget() {
                     </Box>
                   </CardContent>
                 </Card>
-              )}
+                )}
+              </AccordionDetails>
+            </Accordion>
 
-              {/* Income Tab */}
-              {activeTab === 'income' && (
+            {/* Income Accordion */}
+            <Accordion 
+              expanded={expandedAccordions.income}
+              onChange={handleAccordionChange('income')}
+              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 3 }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{
+                  background: 'linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)',
+                  color: 'white',
+                  borderRadius: expandedAccordions.income ? '8px 8px 0 0' : 2,
+                  minHeight: 64,
+                }}
+              >
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ width: '100%' }}>
+                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)' }}>
+                    <MoneyIcon />
+                  </Avatar>
+                  <Box flex={1}>
+                    <Typography variant="h6" fontWeight="bold">
+                      💰 Income
+                    </Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                      Monthly income sources
+                    </Typography>
+                  </Box>
+                  {formData.income && parseFloat(formData.income) > 0 ? (
+                    <Chip label={`$${parseFloat(formData.income).toLocaleString()}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 'bold' }} />
+                  ) : (
+                    <Chip label="⚠️ Empty" size="small" sx={{ bgcolor: 'rgba(255,152,0,0.3)', color: 'white' }} />
+                  )}
+                </Stack>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 3 }}>
+                {(
                 <Card elevation={4} sx={{ 
                   borderRadius: 3,
                   background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
@@ -1332,10 +1391,42 @@ function MonthlyBudget() {
                     </Box>
                   </CardContent>
                 </Card>
-              )}
+                )}
+              </AccordionDetails>
+            </Accordion>
 
-              {/* Expenses Tab */}
-              {activeTab === 'expenses' && (
+            {/* Expenses Accordion */}
+            <Accordion 
+              expanded={expandedAccordions.expenses}
+              onChange={handleAccordionChange('expenses')}
+              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 3 }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{
+                  background: 'linear-gradient(135deg, #F44336 0%, #EF5350 100%)',
+                  color: 'white',
+                  borderRadius: expandedAccordions.expenses ? '8px 8px 0 0' : 2,
+                  minHeight: 64,
+                }}
+              >
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ width: '100%' }}>
+                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)' }}>
+                    <TrendingDownIcon />
+                  </Avatar>
+                  <Box flex={1}>
+                    <Typography variant="h6" fontWeight="bold">
+                      💳 Expenses
+                    </Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                      Monthly expenses across all categories
+                    </Typography>
+                  </Box>
+                  <Chip label={`Total: $${summary.totalExpenses.toLocaleString()}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 'bold' }} />
+                </Stack>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 3 }}>
+                {(
                 <Card elevation={4} sx={{ 
                   borderRadius: 3,
                   background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.action.hover} 100%)`,
@@ -1680,10 +1771,42 @@ function MonthlyBudget() {
                     </Box>
                   </CardContent>
                 </Card>
-              )}
+                )}
+              </AccordionDetails>
+            </Accordion>
 
-              {/* Savings Tab */}
-              {activeTab === 'savings' && (
+            {/* Savings Accordion */}
+            <Accordion 
+              expanded={expandedAccordions.savings}
+              onChange={handleAccordionChange('savings')}
+              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 3 }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{
+                  background: 'linear-gradient(135deg, #2196F3 0%, #21CBF3 100%)',
+                  color: 'white',
+                  borderRadius: expandedAccordions.savings ? '8px 8px 0 0' : 2,
+                  minHeight: 64,
+                }}
+              >
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ width: '100%' }}>
+                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)' }}>
+                    <SavingsIcon />
+                  </Avatar>
+                  <Box flex={1}>
+                    <Typography variant="h6" fontWeight="bold">
+                      💎 Savings
+                    </Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                      Emergency fund, retirement, and savings goals
+                    </Typography>
+                  </Box>
+                  <Chip label={`Total: $${summary.totalSavings.toLocaleString()}`} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', fontWeight: 'bold' }} />
+                </Stack>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 3 }}>
+                {(
                 <Box sx={{ 
                   p: 3, 
                   bgcolor: 'background.paper', 
@@ -1918,6 +2041,8 @@ function MonthlyBudget() {
                       </Box>
                     </Box>
                     )}
+                  </Box>
+                )}
                     
                     <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
                       <CustomButton
@@ -1943,11 +2068,40 @@ function MonthlyBudget() {
                       {saving ? 'Saving Budget...' : 'Save Budget'}
                       </CustomButton>
                     </Box>
-                </Box>
-              )}
+              </AccordionDetails>
+            </Accordion>
 
-              {/* Stats Tab */}
-              {activeTab === 'charts' && (
+            {/* Stats Accordion */}
+            <Accordion 
+              expanded={expandedAccordions.stats}
+              onChange={handleAccordionChange('stats')}
+              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 3 }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{
+                  background: 'linear-gradient(135deg, #FF9800 0%, #FFB74D 100%)',
+                  color: 'white',
+                  borderRadius: expandedAccordions.stats ? '8px 8px 0 0' : 2,
+                  minHeight: 64,
+                }}
+              >
+                <Stack direction="row" alignItems="center" spacing={2} sx={{ width: '100%' }}>
+                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)' }}>
+                    <BarChartIcon />
+                  </Avatar>
+                  <Box flex={1}>
+                    <Typography variant="h6" fontWeight="bold">
+                      📈 Stats & Charts
+                    </Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                      Visual breakdown and analysis
+                    </Typography>
+                  </Box>
+                </Stack>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 3 }}>
+                {(
                 <Grid container spacing={6}>
                   <Grid item xs={12} md={6}>
                     <Card elevation={4} sx={{ 
@@ -2063,11 +2217,13 @@ function MonthlyBudget() {
                     </Card>
                   </Grid>
                 </Grid>
-              )}
-            </Grid>
+                )}
+              </AccordionDetails>
+            </Accordion>
+          </Stack>
 
-            {/* Sidebar */}
-            {activeTab !== 'overview' && (
+          {/* Sidebar removed - all content now in accordions above */}
+          {false && (
               <Grid item xs={12} xl={3}>
                 <Stack spacing={4}>
                   {/* Quick Summary */}
@@ -2113,123 +2269,129 @@ function MonthlyBudget() {
                       </Typography>
                     </Box>
                     
-                    <Stack spacing={2}>
+                    <Grid container spacing={1.5}>
                       {/* Total Income */}
-                      <Box sx={{ 
-                        p: 3, 
-                        background: '#2196f3',
-                        borderRadius: 2, 
-                        textAlign: 'center',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                          transform: 'translateY(-2px)',
-                          boxShadow: '0 8px 25px rgba(33, 150, 243, 0.3)',
-                          background: '#2782ca',
-                        }
-                      }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-                          <TrendingUpIcon sx={{ color: 'white', fontSize: 20, mr: 1 }} />
-                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
-                          Total Income
-                        </Typography>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ 
+                          p: 2, 
+                          background: '#2196f3',
+                          borderRadius: 2, 
+                          textAlign: 'center',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 8px 25px rgba(33, 150, 243, 0.3)',
+                            background: '#2782ca',
+                          },
+                          minHeight: { xs: 100, sm: 120 }
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.5 }}>
+                            <TrendingUpIcon sx={{ color: 'white', fontSize: { xs: 18, sm: 20 } }} />
+                          </Box>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '0.7rem', sm: '0.875rem' }, mb: 0.5 }}>
+                            Total Income
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                            ${summary.totalIncome.toLocaleString()}
+                          </Typography>
                         </Box>
-                        <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
-                          ${summary.totalIncome.toLocaleString()}
-                        </Typography>
-                      </Box>
+                      </Grid>
                       
                       {/* Total Expenses */}
-                      <Box sx={{ 
-                        p: 3, 
-                        background: '#f44336',
-                        borderRadius: 2, 
-                        textAlign: 'center',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                          transform: 'translateY(-2px)',
-                          boxShadow: '0 8px 25px rgba(244, 67, 54, 0.3)',
-                          background: '#d32f2f',
-                        }
-                      }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-                          <TrendingDownIcon sx={{ color: 'white', fontSize: 20, mr: 1 }} />
-                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
-                          Total Expenses
-                        </Typography>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ 
+                          p: 2, 
+                          background: '#f44336',
+                          borderRadius: 2, 
+                          textAlign: 'center',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 8px 25px rgba(244, 67, 54, 0.3)',
+                            background: '#d32f2f',
+                          },
+                          minHeight: { xs: 100, sm: 120 }
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.5 }}>
+                            <TrendingDownIcon sx={{ color: 'white', fontSize: { xs: 18, sm: 20 } }} />
+                          </Box>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '0.7rem', sm: '0.875rem' }, mb: 0.5 }}>
+                            Total Expenses
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                            ${summary.totalExpenses.toLocaleString()}
+                          </Typography>
                         </Box>
-                        <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
-                          ${summary.totalExpenses.toLocaleString()}
-                        </Typography>
-                      </Box>
+                      </Grid>
                       
                       {/* Total Savings */}
-                      <Box sx={{ 
-                        p: 3, 
-                        background: '#2196f3',
-                        borderRadius: 2, 
-                        textAlign: 'center',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                          transform: 'translateY(-2px)',
-                          boxShadow: '0 8px 25px rgba(33, 150, 243, 0.3)',
-                          background: '#2782ca',
-                        }
-                      }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-                          <SavingsIcon sx={{ color: 'white', fontSize: 20, mr: 1 }} />
-                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
-                          Total Savings
-                        </Typography>
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ 
+                          p: 2, 
+                          background: '#2196f3',
+                          borderRadius: 2, 
+                          textAlign: 'center',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 8px 25px rgba(33, 150, 243, 0.3)',
+                            background: '#2782ca',
+                          },
+                          minHeight: { xs: 100, sm: 120 }
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.5 }}>
+                            <SavingsIcon sx={{ color: 'white', fontSize: { xs: 18, sm: 20 } }} />
+                          </Box>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '0.7rem', sm: '0.875rem' }, mb: 0.5 }}>
+                            Total Savings
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                            ${summary.totalSavings.toLocaleString()}
+                          </Typography>
                         </Box>
-                        <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
-                          ${summary.totalSavings.toLocaleString()}
-                        </Typography>
-                      </Box>
-                      
-                      <Divider sx={{ my: 2, borderColor: 'rgba(255, 0, 0, 0.2)' }} />
+                      </Grid>
                       
                       {/* Net Balance */}
-                      <Box sx={{ 
-                        p: 3, 
-                        background: summary.netBalance >= 0 
-                          ? '#2196f3'
-                          : '#f44336',
-                        borderRadius: 2, 
-                        textAlign: 'center',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                          transform: 'translateY(-2px)',
-                          boxShadow: summary.netBalance >= 0 
-                            ? '0 8px 25px rgba(33, 150, 243, 0.3)'
-                            : '0 8px 25px rgba(244, 67, 54, 0.3)',
+                      <Grid item xs={6} sm={3}>
+                        <Box sx={{ 
+                          p: 2, 
                           background: summary.netBalance >= 0 
-                            ? '#1976d2'
-                            : '#d32f2f',
-                        }
-                      }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
-                          {summary.netBalance >= 0 ? (
-                            <TrendingUpIcon sx={{ color: 'white', fontSize: 20, mr: 1 }} />
-                          ) : (
-                            <TrendingDownIcon sx={{ color: 'white', fontSize: 20, mr: 1 }} />
-                          )}
-                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
-                          Net Balance
-                        </Typography>
+                            ? '#2196f3'
+                            : '#f44336',
+                          borderRadius: 2, 
+                          textAlign: 'center',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: summary.netBalance >= 0 
+                              ? '0 8px 25px rgba(33, 150, 243, 0.3)'
+                              : '0 8px 25px rgba(244, 67, 54, 0.3)',
+                            background: summary.netBalance >= 0 
+                              ? '#1976d2'
+                              : '#d32f2f',
+                          },
+                          minHeight: { xs: 100, sm: 120 }
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 0.5 }}>
+                            {summary.netBalance >= 0 ? (
+                              <TrendingUpIcon sx={{ color: 'white', fontSize: { xs: 18, sm: 20 } }} />
+                            ) : (
+                              <TrendingDownIcon sx={{ color: 'white', fontSize: { xs: 18, sm: 20 } }} />
+                            )}
+                          </Box>
+                          <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '0.7rem', sm: '0.875rem' }, mb: 0.5 }}>
+                            Net Balance
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold', fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                            ${summary.netBalance.toLocaleString()}
+                          </Typography>
                         </Box>
-                        <Typography variant="h4" sx={{ color: 'white', fontWeight: 'bold' }}>
-                          ${summary.netBalance.toLocaleString()}
-                        </Typography>
-                        <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.8)', mt: 1 }}>
-                          {summary.netBalance >= 0 ? 'Positive Balance' : 'Negative Balance'}
-                        </Typography>
-                      </Box>
-                    </Stack>
+                      </Grid>
+                    </Grid>
                   </Box>
                 </Stack>
               </Grid>
             )}
-          </Grid>
         </Box>
       </Fade>
 

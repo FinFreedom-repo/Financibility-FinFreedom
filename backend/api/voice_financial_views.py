@@ -13,9 +13,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
 def parse_financial_voice(request):
     """
     Parse voice transcript into structured financial data using AI
@@ -110,9 +110,9 @@ def get_voice_examples(request):
     return Response(examples, status=status.HTTP_200_OK)
 
 
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
 def voice_quick_add(request):
     """
     Quick add account or debt from voice transcript
@@ -187,9 +187,9 @@ def voice_quick_add(request):
         )
 
 
+@csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@csrf_exempt
 def parse_budget_voice(request):
     """
     Parse budget voice transcript into structured budget data using AI

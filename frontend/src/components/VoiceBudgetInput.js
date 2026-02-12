@@ -27,7 +27,7 @@ import {
 import { Button } from './common/Button';
 import axios from '../utils/axios';
 
-const VoiceBudgetInput = ({ onDataParsed }) => {
+const VoiceBudgetInput = ({ onDataParsed, currentBudgetData = {} }) => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [parsedData, setParsedData] = useState(null);
@@ -35,6 +35,7 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [streamingEnabled, setStreamingEnabled] = useState(true);
+  const [missingFields, setMissingFields] = useState([]);
   const recognitionRef = useRef(null);
   const finalTranscriptRef = useRef('');
   const parseTimeoutRef = useRef(null);
@@ -61,35 +62,140 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
     vacation: { label: 'Vacation Fund', type: 'savings' },
   };
 
-  // Streaming parse function with debounce
-  const streamingParse = useCallback(async (text) => {
+  // Detect missing/empty fields
+  useEffect(() => {
+    const missing = [];
+    
+    // Check income
+    if (!currentBudgetData.income || parseFloat(currentBudgetData.income) === 0) {
+      missing.push({ category: 'Income', field: 'income', label: 'Monthly Income' });
+    }
+    
+    // Check major expenses
+    const expenseFields = [
+      { field: 'housing', label: 'Housing/Rent' },
+      { field: 'food', label: 'Food/Groceries' },
+      { field: 'transportation', label: 'Transportation' },
+      { field: 'utilities', label: 'Utilities' },
+      { field: 'healthcare', label: 'Healthcare' },
+    ];
+    
+    expenseFields.forEach(({ field, label }) => {
+      if (!currentBudgetData[field] || parseFloat(currentBudgetData[field]) === 0) {
+        missing.push({ category: 'Expenses', field, label });
+      }
+    });
+    
+    setMissingFields(missing);
+  }, [currentBudgetData]);
+
+  // Client-side parser for instant updates (no backend needed!)
+  const parseTranscriptLocally = useCallback((text) => {
+    const lower = text.toLowerCase();
+    const result = {
+      income: 0,
+      expenses: {},
+      savings: {},
+      raw_transcript: text,
+    };
+
+    // Extract amounts (handles: $3700, 3700, thirty seven hundred, 3.7k, etc.)
+    const extractAmount = (str) => {
+      // Look for dollar amounts: $3700 or $3,700
+      let match = str.match(/\$\s*([0-9,]+(?:\.[0-9]{2})?)/);
+      if (match) return parseFloat(match[1].replace(/,/g, ''));
+
+      // Look for plain numbers: 3700 or 3,700
+      match = str.match(/\b([0-9,]+(?:\.[0-9]{2})?)\b/);
+      if (match) return parseFloat(match[1].replace(/,/g, ''));
+
+      return null;
+    };
+
+    // Category keywords
+    const categoryKeywords = {
+      income: ['income', 'salary', 'paycheck', 'earn', 'make'],
+      housing: ['housing', 'rent', 'mortgage', 'apartment'],
+      food: ['food', 'groceries', 'grocery', 'dining', 'restaurant'],
+      transportation: ['transportation', 'car', 'gas', 'transit', 'uber', 'vehicle'],
+      utilities: ['utilities', 'electric', 'water', 'internet', 'phone', 'cable'],
+      healthcare: ['healthcare', 'health', 'medical', 'doctor', 'insurance'],
+      entertainment: ['entertainment', 'movies', 'streaming', 'netflix'],
+      shopping: ['shopping', 'clothes', 'clothing', 'amazon'],
+      travel: ['travel', 'vacation', 'trip'],
+      education: ['education', 'tuition', 'school'],
+      childcare: ['childcare', 'daycare', 'babysitter'],
+      debt_payments: ['debt', 'loan payment', 'credit card payment'],
+      emergency_fund: ['emergency', 'emergency fund'],
+      retirement: ['retirement', '401k', 'ira'],
+      vacation: ['vacation fund', 'vacation savings'],
+    };
+
+    // Parse income
+    for (const keyword of categoryKeywords.income) {
+      if (lower.includes(keyword)) {
+        const amount = extractAmount(lower.substring(lower.indexOf(keyword)));
+        if (amount) {
+          result.income = amount;
+          break;
+        }
+      }
+    }
+
+    // Parse expenses and savings
+    Object.keys(categoryKeywords).forEach(category => {
+      if (category === 'income') return; // Already handled
+      
+      const keywords = categoryKeywords[category];
+      for (const keyword of keywords) {
+        if (lower.includes(keyword)) {
+          // Look for amount near the keyword (within 30 chars before or after)
+          const keywordIndex = lower.indexOf(keyword);
+          const contextBefore = lower.substring(Math.max(0, keywordIndex - 30), keywordIndex);
+          const contextAfter = lower.substring(keywordIndex, Math.min(lower.length, keywordIndex + 30));
+          const context = contextBefore + ' ' + contextAfter;
+          
+          const amount = extractAmount(context);
+          if (amount) {
+            // Determine if it's expense or savings
+            if (['emergency_fund', 'retirement', 'vacation'].includes(category)) {
+              result.savings[category] = amount;
+            } else {
+              result.expenses[category] = amount;
+            }
+            break;
+          }
+        }
+      }
+    });
+
+    return result;
+  }, []);
+
+  // Streaming parse function - uses LOCAL parsing for instant updates!
+  const streamingParse = useCallback((text) => {
     if (!text.trim() || !streamingEnabled) return;
     
-    // Only parse if we have significant new content (at least 10 characters more)
-    if (text.length - lastParsedLengthRef.current < 10) return;
+    // Parse even small changes for real-time updates
+    if (text.length - lastParsedLengthRef.current < 5) return;
     
     lastParsedLengthRef.current = text.length;
     
     try {
-      const response = await axios.post('/api/mongodb/parse-budget-voice/', {
-        transcript: text,
-        streaming: true,
-      });
-
-      const parsed = response.data;
+      // Use LOCAL parsing for instant results (no API call!)
+      const parsed = parseTranscriptLocally(text);
       setParsedData(parsed);
 
-      // Notify parent component immediately to fill fields
+      // Notify parent component immediately to fill fields in real-time
       if (onDataParsed) {
         onDataParsed(parsed);
       }
     } catch (err) {
-      console.error('Streaming parse error:', err);
-      // Don't show errors during streaming, only on manual parse
+      console.error('Local parsing error:', err);
     }
-  }, [streamingEnabled, onDataParsed]);
+  }, [streamingEnabled, onDataParsed, parseTranscriptLocally]);
 
-  // Debounced streaming parse effect
+  // Real-time streaming parse effect - triggers frequently
   useEffect(() => {
     if (isListening && streamingEnabled && transcript) {
       // Clear existing timeout
@@ -97,10 +203,10 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
         clearTimeout(parseTimeoutRef.current);
       }
 
-      // Set new timeout for parsing (wait 2 seconds after user stops talking)
+      // Set new timeout for parsing (wait only 500ms for real-time feel)
       parseTimeoutRef.current = setTimeout(() => {
         streamingParse(transcript);
-      }, 2000);
+      }, 500);
     }
 
     return () => {
@@ -406,6 +512,38 @@ const VoiceBudgetInput = ({ onDataParsed }) => {
         {success && (
           <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
             {success}
+          </Alert>
+        )}
+
+        {/* Missing Fields Indicator */}
+        {missingFields.length > 0 && !isListening && (
+          <Alert severity="info" sx={{ mb: 2 }} icon={<AIIcon />}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+              💡 Suggested: Fill these fields by speaking
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1 }}>
+              {missingFields.slice(0, 5).map((field, index) => (
+                <Chip
+                  key={index}
+                  label={field.label}
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  sx={{ mb: 0.5 }}
+                />
+              ))}
+              {missingFields.length > 5 && (
+                <Chip
+                  label={`+${missingFields.length - 5} more`}
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                />
+              )}
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Try saying: "My {missingFields[0]?.label.toLowerCase()} is [amount]"
+            </Typography>
           </Alert>
         )}
 
