@@ -108,6 +108,7 @@ Extract and return ONLY a valid JSON object with these exact fields:
 
 Parsing Rules:
 - Extract amounts flexibly: "$3,700", "3700", "thirty seven hundred"
+- CRITICAL: Each category has its own amount. The amount for a category is the number that IMMEDIATELY follows that category phrase (e.g. "housing is 3,000" means housing=3000; "income is 2000" means income=2000). Do NOT reuse the income amount for expense categories.
 - Match categories intelligently:
   * housing = rent, mortgage, housing, apartment
   * food = food, groceries, dining, restaurant

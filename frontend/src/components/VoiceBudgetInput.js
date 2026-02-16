@@ -149,13 +149,11 @@ const VoiceBudgetInput = ({ onDataParsed, currentBudgetData = {} }) => {
       const keywords = categoryKeywords[category];
       for (const keyword of keywords) {
         if (lower.includes(keyword)) {
-          // Look for amount near the keyword (within 30 chars before or after)
+          // Use only the text AFTER the keyword so we get this category's amount,
+          // not a number from a previous phrase (e.g. "income is 2000 housing is 3,000" -> housing must use 3000)
           const keywordIndex = lower.indexOf(keyword);
-          const contextBefore = lower.substring(Math.max(0, keywordIndex - 30), keywordIndex);
-          const contextAfter = lower.substring(keywordIndex, Math.min(lower.length, keywordIndex + 30));
-          const context = contextBefore + ' ' + contextAfter;
-          
-          const amount = extractAmount(context);
+          const segmentAfterKeyword = lower.substring(keywordIndex + keyword.length, Math.min(lower.length, keywordIndex + keyword.length + 40));
+          const amount = extractAmount(segmentAfterKeyword);
           if (amount) {
             // Determine if it's expense or savings
             if (['emergency_fund', 'retirement', 'vacation'].includes(category)) {
