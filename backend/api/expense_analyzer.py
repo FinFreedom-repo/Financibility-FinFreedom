@@ -152,13 +152,41 @@ class ExpenseAnalyzerView(APIView):
             )
 
             # Create a prompt for Grok to analyze the expense data
+            category_examples = {
+                'healthcare': 'Include all medical expenses: doctor visits, hospital bills, pharmacy/prescriptions (CVS, Walgreens, Rite Aid), dental care, vision care, medical insurance premiums, copays, urgent care, clinic visits, medical equipment, lab tests, specialist visits, therapy, mental health services, and any health-related expenses.',
+                'housing': 'Rent, mortgage payments, property taxes, home insurance, HOA fees, maintenance, repairs.',
+                'debt_payments': 'Credit card payments, loan payments, student loans, car loans, personal loans.',
+                'transportation': 'Gas, car payments, public transit, Uber/Lyft, parking, tolls, car maintenance, car insurance.',
+                'utilities': 'Electric, water, gas, internet, cable, phone bills, trash service.',
+                'food': 'Groceries, restaurants, food delivery, coffee shops, fast food.',
+                'entertainment': 'Movies, streaming services (Netflix, Hulu), concerts, games, hobbies, sports events.',
+                'shopping': 'Clothing, electronics, general retail purchases, Amazon, department stores.',
+                'travel': 'Hotels, flights, rental cars, vacation expenses, Airbnb.',
+                'education': 'Tuition, school supplies, courses, textbooks, educational services.',
+                'childcare': 'Daycare, babysitting, child-related expenses.',
+                'other': 'Any expense that does not fit into the above categories.'
+            }
+            
+            # Build category guidance string
+            category_guidance = "\n".join([f"- {cat}: {examples}" for cat, examples in category_examples.items() if cat in all_categories])
+            
             prompt = f"""Please categorize all expenses in this data into the following categories: {category_list_str}.
-                        If an expense does not fit, use 'other'.
 
-                        For each category, sum up the total expenses and just print out the total for each category. Please put the result in JSON format.
+IMPORTANT CATEGORY GUIDELINES:
+{category_guidance}
 
-                        Here's the data:
-                        {file_content}"""
+CRITICAL: Pay special attention to healthcare expenses. Look for keywords like: pharmacy, CVS, Walgreens, Rite Aid, doctor, hospital, medical, prescription, RX, dental, dentist, clinic, health insurance, copay, urgent care, lab, test, therapy, mental health, vision, optometrist, chiropractor, physical therapy, and any health-related terms.
+
+For each category, sum up the total expenses and return ONLY a valid JSON object with category names as keys and total amounts as values. Example format:
+{{
+  "healthcare": 250.50,
+  "food": 450.00,
+  "transportation": 120.00,
+  ...
+}}
+
+Here's the expense data to analyze:
+{file_content}"""
 
             # Make a request to the Grok API
             print("Making request to Grok API...")
@@ -166,7 +194,7 @@ class ExpenseAnalyzerView(APIView):
             completion = client.chat.completions.create(
                 model="grok-3-mini",
                 messages=[
-                    {"role": "system", "content": "You are Grok, a helpful AI assistant specializing in financial analysis."},
+                    {"role": "system", "content": "You are Grok, a helpful AI assistant specializing in financial analysis and expense categorization. You are highly accurate at identifying healthcare expenses including pharmacy purchases, medical services, prescriptions, doctor visits, and insurance payments. Always carefully examine transaction descriptions and merchant names to correctly categorize expenses."},
                     {"role": "user", "content": prompt},
                 ],
             )
@@ -247,7 +275,7 @@ class ExpenseChatView(APIView):
             completion = client.chat.completions.create(
                 model="grok-3-mini",
                 messages=[
-                    {"role": "system", "content": "You are Grok, a helpful AI assistant specializing in financial analysis."},
+                    {"role": "system", "content": "You are Grok, a helpful AI assistant specializing in financial analysis and expense categorization. You are highly accurate at identifying healthcare expenses including pharmacy purchases, medical services, prescriptions, doctor visits, and insurance payments. Always carefully examine transaction descriptions and merchant names to correctly categorize expenses."},
                     {"role": "user", "content": prompt},
                 ],
             )
