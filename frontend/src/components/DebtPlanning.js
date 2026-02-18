@@ -468,10 +468,16 @@ const DebtPlanning = () => {
           });
         }
         
-        // Expenses
+        // Expenses (map backend keys to grid category names; backend uses 'other' and 'debt_payments')
+        const expenseKeyToGridCategory = {
+          other: 'Miscellaneous',
+          others: 'Miscellaneous',
+          debt_payments: 'Required Debt Payments'
+        };
         if (budget.expenses) {
           Object.entries(budget.expenses).forEach(([category, amount]) => {
-            const expenseRow = gridData.find(row => row.category === category.charAt(0).toUpperCase() + category.slice(1));
+            const gridCategory = expenseKeyToGridCategory[category] ?? category.charAt(0).toUpperCase() + category.slice(1);
+            const expenseRow = gridData.find(row => row.category === gridCategory);
             if (expenseRow) {
               expenseRow[`month_${monthIdx}`] = amount || 0;
             }
