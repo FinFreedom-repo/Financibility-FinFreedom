@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -77,11 +78,24 @@ import { Button as CustomButton } from './common/Button';
 import Chart from './common/Chart';
 import VoiceBudgetInput from './VoiceBudgetInput';
 
+// Refined color palette - cohesive teal/slate/emerald
+const BUDGET_COLORS = {
+  income: { main: '#0D9488', light: '#14B8A6', bg: 'rgba(13, 148, 136, 0.12)' },
+  expenses: { main: '#C2410C', light: '#EA580C', bg: 'rgba(194, 65, 12, 0.12)' },
+  savings: { main: '#1E40AF', light: '#3B82F6', bg: 'rgba(30, 64, 175, 0.12)' },
+  netPositive: { main: '#047857', light: '#059669', bg: 'rgba(4, 120, 87, 0.12)' },
+  netNegative: { main: '#B91C1C', light: '#DC2626', bg: 'rgba(185, 28, 28, 0.12)' },
+  overview: { gradient: 'linear-gradient(135deg, #0F766E 0%, #134E4A 100%)' },
+  debt: { main: '#92400E', light: '#B45309', bg: 'rgba(146, 64, 14, 0.12)' },
+  stats: { main: '#4F46E5', light: '#6366F1', bg: 'rgba(79, 70, 229, 0.12)' },
+};
+
 function MonthlyBudget() {
   const { user } = useAuth();
   const { isDarkMode } = useCustomTheme();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const navigate = useNavigate();
   
   // State management
   const [formData, setFormData] = useState({
@@ -124,6 +138,7 @@ function MonthlyBudget() {
     savings: false,
     stats: false
   });
+  const [debtSectionExpanded, setDebtSectionExpanded] = useState(false);
 
   const handleAccordionChange = (panel) => (event, isExpanded) => {
     setExpandedAccordions(prev => ({
@@ -365,7 +380,12 @@ function MonthlyBudget() {
       labels: ['Income', 'Expenses', 'Savings', 'Net Balance'],
       datasets: [{
         data: [summary.totalIncome, summary.totalExpenses, summary.totalSavings, summary.netBalance],
-        backgroundColor: ['#2E7D32', '#ca4b41', '#2782ca', summary.netBalance >= 0 ? '#FF9800' : '#ff0000'],
+        backgroundColor: [
+          BUDGET_COLORS.income.main,
+          BUDGET_COLORS.expenses.main,
+          BUDGET_COLORS.savings.main,
+          summary.netBalance >= 0 ? BUDGET_COLORS.netPositive.main : BUDGET_COLORS.netNegative.main
+        ],
         borderWidth: 2,
         borderColor: '#fff'
       }]
@@ -796,9 +816,9 @@ function MonthlyBudget() {
           <Typography variant="h3" gutterBottom sx={{ 
             fontWeight: 'bold', 
             color: theme.palette.text.primary,
-            mb: 4,
+            mb: 2,
             textAlign: 'center',
-            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+            background: BUDGET_COLORS.overview.gradient,
             backgroundClip: 'text',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -851,6 +871,51 @@ function MonthlyBudget() {
               setShowSuccessSnackbar(true);
             }}
           />
+
+          {/* Sticky Live Metrics Bar - updates as inputs change */}
+          <Paper
+            elevation={2}
+            sx={{
+              position: 'sticky',
+              top: 72,
+              zIndex: 100,
+              mb: 3,
+              borderRadius: 2,
+              overflow: 'hidden',
+              border: `1px solid ${theme.palette.divider}`,
+              backgroundColor: theme.palette.background.paper,
+            }}
+          >
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
+              <Box sx={{ flex: '1 1 120px', minWidth: 100, p: 2, borderRight: 1, borderColor: 'divider', bgcolor: BUDGET_COLORS.income.bg }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase' }}>Income</Typography>
+                <Typography variant="h6" sx={{ color: BUDGET_COLORS.income.main, fontWeight: 700 }}>${summary.totalIncome.toLocaleString()}</Typography>
+              </Box>
+              <Box sx={{ flex: '1 1 120px', minWidth: 100, p: 2, borderRight: 1, borderColor: 'divider', bgcolor: BUDGET_COLORS.expenses.bg }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase' }}>Expenses</Typography>
+                <Typography variant="h6" sx={{ color: BUDGET_COLORS.expenses.main, fontWeight: 700 }}>${summary.totalExpenses.toLocaleString()}</Typography>
+              </Box>
+              <Box sx={{ flex: '1 1 120px', minWidth: 100, p: 2, borderRight: 1, borderColor: 'divider', bgcolor: BUDGET_COLORS.savings.bg }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase' }}>Savings</Typography>
+                <Typography variant="h6" sx={{ color: BUDGET_COLORS.savings.main, fontWeight: 700 }}>${summary.totalSavings.toLocaleString()}</Typography>
+              </Box>
+              <Box sx={{ flex: '1 1 120px', minWidth: 100, p: 2, borderRight: 1, borderColor: 'divider', bgcolor: summary.netBalance >= 0 ? BUDGET_COLORS.netPositive.bg : BUDGET_COLORS.netNegative.bg }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase' }}>Net</Typography>
+                <Typography variant="h6" sx={{ color: summary.netBalance >= 0 ? BUDGET_COLORS.netPositive.main : BUDGET_COLORS.netNegative.main, fontWeight: 700 }}>${summary.netBalance.toLocaleString()}</Typography>
+              </Box>
+              <Box sx={{ flex: '1 1 100px', minWidth: 80, p: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <LinearProgress
+                  variant="determinate"
+                  value={summary.totalIncome > 0 ? Math.min(100, (summary.totalExpenses / summary.totalIncome) * 100) : 0}
+                  sx={{ flex: 1, height: 8, borderRadius: 1 }}
+                  color={summary.totalExpenses > summary.totalIncome ? 'error' : 'primary'}
+                />
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                  {summary.totalIncome > 0 ? `${((summary.totalExpenses / summary.totalIncome) * 100).toFixed(0)}%` : '—'}
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
           
           {/* Stacked Accordions - All sections on one page */}
           <Stack spacing={3} sx={{ width: '100%', mb: 4 }}>
@@ -859,12 +924,12 @@ function MonthlyBudget() {
             <Accordion 
               expanded={expandedAccordions.overview}
               onChange={handleAccordionChange('overview')}
-              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 3 }}
+              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 2 }}
             >
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 sx={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: BUDGET_COLORS.overview.gradient,
                   color: 'white',
                   borderRadius: expandedAccordions.overview ? '8px 8px 0 0' : 2,
                   minHeight: 64,
@@ -907,9 +972,9 @@ function MonthlyBudget() {
                         <Box sx={{ 
                           textAlign: 'center', 
                           p: { xs: 2, sm: 3, md: 4 }, 
-                          background: 'linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)',
+                          background: `linear-gradient(135deg, ${BUDGET_COLORS.income.main} 0%, ${BUDGET_COLORS.income.light} 100%)`,
                           borderRadius: 3,
-                          boxShadow: '0 6px 24px rgba(76, 175, 80, 0.3)',
+                          boxShadow: `0 6px 24px ${BUDGET_COLORS.income.main}40`,
                           color: 'white',
                           transition: 'transform 0.3s ease',
                           '&:hover': { transform: 'translateY(-6px)' },
@@ -928,9 +993,9 @@ function MonthlyBudget() {
                         <Box sx={{ 
                           textAlign: 'center', 
                           p: { xs: 2, sm: 3, md: 4 }, 
-                          background: 'linear-gradient(135deg, #F44336 0%, #EF5350 100%)',
+                          background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.expenses.light} 100%)`,
                           borderRadius: 3,
-                          boxShadow: '0 6px 24px rgba(244, 67, 54, 0.3)',
+                          boxShadow: `0 6px 24px ${BUDGET_COLORS.expenses.main}40`,
                           color: 'white',
                           transition: 'transform 0.3s ease',
                           '&:hover': { transform: 'translateY(-6px)' },
@@ -949,9 +1014,9 @@ function MonthlyBudget() {
                         <Box sx={{ 
                           textAlign: 'center', 
                           p: { xs: 2, sm: 3, md: 4 }, 
-                          background: 'linear-gradient(135deg, #007fff 0%, #4da6ff 100%)',
+                          background: `linear-gradient(135deg, ${BUDGET_COLORS.savings.main} 0%, ${BUDGET_COLORS.savings.light} 100%)`,
                           borderRadius: 3,
-                          boxShadow: '0 6px 24px rgba(0, 102, 204, 0.3)',
+                          boxShadow: `0 6px 24px ${BUDGET_COLORS.savings.main}40`,
                           color: 'white',
                           transition: 'transform 0.3s ease',
                           '&:hover': { transform: 'translateY(-6px)' },
@@ -971,12 +1036,12 @@ function MonthlyBudget() {
                           textAlign: 'center', 
                           p: { xs: 2, sm: 3, md: 4 }, 
                           background: summary.netBalance >= 0 
-                            ? 'linear-gradient(135deg, #FF9800 0%, #FFB74D 100%)'
-                            : 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                            ? `linear-gradient(135deg, ${BUDGET_COLORS.netPositive.main} 0%, ${BUDGET_COLORS.netPositive.light} 100%)`
+                            : `linear-gradient(135deg, ${BUDGET_COLORS.netNegative.main} 0%, ${BUDGET_COLORS.netNegative.light} 100%)`,
                           borderRadius: 3,
                           boxShadow: summary.netBalance >= 0 
-                            ? '0 6px 24px rgba(255, 152, 0, 0.3)'
-                            : '0 6px 24px rgba(0, 102, 204, 0.3)',
+                            ? `0 6px 24px ${BUDGET_COLORS.netPositive.main}40`
+                            : `0 6px 24px ${BUDGET_COLORS.netNegative.main}40`,
                           color: 'white',
                           transition: 'transform 0.3s ease',
                           '&:hover': { transform: 'translateY(-6px)' },
@@ -1017,12 +1082,12 @@ function MonthlyBudget() {
             <Accordion 
               expanded={expandedAccordions.income}
               onChange={handleAccordionChange('income')}
-              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 3 }}
+              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 2 }}
             >
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 sx={{
-                  background: 'linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%)',
+                  background: `linear-gradient(135deg, ${BUDGET_COLORS.income.main} 0%, ${BUDGET_COLORS.income.light} 100%)`,
                   color: 'white',
                   borderRadius: expandedAccordions.income ? '8px 8px 0 0' : 2,
                   minHeight: 64,
@@ -1187,14 +1252,14 @@ function MonthlyBudget() {
                             left: 0,
                             right: 0,
                             height: 4,
-                            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                            background: `linear-gradient(135deg, ${BUDGET_COLORS.income.main} 0%, ${BUDGET_COLORS.income.light} 100%)`,
                           }
                         }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                             <Box sx={{ 
                               p: 1.5, 
                               borderRadius: 2, 
-                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                              background: `linear-gradient(135deg, ${BUDGET_COLORS.income.main} 0%, ${BUDGET_COLORS.income.light} 100%)`,
                               mr: 2,
                               display: 'flex',
                               alignItems: 'center',
@@ -1204,11 +1269,7 @@ function MonthlyBudget() {
                             </Box>
                             <Typography variant="h6" sx={{ 
                               fontWeight: 'bold',
-                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
-                              backgroundClip: 'text',
-                              WebkitBackgroundClip: 'text',
-                              WebkitTextFillColor: 'transparent',
-                              color: 'transparent'
+                              color: BUDGET_COLORS.income.main,
                             }}>
                             Additional Income
                           </Typography>
@@ -1247,7 +1308,7 @@ function MonthlyBudget() {
                                             width: 8, 
                                             height: 8, 
                                             borderRadius: '50%', 
-                                            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                                            bgcolor: BUDGET_COLORS.income.main,
                                             mr: 2,
                                             flexShrink: 0
                                           }} />
@@ -1260,11 +1321,7 @@ function MonthlyBudget() {
                                               {item.name}
                                             </Typography>
                                             <Typography variant="h6" sx={{ 
-                                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
-                                              backgroundClip: 'text',
-                                              WebkitBackgroundClip: 'text',
-                                              WebkitTextFillColor: 'transparent',
-                                              color: 'transparent',
+                                              color: BUDGET_COLORS.income.main,
                                               fontWeight: 'bold',
                                               fontSize: '1.1rem'
                                             }}>
@@ -1317,16 +1374,16 @@ function MonthlyBudget() {
                               width: '100%',
                               py: 1.5,
                               borderRadius: 2,
-                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
-                              boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
+                              background: BUDGET_COLORS.income.main,
+                              boxShadow: `0 4px 15px ${BUDGET_COLORS.income.main}50`,
                               fontWeight: 'bold',
                               fontSize: '1rem',
                               textTransform: 'none',
                               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                               '&:hover': {
                                 transform: 'translateY(-2px)',
-                                boxShadow: '0 8px 25px rgba(255, 0, 0, 0.4)',
-                                background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                                boxShadow: `0 8px 25px ${BUDGET_COLORS.income.main}50`,
+                                background: BUDGET_COLORS.income.light,
                               },
                               '&:active': {
                                 transform: 'translateY(0)',
@@ -1342,7 +1399,7 @@ function MonthlyBudget() {
                               mt: 2, 
                               p: 2, 
                               borderRadius: 2, 
-                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                              background: BUDGET_COLORS.income.main,
                               textAlign: 'center'
                             }}>
                               <Typography variant="subtitle2" sx={{ 
@@ -1399,12 +1456,12 @@ function MonthlyBudget() {
             <Accordion 
               expanded={expandedAccordions.expenses}
               onChange={handleAccordionChange('expenses')}
-              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 3 }}
+              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 2 }}
             >
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 sx={{
-                  background: 'linear-gradient(135deg, #F44336 0%, #EF5350 100%)',
+                  background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.expenses.light} 100%)`,
                   color: 'white',
                   borderRadius: expandedAccordions.expenses ? '8px 8px 0 0' : 2,
                   minHeight: 64,
@@ -1438,7 +1495,7 @@ function MonthlyBudget() {
                         <Box sx={{ 
                           p: 1.5, 
                           borderRadius: 2, 
-                          bgcolor: '#8a6bb8',
+                          bgcolor: BUDGET_COLORS.expenses.main,
                           mr: 2,
                         display: 'flex', 
                           alignItems: 'center',
@@ -1448,7 +1505,7 @@ function MonthlyBudget() {
                         </Box>
                         <Typography variant="h6" sx={{ 
                           fontWeight: 'bold',
-                          color: '#8a6bb8'
+                          color: BUDGET_COLORS.expenses.main
                         }}>
                         Monthly Expenses
                       </Typography>
@@ -1461,16 +1518,16 @@ function MonthlyBudget() {
                           py: 1.5,
                           px: 3,
                           borderRadius: 2,
-                          background: '#8a6bb8',
-                          boxShadow: '0 4px 15px rgba(138, 107, 184, 0.3)',
+                          background: BUDGET_COLORS.expenses.main,
+                          boxShadow: `0 4px 15px ${BUDGET_COLORS.expenses.main}50`,
                           fontWeight: 'bold',
                           fontSize: '1rem',
                           textTransform: 'none',
                           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                           '&:hover': {
                             transform: 'translateY(-2px)',
-                            boxShadow: '0 8px 25px rgba(138, 107, 184, 0.4)',
-                            background: '#9d7bc7',
+                            boxShadow: `0 8px 25px ${BUDGET_COLORS.expenses.main}50`,
+                            background: BUDGET_COLORS.expenses.light,
                           },
                           '&:active': {
                             transform: 'translateY(0)',
@@ -1481,7 +1538,7 @@ function MonthlyBudget() {
                       </Button>
                     </Box>
                     
-                    {/* Monthly Expenses Categories */}
+                    {/* Regular Expense Categories (excluding debt) */}
                     <Box sx={{ mt: 3, mb: 3 }}>
                       <Typography variant="subtitle2" sx={{ 
                         mb: 2, 
@@ -1492,10 +1549,12 @@ function MonthlyBudget() {
                         fontSize: '0.75rem'
                       }}>
                         Expense Categories
-                    </Typography>
+                      </Typography>
                     </Box>
                     <Grid container spacing={3}>
-                      {Object.entries(expenseCategories).map(([key, category]) => (
+                      {Object.entries(expenseCategories)
+                        .filter(([key]) => key !== 'debt_payments')
+                        .map(([key, category]) => (
                         <Grid item xs={12} sm={6} md={4} key={key}>
                           <Box sx={{ 
                             p: 4, 
@@ -1513,7 +1572,7 @@ function MonthlyBudget() {
                               left: 0,
                               right: 0,
                               height: 3,
-                              background: '#8a6bb8',
+                              background: BUDGET_COLORS.expenses.main,
                             },
                             '&:hover': {
                               boxShadow: '0 8px 25px rgba(255, 0, 0, 0.15)',
@@ -1525,7 +1584,7 @@ function MonthlyBudget() {
                               <Box sx={{ 
                                 p: 1.5,
                                 borderRadius: 2,
-                                bgcolor: '#8a6bb8',
+                                bgcolor: BUDGET_COLORS.expenses.main,
                                 mr: 2,
                                 display: 'flex',
                                 alignItems: 'center',
@@ -1536,7 +1595,7 @@ function MonthlyBudget() {
                               </Box>
                               </Box>
                               <Typography variant="h6" fontWeight="bold" sx={{ 
-                                color: '#8a6bb8'
+                                color: BUDGET_COLORS.expenses.main
                               }}>
                                 {category.label}
                               </Typography>
@@ -1583,6 +1642,94 @@ function MonthlyBudget() {
                         </Grid>
                       ))}
                     </Grid>
+
+                    {/* Collapsible Debt & Required Payments Section */}
+                    <Accordion
+                      expanded={debtSectionExpanded}
+                      onChange={(e, expanded) => setDebtSectionExpanded(expanded)}
+                      sx={{
+                        mt: 3,
+                        borderRadius: 2,
+                        '&:before': { display: 'none' },
+                        border: `1px solid ${BUDGET_COLORS.debt.main}40`,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <AccordionSummary
+                        expandIcon={<ExpandMoreIcon />}
+                        sx={{
+                          bgcolor: BUDGET_COLORS.debt.bg,
+                          minHeight: 56,
+                          '& .MuiAccordionSummary-content': { alignItems: 'center', gap: 2 },
+                        }}
+                      >
+                        <DebtIcon sx={{ color: BUDGET_COLORS.debt.main }} />
+                        <Typography variant="subtitle1" fontWeight={600} sx={{ color: BUDGET_COLORS.debt.main }}>
+                          Debt & Required Payments
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={expenses.debt_payments && parseFloat(expenses.debt_payments) > 0
+                            ? `$${parseFloat(expenses.debt_payments).toLocaleString()}/mo`
+                            : 'Not set'}
+                          sx={{
+                            bgcolor: expenses.debt_payments && parseFloat(expenses.debt_payments) > 0
+                              ? `${BUDGET_COLORS.debt.main}30`
+                              : 'action.hover',
+                            color: BUDGET_COLORS.debt.main,
+                            fontWeight: 600,
+                          }}
+                        />
+                      </AccordionSummary>
+                      <AccordionDetails sx={{ p: 3, pt: 0 }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <Box sx={{
+                            p: 3,
+                            border: `1px solid ${theme.palette.divider}`,
+                            borderRadius: 2,
+                            bgcolor: 'background.paper',
+                          }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                              <Box sx={{ p: 1, borderRadius: 1, bgcolor: BUDGET_COLORS.debt.bg, mr: 2 }}>
+                                <DebtIcon sx={{ color: BUDGET_COLORS.debt.main }} />
+                              </Box>
+                              <Typography variant="subtitle1" fontWeight={600}>
+                                {expenseCategories.debt_payments.label}
+                              </Typography>
+                            </Box>
+                            <Input
+                              label="Monthly amount"
+                              name="debt_payments"
+                              value={expenses.debt_payments}
+                              onChange={handleExpenseChange}
+                              type="number"
+                              startAdornment={<InputAdornment position="start">$</InputAdornment>}
+                              fullWidth
+                              sx={{
+                                '& .MuiInputBase-root': { height: 52, borderRadius: 2 },
+                              }}
+                            />
+                          </Box>
+                          <Button
+                            variant="outlined"
+                            size="medium"
+                            startIcon={<TrendingUpIcon />}
+                            onClick={() => navigate('/debt-planning')}
+                            sx={{
+                              alignSelf: 'flex-start',
+                              borderColor: BUDGET_COLORS.debt.main,
+                              color: BUDGET_COLORS.debt.main,
+                              '&:hover': {
+                                borderColor: BUDGET_COLORS.debt.light,
+                                bgcolor: BUDGET_COLORS.debt.bg,
+                              },
+                            }}
+                          >
+                            Plan debt payoff timeline →
+                          </Button>
+                        </Box>
+                      </AccordionDetails>
+                    </Accordion>
                     
                     {/* Additional Expenses */}
                     {additionalExpenses.length > 0 && (
@@ -1602,14 +1749,14 @@ function MonthlyBudget() {
                             left: 0,
                             right: 0,
                             height: 4,
-                            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                            background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                           }
                         }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                             <Box sx={{ 
                               p: 1.5, 
                               borderRadius: 2, 
-                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                              background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                               mr: 2,
                               display: 'flex',
                               alignItems: 'center',
@@ -1619,7 +1766,7 @@ function MonthlyBudget() {
                             </Box>
                             <Typography variant="h6" sx={{ 
                               fontWeight: 'bold',
-                              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                              background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                               backgroundClip: 'text',
                               WebkitBackgroundClip: 'text',
                               WebkitTextFillColor: 'transparent',
@@ -1660,7 +1807,7 @@ function MonthlyBudget() {
                                         width: 8, 
                                         height: 8, 
                                         borderRadius: '50%', 
-                                        background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                                        background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                                         mr: 2,
                                         flexShrink: 0
                                       }} />
@@ -1673,7 +1820,7 @@ function MonthlyBudget() {
                                     {item.name}
                                   </Typography>
                                         <Typography variant="h6" sx={{ 
-                                          background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                                          background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                                           backgroundClip: 'text',
                                           WebkitBackgroundClip: 'text',
                                           WebkitTextFillColor: 'transparent',
@@ -1724,7 +1871,7 @@ function MonthlyBudget() {
                             mt: 2, 
                             p: 2, 
                             borderRadius: 2, 
-                            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                            background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                             textAlign: 'center'
                           }}>
                             <Typography variant="subtitle2" sx={{ 
@@ -1779,12 +1926,12 @@ function MonthlyBudget() {
             <Accordion 
               expanded={expandedAccordions.savings}
               onChange={handleAccordionChange('savings')}
-              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 3 }}
+              sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 2 }}
             >
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 sx={{
-                  background: 'linear-gradient(135deg, #2196F3 0%, #21CBF3 100%)',
+                  background: `linear-gradient(135deg, ${BUDGET_COLORS.savings.main} 0%, ${BUDGET_COLORS.savings.light} 100%)`,
                   color: 'white',
                   borderRadius: expandedAccordions.savings ? '8px 8px 0 0' : 2,
                   minHeight: 64,
@@ -1822,14 +1969,14 @@ function MonthlyBudget() {
                     left: 0,
                     right: 0,
                     height: 4,
-                    background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                    background: `linear-gradient(135deg, ${BUDGET_COLORS.savings.main} 0%, ${BUDGET_COLORS.savings.light} 100%)`,
                   }
                 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                     <Box sx={{ 
                       p: 1.5, 
                       borderRadius: 2, 
-                      background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                      background: `linear-gradient(135deg, ${BUDGET_COLORS.savings.main} 0%, ${BUDGET_COLORS.savings.light} 100%)`,
                       mr: 2,
                         display: 'flex', 
                       alignItems: 'center',
@@ -1839,11 +1986,7 @@ function MonthlyBudget() {
                     </Box>
                     <Typography variant="h6" sx={{ 
                       fontWeight: 'bold',
-                      background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
-                      backgroundClip: 'text',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      color: 'transparent'
+                      color: BUDGET_COLORS.savings.main
                     }}>
                         Savings
                       </Typography>
@@ -1854,7 +1997,7 @@ function MonthlyBudget() {
                       <Box sx={{ 
                         p: 3, 
                         borderRadius: 3, 
-                        background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                        background: `linear-gradient(135deg, ${BUDGET_COLORS.savings.main} 0%, ${BUDGET_COLORS.savings.light} 100%)`,
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1876,16 +2019,16 @@ function MonthlyBudget() {
                           py: 1.5,
                           px: 4,
                           borderRadius: 2,
-                          background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
-                          boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
+                          background: BUDGET_COLORS.savings.main,
+                          boxShadow: `0 4px 15px ${BUDGET_COLORS.savings.main}50`,
                           fontWeight: 'bold',
                           fontSize: '1rem',
                           textTransform: 'none',
                           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                           '&:hover': {
                             transform: 'translateY(-2px)',
-                            boxShadow: '0 8px 25px rgba(255, 0, 0, 0.4)',
-                            background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                            boxShadow: `0 8px 25px ${BUDGET_COLORS.savings.main}50`,
+                            background: BUDGET_COLORS.savings.light,
                           },
                           '&:active': {
                             transform: 'translateY(0)',
@@ -1928,7 +2071,7 @@ function MonthlyBudget() {
                                     width: 8, 
                                     height: 8, 
                                     borderRadius: '50%', 
-                                    background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                                    bgcolor: BUDGET_COLORS.savings.main,
                                     mr: 2,
                                     flexShrink: 0
                                   }} />
@@ -1941,11 +2084,7 @@ function MonthlyBudget() {
                                   {item.name}
                                 </Typography>
                                     <Typography variant="h6" sx={{ 
-                                      background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
-                                      backgroundClip: 'text',
-                                      WebkitBackgroundClip: 'text',
-                                      WebkitTextFillColor: 'transparent',
-                                      color: 'transparent',
+                                      color: BUDGET_COLORS.savings.main,
                                       fontWeight: 'bold',
                                       fontSize: '1.1rem'
                                     }}>
@@ -1992,7 +2131,7 @@ function MonthlyBudget() {
                         mt: 2, 
                         p: 2, 
                         borderRadius: 2, 
-                        background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                        background: BUDGET_COLORS.savings.main,
                         textAlign: 'center'
                       }}>
                         <Typography variant="subtitle2" sx={{ 
@@ -2020,16 +2159,16 @@ function MonthlyBudget() {
                             py: 1.5,
                             px: 3,
                             borderRadius: 2,
-                            background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
-                            boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
+                            background: BUDGET_COLORS.savings.main,
+                            boxShadow: `0 4px 15px ${BUDGET_COLORS.savings.main}50`,
                             fontWeight: 'bold',
                             fontSize: '1rem',
                             textTransform: 'none',
                             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                             '&:hover': {
                               transform: 'translateY(-2px)',
-                              boxShadow: '0 8px 25px rgba(255, 0, 0, 0.4)',
-                              background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                              boxShadow: `0 8px 25px ${BUDGET_COLORS.savings.main}50`,
+                              background: BUDGET_COLORS.savings.light,
                             },
                             '&:active': {
                               transform: 'translateY(0)',
@@ -2080,7 +2219,7 @@ function MonthlyBudget() {
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 sx={{
-                  background: 'linear-gradient(135deg, #FF9800 0%, #FFB74D 100%)',
+                  background: `linear-gradient(135deg, ${BUDGET_COLORS.stats.main} 0%, ${BUDGET_COLORS.stats.light} 100%)`,
                   color: 'white',
                   borderRadius: expandedAccordions.stats ? '8px 8px 0 0' : 2,
                   minHeight: 64,
@@ -2242,14 +2381,14 @@ function MonthlyBudget() {
                       left: 0,
                       right: 0,
                       height: 4,
-                      background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                      background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                     }
                   }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                       <Box sx={{ 
                         p: 1.5, 
                         borderRadius: 2, 
-                        background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                        background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                         mr: 2,
                         display: 'flex',
                         alignItems: 'center',
@@ -2259,7 +2398,7 @@ function MonthlyBudget() {
                       </Box>
                       <Typography variant="h5" sx={{ 
                         fontWeight: 'bold',
-                        background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                        background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                         backgroundClip: 'text',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
@@ -2411,7 +2550,7 @@ function MonthlyBudget() {
       >
         <DialogTitle sx={{ 
           pb: 2,
-          background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+          background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
           color: 'white',
           position: 'relative',
           '&::after': {
@@ -2514,7 +2653,7 @@ function MonthlyBudget() {
                 mt: 3, 
                 p: 2, 
                 borderRadius: 2, 
-                background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                 textAlign: 'center'
               }}>
                 <Typography variant="subtitle2" sx={{ 
@@ -2562,12 +2701,12 @@ function MonthlyBudget() {
               px: 4,
               py: 1,
               borderRadius: 2,
-              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+              background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
               boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
               textTransform: 'none',
               fontWeight: 'bold',
               '&:hover': {
-                background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                background: BUDGET_COLORS.expenses.light,
                 boxShadow: '0 6px 20px rgba(255, 0, 0, 0.4)',
               }
             }}
@@ -2593,7 +2732,7 @@ function MonthlyBudget() {
       >
         <DialogTitle sx={{ 
           pb: 2,
-          background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+          background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
           color: 'white',
           position: 'relative',
           '&::after': {
@@ -2696,7 +2835,7 @@ function MonthlyBudget() {
                 mt: 3, 
                 p: 2, 
                 borderRadius: 2, 
-                background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                 textAlign: 'center'
               }}>
                 <Typography variant="subtitle2" sx={{ 
@@ -2744,12 +2883,12 @@ function MonthlyBudget() {
               px: 4,
               py: 1,
               borderRadius: 2,
-              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+              background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
               boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
               textTransform: 'none',
               fontWeight: 'bold',
               '&:hover': {
-                background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                background: BUDGET_COLORS.expenses.light,
                 boxShadow: '0 6px 20px rgba(255, 0, 0, 0.4)',
               }
             }}
@@ -2775,7 +2914,7 @@ function MonthlyBudget() {
       >
         <DialogTitle sx={{ 
           pb: 2,
-          background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+          background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
           color: 'white',
           position: 'relative',
           '&::after': {
@@ -2924,7 +3063,7 @@ function MonthlyBudget() {
                 mt: 3, 
                 p: 2, 
                 borderRadius: 2, 
-                background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+                background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
                 textAlign: 'center'
               }}>
                 <Typography variant="subtitle2" sx={{ 
@@ -2973,12 +3112,12 @@ function MonthlyBudget() {
               px: 4,
               py: 1,
               borderRadius: 2,
-              background: 'linear-gradient(135deg, #ff0000 0%, #007fff 100%)',
+              background: `linear-gradient(135deg, ${BUDGET_COLORS.expenses.main} 0%, ${BUDGET_COLORS.savings.main} 100%)`,
               boxShadow: '0 4px 15px rgba(255, 0, 0, 0.3)',
               textTransform: 'none',
               fontWeight: 'bold',
               '&:hover': {
-                background: 'linear-gradient(135deg, #cc0000 0%, #0000cc 100%)',
+                background: BUDGET_COLORS.expenses.light,
                 boxShadow: '0 6px 20px rgba(255, 0, 0, 0.4)',
               }
             }}

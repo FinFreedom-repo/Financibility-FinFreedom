@@ -28,7 +28,10 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Select
+  Select,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails
 } from '@mui/material';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -47,7 +50,8 @@ import {
   Info as InfoIcon,
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import axios from '../utils/axios';
 import accountsDebtsService from '../services/accountsDebtsService';
@@ -55,6 +59,16 @@ import { PageLoader as Loading } from './common/Loading';
 import { useTheme as useCustomTheme } from '../contexts/ThemeContext';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Refined color palette - cohesive teal/slate/amber for debt planning
+const DEBT_COLORS = {
+  totalDebt: { main: '#B91C1C', light: '#DC2626', bg: 'rgba(185, 28, 28, 0.12)' },
+  monthlyInterest: { main: '#0D9488', light: '#14B8A6', bg: 'rgba(13, 148, 136, 0.12)' },
+  totalInterest: { main: '#92400E', light: '#B45309', bg: 'rgba(146, 64, 14, 0.12)' },
+  debtFree: { main: '#047857', light: '#059669', bg: 'rgba(4, 120, 87, 0.12)' },
+  activeDebts: { main: '#1E40AF', light: '#3B82F6', bg: 'rgba(30, 64, 175, 0.12)' },
+  header: { gradient: 'linear-gradient(135deg, #0F766E 0%, #134E4A 100%)' },
+};
 
 // Enhanced DebtPlanning Component with Complete Real-Time Updates
 const DebtPlanning = () => {
@@ -144,6 +158,9 @@ const DebtPlanning = () => {
     open: false,
     debt: null
   });
+
+  // Collapsible debt payoff section
+  const [debtPayoffExpanded, setDebtPayoffExpanded] = useState(true);
 
   // Refs for synchronization
   const gridApiRef = useRef(null);
@@ -2964,7 +2981,7 @@ const DebtPlanning = () => {
           {debtFreeDate && stats.monthsToPayoff >= 0 && (
             <Box
               sx={{
-                background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+                background: `linear-gradient(135deg, ${DEBT_COLORS.debtFree.main} 0%, ${DEBT_COLORS.debtFree.light} 100%)`,
                 color: 'white',
                 padding: '16px 24px',
                 borderRadius: '12px',
@@ -3314,12 +3331,68 @@ const DebtPlanning = () => {
     return <Loading message="Loading enhanced debt planning..." />;
   }
 
+  // Compute metrics for live bar (called during render)
+  const liveStats = calculateDebtStatistics();
+  const monthlyInterestLive = outstandingDebts.reduce((sum, debt) => {
+    const balance = parseFloat(debt.balance || debt.amount) || 0;
+    const interestRate = parseFloat(debt.interest_rate || debt.rate) || 0;
+    return sum + (balance * (interestRate / 100 / 12));
+  }, 0);
+  const activeDebtsCount = outstandingDebts.filter(d => (parseFloat(d.balance || d.amount) || 0) > 0).length;
+
   // Main render
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', mb: 4 }}>
-        Enhanced Debt Planning with Real-Time Updates
+      <Typography variant="h4" gutterBottom sx={{ 
+        fontWeight: 'bold', 
+        mb: 2,
+        background: DEBT_COLORS.header.gradient,
+        backgroundClip: 'text',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent'
+      }}>
+        Debt Planning
       </Typography>
+
+      {/* Sticky Live Metrics Bar - updates as inputs change */}
+      <Paper
+        elevation={2}
+        sx={{
+          position: 'sticky',
+          top: 72,
+          zIndex: 100,
+          mb: 3,
+          borderRadius: 2,
+          overflow: 'hidden',
+          border: `1px solid ${theme.palette.divider}`,
+          backgroundColor: theme.palette.background.paper,
+        }}
+      >
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0 }}>
+          <Box sx={{ flex: '1 1 120px', minWidth: 100, p: 2, borderRight: 1, borderColor: 'divider', bgcolor: DEBT_COLORS.totalDebt.bg }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase' }}>Total Debt</Typography>
+            <Typography variant="h6" sx={{ color: DEBT_COLORS.totalDebt.main, fontWeight: 700 }}>{formatCurrency(liveStats.totalDebt)}</Typography>
+          </Box>
+          <Box sx={{ flex: '1 1 120px', minWidth: 100, p: 2, borderRight: 1, borderColor: 'divider', bgcolor: DEBT_COLORS.monthlyInterest.bg }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase' }}>Monthly Interest</Typography>
+            <Typography variant="h6" sx={{ color: DEBT_COLORS.monthlyInterest.main, fontWeight: 700 }}>{formatCurrency(monthlyInterestLive)}</Typography>
+          </Box>
+          <Box sx={{ flex: '1 1 120px', minWidth: 100, p: 2, borderRight: 1, borderColor: 'divider', bgcolor: DEBT_COLORS.totalInterest.bg }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase' }}>Total Interest</Typography>
+            <Typography variant="h6" sx={{ color: DEBT_COLORS.totalInterest.main, fontWeight: 700 }}>{formatCurrency(liveStats.totalInterest)}</Typography>
+          </Box>
+          <Box sx={{ flex: '1 1 120px', minWidth: 100, p: 2, borderRight: 1, borderColor: 'divider', bgcolor: DEBT_COLORS.debtFree.bg }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase' }}>Debt-Free Date</Typography>
+            <Typography variant="h6" sx={{ color: DEBT_COLORS.debtFree.main, fontWeight: 700 }}>
+              {liveStats.debtFreeDate ? liveStats.debtFreeDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}
+            </Typography>
+          </Box>
+          <Box sx={{ flex: '1 1 100px', minWidth: 80, p: 2, bgcolor: DEBT_COLORS.activeDebts.bg }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase' }}>Active Debts</Typography>
+            <Typography variant="h6" sx={{ color: DEBT_COLORS.activeDebts.main, fontWeight: 700 }}>{activeDebtsCount}</Typography>
+          </Box>
+        </Box>
+      </Paper>
       
       <Tabs value={selectedTabIndex} onChange={(_, newValue) => setSelectedTabIndex(newValue)} sx={{ mb: 3 }}>
         <Tab label="Budget Projection" />
@@ -3328,10 +3401,40 @@ const DebtPlanning = () => {
 
       {selectedTabIndex === 0 && (
         <Card sx={{ p: 3 }}>
-          {/* Debt Payoff Timeline & Strategies Section - Now at the top */}
-          <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
-            Debt Payoff Timeline & Strategies
-          </Typography>
+          {/* Collapsible Debt Payoff Timeline Section */}
+          <Accordion
+            expanded={debtPayoffExpanded}
+            onChange={(_, expanded) => setDebtPayoffExpanded(expanded)}
+            sx={{
+              mb: 4,
+              borderRadius: 2,
+              '&:before': { display: 'none' },
+              boxShadow: 2,
+              overflow: 'hidden',
+            }}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              sx={{
+                background: DEBT_COLORS.header.gradient,
+                color: 'white',
+                minHeight: 64,
+                '& .MuiAccordionSummary-content': { alignItems: 'center', gap: 2 },
+              }}
+            >
+              <TimelineIcon />
+              <Typography variant="h6" fontWeight="bold">
+                Debt Payoff Timeline & Strategies
+              </Typography>
+              <Chip
+                size="small"
+                label={liveStats.debtFreeDate 
+                  ? `Debt-free ${liveStats.debtFreeDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+                  : `${formatCurrency(liveStats.totalDebt)} total`}
+                sx={{ bgcolor: 'rgba(255,255,255,0.25)', color: 'white', fontWeight: 600 }}
+              />
+            </AccordionSummary>
+            <AccordionDetails sx={{ p: 3 }}>
           
           {/* Month Range Controls for Timeline */}
           <Box sx={{ mb: 3, display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -3393,16 +3496,12 @@ const DebtPlanning = () => {
                   {/* Total Debts Card */}
                   <Grid item xs={12} sm={6} md={3}>
                     <Card sx={{
-                      background: isDarkMode 
-                        ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)'
-                        : 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)',
+                      background: `linear-gradient(135deg, ${DEBT_COLORS.totalDebt.main} 0%, ${DEBT_COLORS.totalDebt.light} 100%)`,
                       color: 'white',
                       textAlign: 'center',
                       p: 3,
                       borderRadius: 3,
-                      boxShadow: isDarkMode 
-                        ? '0 8px 32px rgba(255, 107, 107, 0.3)'
-                        : '0 8px 32px rgba(255, 107, 107, 0.2)',
+                      boxShadow: `0 8px 32px ${DEBT_COLORS.totalDebt.main}40`,
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       backdropFilter: 'blur(10px)',
                       position: 'relative',
@@ -3442,16 +3541,12 @@ const DebtPlanning = () => {
                   {/* Monthly Interest Card */}
                   <Grid item xs={12} sm={6} md={3}>
                     <Card sx={{
-                      background: isDarkMode 
-                        ? 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)'
-                        : 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)',
+                      background: `linear-gradient(135deg, ${DEBT_COLORS.monthlyInterest.main} 0%, ${DEBT_COLORS.monthlyInterest.light} 100%)`,
                       color: 'white',
                       textAlign: 'center',
                       p: 3,
                       borderRadius: 3,
-                      boxShadow: isDarkMode 
-                        ? '0 8px 32px rgba(78, 205, 196, 0.3)'
-                        : '0 8px 32px rgba(78, 205, 196, 0.2)',
+                      boxShadow: `0 8px 32px ${DEBT_COLORS.monthlyInterest.main}40`,
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       backdropFilter: 'blur(10px)',
                       position: 'relative',
@@ -3491,16 +3586,12 @@ const DebtPlanning = () => {
                   {/* Total Interest Card */}
                   <Grid item xs={12} sm={6} md={3}>
                     <Card sx={{
-                      background: isDarkMode 
-                        ? 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
-                        : 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-                      color: isDarkMode ? '#2c3e50' : '#2c3e50',
+                      background: `linear-gradient(135deg, ${DEBT_COLORS.totalInterest.main} 0%, ${DEBT_COLORS.totalInterest.light} 100%)`,
+                      color: 'white',
                       textAlign: 'center',
                       p: 3,
                       borderRadius: 3,
-                      boxShadow: isDarkMode 
-                        ? '0 8px 32px rgba(168, 237, 234, 0.3)'
-                        : '0 8px 32px rgba(168, 237, 234, 0.2)',
+                      boxShadow: `0 8px 32px ${DEBT_COLORS.totalInterest.main}40`,
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       backdropFilter: 'blur(10px)',
                       position: 'relative',
@@ -3540,16 +3631,12 @@ const DebtPlanning = () => {
                   {/* Active Debts Card */}
                   <Grid item xs={12} sm={6} md={3}>
                     <Card sx={{
-                      background: isDarkMode 
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      background: `linear-gradient(135deg, ${DEBT_COLORS.activeDebts.main} 0%, ${DEBT_COLORS.activeDebts.light} 100%)`,
                       color: 'white',
                       textAlign: 'center',
                       p: 3,
                       borderRadius: 3,
-                      boxShadow: isDarkMode 
-                        ? '0 8px 32px rgba(102, 126, 234, 0.3)'
-                        : '0 8px 32px rgba(102, 126, 234, 0.2)',
+                      boxShadow: `0 8px 32px ${DEBT_COLORS.activeDebts.main}40`,
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       backdropFilter: 'blur(10px)',
                       position: 'relative',
@@ -3592,8 +3679,11 @@ const DebtPlanning = () => {
           
           {renderDebtPayoffTimeline()}
           
+            </AccordionDetails>
+          </Accordion>
+          
           {/* Editable Budget Projection with Real-Time Updates Section */}
-          <Box sx={{ mt: 4 }}>
+          <Box sx={{ mt: 2 }}>
             <Typography variant="h6" gutterBottom sx={{ mb: 3 }}>
               Editable Budget Projection with Real-Time Updates
             </Typography>
