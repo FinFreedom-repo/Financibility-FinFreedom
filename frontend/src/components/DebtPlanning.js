@@ -56,6 +56,7 @@ import {
 import axios from '../utils/axios';
 import accountsDebtsService from '../services/accountsDebtsService';
 import { PageLoader as Loading } from './common/Loading';
+import Chart from './common/Chart';
 import { useTheme as useCustomTheme } from '../contexts/ThemeContext';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -68,6 +69,21 @@ const DEBT_COLORS = {
   debtFree: { main: '#047857', light: '#059669', bg: 'rgba(4, 120, 87, 0.12)' },
   activeDebts: { main: '#1E40AF', light: '#3B82F6', bg: 'rgba(30, 64, 175, 0.12)' },
   header: { gradient: 'linear-gradient(135deg, #0F766E 0%, #134E4A 100%)' },
+};
+
+// Table colors - soft, readable palette (replaces harsh red/green)
+const TABLE_COLORS = {
+  header: { bg: '#0F766E', text: '#fff' },
+  historical: { bg: '#94a3b8', bgMuted: '#cbd5e1' },
+  current: { bg: '#0d9488', bgMuted: '#5eead4' },
+  future: { bg: '#64748b', bgMuted: '#94a3b8' },
+  remainingDebt: { bg: '#f59e0b', bgLight: '#fef3c7', text: '#78350f' },
+  principalPaid: { bg: '#0ea5e9', bgLight: '#e0f2fe' },
+  interestPaid: { bg: '#8b5cf6', bgLight: '#ede9fe' },
+  debtRow: { bg: '#f1f5f9', bgLight: '#e2e8f0', text: '#475569' },
+  debtFree: { bg: '#22c55e', bgLight: '#dcfce7', text: '#14532d' },
+  gridBg: '#f8fafc',
+  border: 'rgba(148, 163, 184, 0.4)',
 };
 
 // Enhanced DebtPlanning Component with Complete Real-Time Updates
@@ -161,6 +177,8 @@ const DebtPlanning = () => {
 
   // Collapsible debt payoff section
   const [debtPayoffExpanded, setDebtPayoffExpanded] = useState(true);
+  // Show/hide individual debt rows in payoff table
+  const [showIndividualDebts, setShowIndividualDebts] = useState(true);
 
   // Refs for synchronization
   const gridApiRef = useRef(null);
@@ -2064,22 +2082,16 @@ const DebtPlanning = () => {
             width: '100%', 
             borderRadius: 3,
             overflow: 'visible',
-            background: isDarkMode ? '#2a2a2a' : 'rgba(255, 255, 255, 0.8)',
-            border: '1px solid rgba(0, 0, 0, 0.1)',
+            background: TABLE_COLORS.gridBg,
+            border: `1px solid ${TABLE_COLORS.border}`,
             position: 'relative',
             '& .ag-theme-alpine': {
-              ...(isDarkMode && {
-                '--ag-background-color': '#2a2a2a',
-                '--ag-odd-row-background-color': '#2a2a2a',
-                '--ag-row-hover-color': '#3a3a3a',
-                '--ag-selected-row-background-color': '#3a3a3a',
-                '--ag-border-color': '#404040',
-                '--ag-foreground-color': '#ffffff',
-                '--ag-secondary-foreground-color': '#cccccc',
-              }),
+              '--ag-background-color': TABLE_COLORS.gridBg,
+              '--ag-odd-row-background-color': TABLE_COLORS.gridBg,
+              '--ag-border-color': TABLE_COLORS.border,
               '& .ag-header': {
-                backgroundColor: theme.palette.primary.main,
-                color: theme.palette.primary.contrastText,
+                backgroundColor: TABLE_COLORS.header.bg,
+                color: TABLE_COLORS.header.text,
                 '& .ag-header-cell': {
                   borderRight: '1px solid rgba(255, 255, 255, 0.2)',
                   padding: '12px 8px',
@@ -2096,50 +2108,49 @@ const DebtPlanning = () => {
                   justifyContent: 'flex-end'
                 },
                 '&.historical-month-row': {
-                  backgroundColor: '#424242 !important',
+                  backgroundColor: `${TABLE_COLORS.historical.bg} !important`,
                   color: 'white !important',
                   '& .ag-cell': {
-                    backgroundColor: '#424242 !important',
+                    backgroundColor: `${TABLE_COLORS.historical.bg} !important`,
                     color: 'white !important',
-                    borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                    borderRight: `1px solid ${TABLE_COLORS.border} !important`
                   }
                 },
                 '&.current-month-row': {
-                  backgroundColor: '#d32f2f !important',
+                  backgroundColor: `${TABLE_COLORS.current.bg} !important`,
                   color: 'white !important',
                   '& .ag-cell': {
-                    backgroundColor: '#d32f2f !important',
+                    backgroundColor: `${TABLE_COLORS.current.bg} !important`,
                     color: 'white !important',
-                    borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                    borderRight: `1px solid ${TABLE_COLORS.border} !important`
                   }
                 },
                 '&.future-month-row': {
-                     backgroundColor: '#008000 !important',
+                  backgroundColor: `${TABLE_COLORS.future.bg} !important`,
                   color: 'white !important',
                   '& .ag-cell': {
-                    backgroundColor: '#008000 !important',
+                    backgroundColor: `${TABLE_COLORS.future.bg} !important`,
                     color: 'white !important',
-                    borderRight: '1px solid rgba(255, 255, 255, 0.2) !important'
+                    borderRight: `1px solid ${TABLE_COLORS.border} !important`
                   }
                 }
               },
               '& .ag-pinned-left': {
-                backgroundColor: theme.palette.grey[100],
+                backgroundColor: TABLE_COLORS.debtRow.bg + ' !important',
                 '& .ag-cell': {
-                  backgroundColor: theme.palette.grey[100],
+                  backgroundColor: TABLE_COLORS.debtRow.bg + ' !important',
                   fontWeight: 'bold',
                   justifyContent: 'flex-start'
                 }
               },
-              // Enhanced horizontal scrolling styles
               '& .ag-body-horizontal-scroll': {
-                backgroundColor: theme.palette.grey[200],
-                '& .ag-body-horizontal-scroll-viewport': {
-                  backgroundColor: theme.palette.grey[200]
+                backgroundColor: TABLE_COLORS.debtRow.bgLight,
+              '& .ag-body-horizontal-scroll-viewport': {
+                  backgroundColor: TABLE_COLORS.debtRow.bgLight
                 }
               },
               '& .ag-body-horizontal-scroll-minimum': {
-                backgroundColor: theme.palette.grey[200]
+                backgroundColor: TABLE_COLORS.debtRow.bgLight
               }
             }
           }}
@@ -2182,108 +2193,30 @@ const DebtPlanning = () => {
           
           <style>
             {`
-              /* Time-based styling for all categories */
-              .time-historical-cell {
-                background-color: #0027dbcf !important; /* Dark gray for historical months */
-              }
-              
-              .time-current-cell {
-                background-color: #4caf50 !important; /* Green for current month */
-              }
-              
-              .time-future-cell {
-                background-color: #f44336 !important; /* Full red for future months */
-              }
-              
-              /* Legacy class for backward compatibility */
-              .additional-income-historical-cell {
-                background-color:rgb(0, 67, 252) !important;
-              }
-              
-              /* Timeline-specific category styling with maximum specificity */
-              .ag-theme-alpine .ag-row.timeline-net-savings-historical .ag-cell {
-                background-color: #0027dbcf !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-net-savings-current .ag-cell {
-                background-color: #4caf50 !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-net-savings-future .ag-cell {
-                background-color: #f44336 !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-interest-paid-historical .ag-cell {
-                background-color: #0027dbcf !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-interest-paid-current .ag-cell {
-                background-color: #4caf50 !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-interest-paid-future .ag-cell {
-                background-color: #f44336 !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-remaining-debt-historical .ag-cell {
-                background-color: #0027dbcf !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-remaining-debt-current .ag-cell {
-                background-color: #4caf50 !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-remaining-debt-future .ag-cell {
-                background-color: #f44336 !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-principal-paid-historical .ag-cell {
-                background-color: #0027dbcf !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-principal-paid-current .ag-cell {
-                background-color: #4caf50 !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-principal-paid-future .ag-cell {
-                background-color: #f44336 !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-debt-historical .ag-cell {
-                background-color: #0027dbcf !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-debt-current .ag-cell {
-                background-color: #4caf50 !important;
-                color: white !important;
-              }
-              .ag-theme-alpine .ag-row.timeline-debt-future .ag-cell {
-                background-color: #f44336 !important;
-                color: white !important;
-              }
-              
-              /* Budget Projection Grid - Net Savings (Blue) */
-              .ag-theme-alpine .ag-row .ag-cell.net-positive-cell {
-                background-color: #2196f3 !important;
-                color: white !important;
-                font-weight: bold !important;
-              }
-              
-              /* Budget Projection Grid - Income and Additional Income (Green) */
+              .time-historical-cell { background-color: ${TABLE_COLORS.historical.bg} !important; }
+              .time-current-cell { background-color: ${TABLE_COLORS.current.bg} !important; }
+              .time-future-cell { background-color: ${TABLE_COLORS.future.bg} !important; }
+              .additional-income-historical-cell { background-color: ${TABLE_COLORS.historical.bg} !important; }
+              .ag-theme-alpine .ag-row.timeline-net-savings-historical .ag-cell { background-color: ${TABLE_COLORS.historical.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-net-savings-current .ag-cell { background-color: ${TABLE_COLORS.current.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-net-savings-future .ag-cell { background-color: ${TABLE_COLORS.future.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-interest-paid-historical .ag-cell { background-color: ${TABLE_COLORS.historical.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-interest-paid-current .ag-cell { background-color: ${TABLE_COLORS.current.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-interest-paid-future .ag-cell { background-color: ${TABLE_COLORS.future.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-remaining-debt-historical .ag-cell { background-color: ${TABLE_COLORS.historical.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-remaining-debt-current .ag-cell { background-color: ${TABLE_COLORS.current.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-remaining-debt-future .ag-cell { background-color: ${TABLE_COLORS.future.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-principal-paid-historical .ag-cell { background-color: ${TABLE_COLORS.historical.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-principal-paid-current .ag-cell { background-color: ${TABLE_COLORS.current.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-principal-paid-future .ag-cell { background-color: ${TABLE_COLORS.future.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-debt-historical .ag-cell { background-color: ${TABLE_COLORS.historical.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-debt-current .ag-cell { background-color: ${TABLE_COLORS.current.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row.timeline-debt-future .ag-cell { background-color: ${TABLE_COLORS.future.bg} !important; color: white !important; }
+              .ag-theme-alpine .ag-row .ag-cell.net-positive-cell { background-color: ${TABLE_COLORS.principalPaid.bg} !important; color: white !important; font-weight: bold !important; }
               .ag-theme-alpine .ag-row .ag-cell.timeline-income-historical,
               .ag-theme-alpine .ag-row .ag-cell.timeline-income-current,
-              .ag-theme-alpine .ag-row .ag-cell.timeline-income-future {
-                background-color: #4caf50 !important;
-                color: white !important;
-                font-weight: bold !important;
-              }
-              
-              /* Specific styling for the div with class net-positive-cell timeline-net-savings-current */
-              .ag-theme-alpine .ag-row .ag-cell.net-positive-cell.timeline-net-savings-current {
-                background-color: #2196f3 !important;
-                color: white !important;
-                font-weight: bold !important;
-              }
+              .ag-theme-alpine .ag-row .ag-cell.timeline-income-future { background-color: ${TABLE_COLORS.debtFree.bg} !important; color: white !important; font-weight: bold !important; }
+              .ag-theme-alpine .ag-row .ag-cell.net-positive-cell.timeline-net-savings-current { background-color: ${TABLE_COLORS.principalPaid.bg} !important; color: white !important; font-weight: bold !important; }
             `}
           </style>
           
@@ -3043,28 +2976,39 @@ const DebtPlanning = () => {
           </Box>
         )}
         
+        {/* Toggle individual debt rows */}
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Button
+            variant={showIndividualDebts ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setShowIndividualDebts(!showIndividualDebts)}
+            sx={{
+              ...(showIndividualDebts && { bgcolor: TABLE_COLORS.header.bg, '&:hover': { bgcolor: '#0d5c55' } }),
+            }}
+          >
+            {showIndividualDebts ? 'Hide individual debts' : 'Show individual debts'}
+          </Button>
+          <Typography variant="caption" color="text.secondary">
+            {showIndividualDebts ? 'Showing each debt account' : 'Showing summary rows only'}
+          </Typography>
+        </Box>
+
         {/* Debt Payoff Timeline AG-Grid - Same format as Budget Projection */}
         <Box 
           sx={{
             width: '100%', 
             borderRadius: 3,
             overflow: 'visible',
-            background: isDarkMode ? '#2a2a2a' : 'rgba(255, 255, 255, 0.8)',
-            border: '1px solid rgba(0, 0, 0, 0.1)',
+            background: TABLE_COLORS.gridBg,
+            border: `1px solid ${TABLE_COLORS.border}`,
             position: 'relative',
             '& .ag-theme-alpine': {
-              ...(isDarkMode && {
-                '--ag-background-color': '#2a2a2a',
-                '--ag-odd-row-background-color': '#2a2a2a',
-                '--ag-row-hover-color': '#3a3a3a',
-                '--ag-selected-row-background-color': '#3a3a3a',
-                '--ag-border-color': '#404040',
-                '--ag-foreground-color': '#ffffff',
-                '--ag-secondary-foreground-color': '#cccccc',
-              }),
+              '--ag-background-color': TABLE_COLORS.gridBg,
+              '--ag-odd-row-background-color': TABLE_COLORS.gridBg,
+              '--ag-border-color': TABLE_COLORS.border,
               '& .ag-header': {
-                backgroundColor: theme.palette.primary.main,
-                color: theme.palette.primary.contrastText,
+                backgroundColor: TABLE_COLORS.header.bg,
+                color: TABLE_COLORS.header.text,
                 '& .ag-header-cell': {
                   borderRight: '1px solid rgba(255, 255, 255, 0.2)',
                   padding: '12px 8px',
@@ -3095,169 +3039,115 @@ const DebtPlanning = () => {
                   background: 'transparent !important'
                 },
                 
-                // PAST MONTHS - Muted row colors with reduced opacity
+                // PAST MONTHS - Soft muted slate
                 '& .ag-cell.principal-paid-row.historical-column': {
-                  backgroundColor: 'rgba(25, 118, 210, 0.3) !important',
-                  background: 'rgba(25, 118, 210, 0.3) !important',
-                  color: 'white !important',
-                  fontWeight: '600 !important',
-                  opacity: '0.6 !important'
+                  backgroundColor: `${TABLE_COLORS.principalPaid.bg}40 !important`,
+                  color: '#fff !important',
+                  fontWeight: '600 !important'
                 },
-                
                 '& .ag-cell.interest-paid-row.historical-column': {
-                  backgroundColor: 'rgba(66, 165, 245, 0.3) !important',
-                  background: 'rgba(66, 165, 245, 0.3) !important',
-                  color: 'white !important',
-                  fontWeight: '600 !important',
-                  opacity: '0.6 !important'
+                  backgroundColor: `${TABLE_COLORS.interestPaid.bg}40 !important`,
+                  color: '#fff !important',
+                  fontWeight: '600 !important'
                 },
-                
                 '& .ag-cell.remaining-debt-row.historical-column': {
-                  backgroundColor: 'rgba(255, 193, 7, 0.4) !important',
-                  background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.4) 0%, rgba(255, 152, 0, 0.4) 100%) !important',
-                  color: '#000000 !important',
-                  fontWeight: 'bold !important',
-                  fontSize: '1rem !important',
-                  opacity: '0.6 !important'
+                  backgroundColor: `${TABLE_COLORS.remainingDebt.bg}60 !important`,
+                  color: TABLE_COLORS.remainingDebt.text + ' !important',
+                  fontWeight: 'bold !important'
                 },
-                
                 '& .ag-cell.debt-row.historical-column': {
-                  backgroundColor: 'rgba(244, 67, 54, 0.3) !important',
-                  background: 'rgba(244, 67, 54, 0.3) !important',
-                  color: 'white !important',
-                  fontWeight: '600 !important',
-                  opacity: '0.6 !important'
+                  backgroundColor: TABLE_COLORS.debtRow.bg + ' !important',
+                  color: TABLE_COLORS.debtRow.text + ' !important',
+                  fontWeight: '600 !important'
                 },
-                
-                // CURRENT MONTH - Timeline Anchor with row colors + neutral emphasis
+                // CURRENT MONTH - Emphasized
                 '& .ag-cell.principal-paid-row.current-column': {
-                  backgroundColor: '#1976d2 !important',
-                  background: '#1976d2 !important',
-                  color: 'white !important',
+                  backgroundColor: TABLE_COLORS.principalPaid.bg + ' !important',
+                  color: '#fff !important',
                   fontWeight: 'bold !important',
-                  borderLeft: '3px solid #374151 !important',
-                  borderRight: '3px solid #374151 !important',
-                  boxShadow: 'inset 0 0 0 2px rgba(55, 65, 81, 0.3) !important'
+                  borderLeft: `2px solid ${TABLE_COLORS.header.bg} !important`,
+                  borderRight: `2px solid ${TABLE_COLORS.header.bg} !important`
                 },
-                
                 '& .ag-cell.interest-paid-row.current-column': {
-                  backgroundColor: '#42a5f5 !important',
-                  background: '#42a5f5 !important',
-                  color: 'white !important',
+                  backgroundColor: TABLE_COLORS.interestPaid.bg + ' !important',
+                  color: '#fff !important',
                   fontWeight: 'bold !important',
-                  borderLeft: '3px solid #374151 !important',
-                  borderRight: '3px solid #374151 !important',
-                  boxShadow: 'inset 0 0 0 2px rgba(55, 65, 81, 0.3) !important'
+                  borderLeft: `2px solid ${TABLE_COLORS.header.bg} !important`,
+                  borderRight: `2px solid ${TABLE_COLORS.header.bg} !important`
                 },
-                
                 '& .ag-cell.remaining-debt-row.current-column': {
-                  backgroundColor: 'rgba(255, 193, 7, 0.8) !important',
-                  background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.9) 0%, rgba(255, 152, 0, 0.9) 100%) !important',
-                  color: '#000000 !important',
+                  backgroundColor: TABLE_COLORS.remainingDebt.bg + ' !important',
+                  color: '#fff !important',
                   fontWeight: 'bold !important',
-                  fontSize: '1.2rem !important',
-                  borderLeft: '3px solid #374151 !important',
-                  borderRight: '3px solid #374151 !important',
-                  boxShadow: 'inset 0 0 0 2px rgba(55, 65, 81, 0.3) !important',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.1) !important'
+                  fontSize: '1.1rem !important',
+                  borderLeft: `2px solid ${TABLE_COLORS.header.bg} !important`,
+                  borderRight: `2px solid ${TABLE_COLORS.header.bg} !important`
                 },
-                
                 '& .ag-cell.debt-row.current-column': {
-                  backgroundColor: '#f44336 !important',
-                  background: '#f44336 !important',
-                  color: 'white !important',
+                  backgroundColor: TABLE_COLORS.debtRow.bgLight + ' !important',
+                  color: TABLE_COLORS.debtRow.text + ' !important',
                   fontWeight: 'bold !important',
-                  borderLeft: '3px solid #374151 !important',
-                  borderRight: '3px solid #374151 !important',
-                  boxShadow: 'inset 0 0 0 2px rgba(55, 65, 81, 0.3) !important'
+                  borderLeft: `2px solid ${TABLE_COLORS.header.bg} !important`,
+                  borderRight: `2px solid ${TABLE_COLORS.header.bg} !important`
                 },
-                
-                // FUTURE MONTHS - Row colors with optimistic tint
+                // FUTURE MONTHS - Lighter
                 '& .ag-cell.principal-paid-row.future-column': {
-                  backgroundColor: 'rgba(25, 118, 210, 0.7) !important',
-                  background: 'rgba(25, 118, 210, 0.7) !important',
-                  color: 'white !important',
+                  backgroundColor: `${TABLE_COLORS.principalPaid.bg}99 !important`,
+                  color: '#fff !important',
                   fontWeight: '600 !important'
                 },
-                
                 '& .ag-cell.interest-paid-row.future-column': {
-                  backgroundColor: 'rgba(66, 165, 245, 0.7) !important',
-                  background: 'rgba(66, 165, 245, 0.7) !important',
-                  color: 'white !important',
+                  backgroundColor: `${TABLE_COLORS.interestPaid.bg}99 !important`,
+                  color: '#fff !important',
                   fontWeight: '600 !important'
                 },
-                
                 '& .ag-cell.remaining-debt-row.future-column': {
-                  backgroundColor: 'rgba(255, 193, 7, 0.6) !important',
-                  background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.7) 0%, rgba(255, 152, 0, 0.7) 100%) !important',
-                  color: '#000000 !important',
-                  fontWeight: 'bold !important',
-                  fontSize: '1.1rem !important',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.1) !important'
+                  backgroundColor: `${TABLE_COLORS.remainingDebt.bg}80 !important`,
+                  color: '#fff !important',
+                  fontWeight: 'bold !important'
                 },
-                
                 '& .ag-cell.debt-row.future-column': {
-                  backgroundColor: 'rgba(244, 67, 54, 0.7) !important',
-                  background: 'rgba(244, 67, 54, 0.7) !important',
-                  color: 'white !important',
+                  backgroundColor: TABLE_COLORS.debtRow.bg + ' !important',
+                  color: TABLE_COLORS.debtRow.text + ' !important',
                   fontWeight: '600 !important'
                 },
-                
-                // DEBT-FREE MONTH - Celebratory milestone with strong green highlight
+                // DEBT-FREE MONTH - Celebratory
                 '& .ag-cell.debt-free-month': {
-                  backgroundColor: '#bbf7d0 !important',
-                  background: 'linear-gradient(135deg, #bbf7d0 0%, #86efac 100%) !important',
-                  color: '#065f46 !important',
+                  backgroundColor: TABLE_COLORS.debtFree.bgLight + ' !important',
+                  color: TABLE_COLORS.debtFree.text + ' !important',
                   fontWeight: 'bold !important',
-                  fontSize: '1.1rem !important',
-                  border: '3px solid #16a34a !important',
-                  boxShadow: '0 0 15px rgba(34, 197, 94, 0.4) !important',
-                  position: 'relative !important'
+                  border: `2px solid ${TABLE_COLORS.debtFree.bg} !important`
                 },
                 
-                // Add a celebratory badge effect for debt-free month
-                '& .ag-cell.debt-free-month::before': {
-                  content: '"🎉"',
-                  position: 'absolute',
-                  top: '2px',
-                  right: '4px',
-                  fontSize: '12px',
-                  zIndex: '1'
-                },
               },
               '& .ag-pinned-left': {
-                backgroundColor: theme.palette.grey[100],
+                backgroundColor: TABLE_COLORS.debtRow.bg + ' !important',
                 '& .ag-cell': {
-                  backgroundColor: theme.palette.grey[100],
+                  backgroundColor: TABLE_COLORS.debtRow.bg + ' !important',
                   fontWeight: 'bold',
                   justifyContent: 'flex-start'
                 },
                 
                 // Category cell styling
                 '& .remaining-debt-category-cell': {
-                  backgroundColor: 'rgba(255, 193, 7, 0.2) !important',
-                  background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.3) 0%, rgba(255, 152, 0, 0.3) 100%) !important',
-                  border: '2px solid rgba(255, 193, 7, 0.5) !important',
-                  color: '#000000 !important',
-                  fontWeight: 'bold !important',
-                  fontSize: '1rem !important'
+                  backgroundColor: TABLE_COLORS.remainingDebt.bgLight + ' !important',
+                  borderRight: `2px solid ${TABLE_COLORS.remainingDebt.bg} !important`,
+                  color: TABLE_COLORS.remainingDebt.text + ' !important',
+                  fontWeight: 'bold !important'
                 },
                 '& .principal-paid-category-cell': {
-                  backgroundColor: '#1976d2 !important',
-                  background: '#1976d2 !important',
-                  color: 'white !important',
+                  backgroundColor: TABLE_COLORS.principalPaid.bg + ' !important',
+                  color: '#fff !important',
                   fontWeight: '600 !important'
                 },
                 '& .interest-paid-category-cell': {
-                  backgroundColor: '#42a5f5 !important',
-                  background: '#42a5f5 !important',
-                  color: 'white !important',
+                  backgroundColor: TABLE_COLORS.interestPaid.bg + ' !important',
+                  color: '#fff !important',
                   fontWeight: '600 !important'
                 },
                 '& .debt-category-cell': {
-                  backgroundColor: '#f44336 !important',
-                  background: '#f44336 !important',
-                  color: 'white !important',
+                  backgroundColor: TABLE_COLORS.debtRow.bgLight + ' !important',
+                  color: TABLE_COLORS.debtRow.text + ' !important',
                   fontWeight: '600 !important'
                 },
                 '& .other-category-cell': {
@@ -3267,23 +3157,22 @@ const DebtPlanning = () => {
                   fontWeight: 'normal !important'
                 }
               },
-              // Enhanced horizontal scrolling styles
               '& .ag-body-horizontal-scroll': {
-                backgroundColor: theme.palette.grey[200],
+                backgroundColor: TABLE_COLORS.debtRow.bgLight,
                 '& .ag-body-horizontal-scroll-viewport': {
-                  backgroundColor: theme.palette.grey[200]
+                  backgroundColor: TABLE_COLORS.debtRow.bgLight
                 }
               },
               '& .ag-body-horizontal-scroll-minimum': {
-                backgroundColor: theme.palette.grey[200]
+                backgroundColor: TABLE_COLORS.debtRow.bgLight
               }
             }
           }}
         >
           <div className="ag-theme-alpine" style={{ width: '100%', overflowX: 'auto' }}>
             <AgGridReact
-              key={`timeline-grid-${historicalMonthsShown}-${projectionMonths}-${gridUpdateCounter.current}-${gridForceUpdate}`}
-              rowData={gridData}
+              key={`timeline-grid-${historicalMonthsShown}-${projectionMonths}-${gridUpdateCounter.current}-${gridForceUpdate}-${showIndividualDebts}`}
+              rowData={showIndividualDebts ? gridData : gridData.filter(r => r.type !== 'debt')}
               columnDefs={columnDefs}
               domLayout="autoHeight"
               suppressMovableColumns={true}
@@ -3674,6 +3563,82 @@ const DebtPlanning = () => {
                   </Grid>
                 </Grid>
               </Box>
+            );
+          })()}
+          
+          {/* Debt Payoff Charts */}
+          {payoffPlan?.plan?.length > 0 && (() => {
+            const months = generateMonths();
+            const currentIdx = months.findIndex(m => m.type === 'current');
+            const futureMonths = months.filter((_, i) => i >= currentIdx).slice(0, Math.min(24, payoffPlan.plan.length));
+            const labels = futureMonths.map(m => m.label);
+            const remainingDebtData = futureMonths.map((_, i) => {
+              const p = payoffPlan.plan[i];
+              return p?.remainingDebt ?? (p?.debts?.reduce((s, d) => s + (d.balance || 0), 0) ?? 0);
+            });
+            const principalData = futureMonths.map((_, i) => {
+              const p = payoffPlan.plan[i];
+              const paid = p?.totalPaid ?? (p?.debts?.reduce((s, d) => s + (d.paid || 0), 0) ?? 0);
+              const interest = p?.totalInterest ?? (p?.debts?.reduce((s, d) => s + (d.interest || 0), 0) ?? 0);
+              return Math.max(0, paid - interest);
+            });
+            const interestData = futureMonths.map((_, i) => {
+              const p = payoffPlan.plan[i];
+              return p?.totalInterest ?? (p?.debts?.reduce((s, d) => s + (d.interest || 0), 0) ?? 0);
+            });
+            return (
+              <Grid container spacing={3} sx={{ mb: 4 }}>
+                <Grid item xs={12} md={7}>
+                  <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${TABLE_COLORS.border}`, bgcolor: 'background.paper' }}>
+                    <Chart
+                      type="line"
+                      title="Remaining Debt Over Time"
+                      height={280}
+                      data={{
+                        labels,
+                        datasets: [{
+                          label: 'Remaining Debt',
+                          data: remainingDebtData,
+                          fill: true,
+                          borderColor: TABLE_COLORS.remainingDebt.bg,
+                          backgroundColor: TABLE_COLORS.remainingDebt.bg + '30',
+                        }],
+                      }}
+                      options={{
+                        plugins: { legend: { display: false } },
+                        scales: {
+                          y: {
+                            beginAtZero: true,
+                            ticks: { callback: (v) => '$' + (v / 1000) + 'k' },
+                          },
+                        },
+                      }}
+                    />
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} md={5}>
+                  <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: `1px solid ${TABLE_COLORS.border}`, bgcolor: 'background.paper' }}>
+                    <Chart
+                      type="bar"
+                      title="Principal vs Interest Paid (Monthly)"
+                      height={280}
+                      data={{
+                        labels: labels.slice(0, 12),
+                        datasets: [
+                          { label: 'Principal', data: principalData.slice(0, 12), backgroundColor: TABLE_COLORS.principalPaid.bg + 'cc' },
+                          { label: 'Interest', data: interestData.slice(0, 12), backgroundColor: TABLE_COLORS.interestPaid.bg + 'cc' },
+                        ],
+                      }}
+                      options={{
+                        scales: {
+                          x: { stacked: true },
+                          y: { stacked: true, beginAtZero: true },
+                        },
+                      }}
+                    />
+                  </Paper>
+                </Grid>
+              </Grid>
             );
           })()}
           
