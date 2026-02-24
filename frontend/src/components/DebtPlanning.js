@@ -71,22 +71,22 @@ const DEBT_COLORS = {
   header: { gradient: 'linear-gradient(135deg, #0F766E 0%, #134E4A 100%)' },
 };
 
-// Table colors - unified teal/slate palette (cohesive, not random)
+// Table colors - slate/amber/blue palette (no teal or purple; works with red/blue elsewhere)
 const TABLE_COLORS = {
-  header: { bg: '#0F766E', text: '#fff' },
-  // Time periods: subtle variations
-  historical: { bg: 'rgba(148, 163, 184, 0.15)', text: '#475569' },
-  current: { bg: 'rgba(13, 148, 136, 0.12)', text: '#0f766e', accent: '#0d9488' },
+  header: { bg: '#334155', text: '#fff' },
+  // Time periods: subtle gray
+  historical: { bg: 'rgba(148, 163, 184, 0.18)', text: '#475569' },
+  current: { bg: 'rgba(59, 130, 246, 0.12)', text: '#1d4ed8', accent: '#2563eb' },
   future: { bg: 'rgba(148, 163, 184, 0.12)', text: '#475569' },
-  // Row types: soft tints for category column only
-  remainingDebt: { tint: 'rgba(245, 158, 11, 0.15)', text: '#92400e', bg: '#f59e0b', bgLight: '#fef3c7' },
-  principalPaid: { tint: 'rgba(14, 165, 233, 0.12)', text: '#0369a1', bg: '#0ea5e9' },
-  interestPaid: { tint: 'rgba(139, 92, 246, 0.1)', text: '#6d28d9', bg: '#8b5cf6' },
+  // Row types: amber (debt), blue (principal), slate (interest) - no purple/teal
+  remainingDebt: { tint: 'rgba(245, 158, 11, 0.18)', text: '#92400e', bg: '#f59e0b', bgLight: '#fef3c7' },
+  principalPaid: { tint: 'rgba(59, 130, 246, 0.12)', text: '#1d4ed8', bg: '#2563eb' },
+  interestPaid: { tint: 'rgba(100, 116, 139, 0.15)', text: '#475569', bg: '#64748b' },
   income: { tint: 'rgba(34, 197, 94, 0.12)', text: '#15803d' },
-  debtRow: { tint: 'rgba(100, 116, 139, 0.08)', text: '#475569', bg: '#f8fafc', bgLight: '#f1f5f9' },
+  debtRow: { tint: 'rgba(100, 116, 139, 0.08)', text: '#475569', bg: '#e2e8f0', bgLight: '#f1f5f9' },
   debtFree: { tint: 'rgba(34, 197, 94, 0.15)', text: '#15803d', bg: '#22c55e', bgLight: '#dcfce7' },
-  gridBg: '#ffffff',
-  border: 'rgba(203, 213, 225, 0.8)',
+  gridBg: '#e2e8f0',
+  border: 'rgba(148, 163, 184, 0.6)',
   cellPadding: 12,
 };
 
@@ -1683,11 +1683,12 @@ const DebtPlanning = () => {
         pinned: 'left',
         editable: false,
         sortable: false,
-        minWidth: 260,
-        width: 260,
+        minWidth: 180,
+        width: 200,
         flex: 0,
         resizable: true,
         wrapText: true,
+        wrapHeaderText: true,
         cellClass: params => {
           if (params.data.category === 'Net Savings') return 'net-savings-category-cell';
           if (params.data.category === 'Remaining Debt') return 'remaining-debt-category-cell';
@@ -1730,7 +1731,9 @@ const DebtPlanning = () => {
       columnDefs.push({
         headerName: month.label,
         field: `month_${idx}`,
-        width: 120,
+        width: 130,
+        minWidth: 130,
+        wrapHeaderText: true,
         sortable: false,
         editable: params => {
           if (params.data.category === 'Net Savings') return false;
@@ -2097,7 +2100,7 @@ const DebtPlanning = () => {
             boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
             '& .ag-theme-alpine': {
               '--ag-background-color': TABLE_COLORS.gridBg,
-              '--ag-odd-row-background-color': '#fafafa',
+              '--ag-odd-row-background-color': '#f1f5f9',
               '--ag-border-color': TABLE_COLORS.border,
               '--ag-row-hover-color': 'rgba(13, 148, 136, 0.04)',
               '& .ag-header': {
@@ -2207,11 +2210,12 @@ const DebtPlanning = () => {
                 resizable: true, 
                 suppressSizeToFit: true, 
                 sortable: false,
-                minWidth: 110, 
-                width: 120, 
-                flex: 0
+                minWidth: 125, 
+                width: 130, 
+                flex: 0,
+                wrapHeaderText: true
               }}
-              headerHeight={44}
+              headerHeight={52}
               rowHeight={56}
               cellSelection={false}
               rowSelection={{ enableClickSelection: false }}
@@ -2754,11 +2758,12 @@ const DebtPlanning = () => {
         pinned: 'left',
         editable: false,
         sortable: false,
-        minWidth: 260,
-        width: 260,
+        minWidth: 180,
+        width: 200,
         flex: 0,
         resizable: true,
         wrapText: true,
+        wrapHeaderText: true,
         cellClass: params => {
           if (params.data.category === 'Remaining Debt') return 'remaining-debt-category-cell';
           if (params.data.category === 'Principal Paid Down') return 'principal-paid-category-cell';
@@ -2797,7 +2802,9 @@ const DebtPlanning = () => {
       columnDefs.push({
         headerName: month.label,
         field: `month_${idx}`,
-        width: 120,
+        width: 130,
+        minWidth: 130,
+        wrapHeaderText: true,
         sortable: false,
         editable: false, // Timeline grid is read-only
         cellClass: params => {
@@ -2972,7 +2979,7 @@ const DebtPlanning = () => {
             boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
             '& .ag-theme-alpine': {
               '--ag-background-color': TABLE_COLORS.gridBg,
-              '--ag-odd-row-background-color': '#fafafa',
+              '--ag-odd-row-background-color': '#f1f5f9',
               '--ag-border-color': TABLE_COLORS.border,
               '& .ag-header': {
                 backgroundColor: TABLE_COLORS.header.bg,
@@ -3037,11 +3044,12 @@ const DebtPlanning = () => {
                 resizable: true, 
                 suppressSizeToFit: true, 
                 sortable: false,
-                minWidth: 110, 
-                width: 120, 
-                flex: 0
+                minWidth: 125, 
+                width: 130, 
+                flex: 0,
+                wrapHeaderText: true
               }}
-              headerHeight={44}
+              headerHeight={52}
               rowHeight={56}
               cellSelection={false}
               rowSelection={{ enableClickSelection: false }}
